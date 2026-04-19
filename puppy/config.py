@@ -43,4 +43,11 @@ class ConfigSynthesizer:
         config: dict = {}
         for layer in layers:
             config = _deep_merge(config, _load_yaml(layer))
+
+        images_yaml = project_puppy / "images" / "images.yaml"
+        if images_yaml.exists():
+            images = yaml.safe_load(images_yaml.read_text()) or []
+            if images:
+                config["images"] = images
+
         return config

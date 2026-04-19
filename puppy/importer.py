@@ -92,7 +92,15 @@ def _harvest_yaml(project: Project, result_data: dict, puppy_dir: Path, site: st
             config[key] = imported[key]
 
     if imported.get("images"):
-        config["images"] = imported["images"]
+        images = [
+            {**img, "file": img["file"].strip("_")} if "file" in img else img
+            for img in imported["images"]
+        ]
+        images_yaml = puppy_dir / "images" / "images.yaml"
+        images_yaml.parent.mkdir(parents=True, exist_ok=True)
+        with images_yaml.open("w") as f:
+            yaml.dump(images, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        config.pop("images", None)
 
     # Platform IDs/slugs and site-specific config
     for s in SITES:
@@ -117,7 +125,10 @@ def _harvest_images(project_worker_dir: Path, puppy_dir: Path) -> None:
     dest = puppy_dir / "images"
     if dest.exists():
         shutil.rmtree(dest)
-    shutil.copytree(src, dest)
+    dest.mkdir(parents=True)
+    for img in src.iterdir():
+        clean_name = img.stem.strip("_") + img.suffix
+        shutil.copy(img, dest / clean_name)
 
 
 def _harvest_templates(project_worker_dir: Path, puppy_dir: Path, site: str | None) -> None:

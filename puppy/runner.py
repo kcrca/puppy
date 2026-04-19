@@ -143,5 +143,8 @@ def _dispatch(action, project, config, version, auth, puppy_home, site, verbosit
     if action == "import":
         from puppy.importer import run_import
         run_import(project=project, config=config, worker_dir=WORKER_DIR, site=site, verbosity=verbosity)
+    elif action == "create":
+        from puppy.creator import run_create
+        run_create(project=project, config=config, worker_dir=WORKER_DIR, site=site, verbosity=verbosity)
     else:
         raise NotImplementedError(f"action '{action}' not yet implemented")
