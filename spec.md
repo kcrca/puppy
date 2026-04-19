@@ -42,12 +42,7 @@ Puppy can be invoked from:
 `puppy [options] [action]`
 
 ### **4.1 Actions**
-* **`sync` (Default):** Updates metadata, summaries, descriptions, and icons.
-* **`publish`:** Performs a full `sync` plus artifact upload. Requires `--version` or `version:` in `puppy.yaml`. Upload is skipped per-site if the artifact is already current; skip logic varies by platform:
-  * **Modrinth:** Compares SHA-512 hash of local zip against the hash stored in the latest version's file listing.
-  * **CurseForge:** Compares both version string and file size (bytes) against the most recent uploaded file; uploads if either differs.
-  * **Planet Minecraft:** Compares version string only (no file metadata available via API).
-  * **`-f/--force`:** Bypasses skip logic and uploads unconditionally on all sites.
+* **`push` (Default):** Updates metadata, summaries, descriptions, and icons. With `-p/--pack`, also uploads the zip artifact. Requires `version:` in `puppy.yaml` or `-V/--version` when using `-p`.
 * **`create`:** Registers projects on sites with missing IDs. **Requires `--create` flag.**
 * **`import`:** Pulls live site data and reverse-migrates to local files. Writes to `puppy.yaml` and `puppy/images/images.yaml`. Does **not** create description templates (those are created by `init`). **Description body text import varies by platform:**
   * **Modrinth:** Full description body imported via API.
@@ -60,7 +55,12 @@ Puppy can be invoked from:
 * **`-v` / `-vv`:** High-level progress (`-v`) or raw worker stdout/stderr (`-vv`).
 * **`-d/--dir [path]`:** Sets working directory. Defaults to CWD.
 * **`-s/--site [sitename]`:** Limits action to a specific site (e.g. `modrinth`, `curseforge`, `planetminecraft`).
-* **`-V/--version [string]`:** Version string for `publish`. Falls back to `version:` in `puppy.yaml`. Artifact matched via `{project}*{version}.zip` where version must be the last component before `.zip`.
+* **`-V/--version [string]`:** Version string override. Falls back to `version:` in `puppy.yaml`. Artifact matched via `{project}*{version}.zip` where version must be the last component before `.zip`.
+* **`-p/--pack`:** Include zip artifact upload in `push`. Requires `minecraft:` or `versions:` in `puppy.yaml`. Upload is skipped per-site if the artifact is already current:
+  * **Modrinth:** Compares SHA-512 hash of local zip against the hash stored in the latest version's file listing.
+  * **CurseForge:** Compares both version string and file size (bytes) against the most recent uploaded file; uploads if either differs.
+  * **Planet Minecraft:** Compares version string against last version recorded in `puppy/.publish_state.yaml`.
+* **`-f/--force`:** With `-p`, bypasses skip logic and uploads unconditionally on all sites.
 * **`--create`:** Required flag to enable the `create` action.
 
 ## **5. Cascading Configuration & Discovery**
@@ -76,6 +76,9 @@ curseforge:
 modrinth: <token>
 planetminecraft: pmc_autologin=<cookie>
 ```
+
+### **5.0.1 minecraft: shorthand**
+`minecraft:` sets the Minecraft game version for artifact uploads across all sites. A string value is treated as an exact version (`minecraft: '26.1'` → `type: exact, version: '26.1'`). A dict value is used as-is (`minecraft: {type: latest}`). Per-site overrides via `versions:` take precedence. Required when using `push --pack` unless `versions:` is fully specified.
 
 ### **5.1 Config Merge (Additive Synthesis)**
 Layers applied in order (later layers win for scalars; dicts merge additively):

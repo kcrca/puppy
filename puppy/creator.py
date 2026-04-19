@@ -61,6 +61,15 @@ def _validate_square(icon: Path) -> None:
         raise SystemExit(f"Icon {icon.name} must be square ({width}x{height})")
 
 
+def _expand_versions(config: dict) -> dict:
+    minecraft = config.get("minecraft")
+    explicit = config.get("versions", {})
+    if not minecraft:
+        return explicit
+    base = {"type": "exact", "version": str(minecraft)} if not isinstance(minecraft, dict) else minecraft
+    return {s: explicit.get(s, base) for s in SITES}
+
+
 def _build_config(project: Project, config: dict) -> dict:
     def _site_config(s: str) -> dict:
         return {k: v for k, v in config.get(s, {}).items() if k not in ("id", "slug")}
@@ -74,7 +83,7 @@ def _build_config(project: Project, config: dict) -> dict:
         "video": config.get("video", False),
         "github": config.get("github", False),
         "version": config.get("version", "1.0.0"),
-        "versions": config.get("versions", {}),
+        "versions": _expand_versions(config),
         "images": config.get("images", []),
         "curseforge": _site_config("curseforge"),
         "planetminecraft": _site_config("planetminecraft"),

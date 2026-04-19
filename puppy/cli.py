@@ -11,9 +11,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "action",
         nargs="?",
-        default="sync",
-        choices=["sync", "publish", "create", "import", "init"],
-        help="Action to perform (default: sync).",
+        default="push",
+        choices=["push", "create", "import", "init"],
+        help="Action to perform (default: push).",
     )
 
     parser.add_argument(
@@ -57,7 +57,21 @@ def build_parser() -> argparse.ArgumentParser:
         dest="version",
         default=None,
         metavar="STRING",
-        help="Version string for publish; falls back to version: in puppy.yaml.",
+        help="Version string override; falls back to version: in puppy.yaml.",
+    )
+
+    parser.add_argument(
+        "-p", "--pack",
+        action="store_true",
+        dest="pack",
+        help="Include zip artifact upload in push.",
+    )
+
+    parser.add_argument(
+        "-f", "--force",
+        action="store_true",
+        dest="force",
+        help="With -p, bypass per-site skip checks and upload unconditionally.",
     )
 
     parser.add_argument(
@@ -87,6 +101,8 @@ def main(argv: list[str] | None = None) -> None:
         verbosity=args.verbosity,
         site=args.site,
         version=args.version,
+        pack=args.pack,
+        force=args.force,
     )
 
 

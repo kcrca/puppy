@@ -95,6 +95,8 @@ def run(
     verbosity: int,
     site: str | None,
     version: str | None,
+    pack: bool = False,
+    force: bool = False,
 ) -> None:
     if action == "init":
         from puppy.init import run_init
@@ -111,11 +113,12 @@ def run(
         project = Project.from_config(project_root, config)
 
         resolved_version = version or config.get("version")
-        if action == "publish" and not resolved_version:
-            raise SystemExit(f"[{project.name}] publish requires --version or version: in puppy.yaml")
+        if action == "push" and pack and not resolved_version:
+            raise SystemExit(f"[{project.name}] push --pack requires --version or version: in puppy.yaml")
 
         if verbosity >= 1:
-            print(f"[{project.name}] {action}" + (f" v{resolved_version}" if resolved_version else ""))
+            label = action + (" --pack" if action == "push" and pack else "")
+            print(f"[{project.name}] {label}" + (f" v{resolved_version}" if resolved_version else ""))
 
         if dry_run:
             _run_dry(action, project, config, resolved_version, verbosity)
@@ -123,7 +126,7 @@ def run(
             _worker_prep(verbosity)
             _write_auth(auth)
             _patch_settings()
-            _dispatch(action, project, config, resolved_version, auth, puppy_home, site, verbosity)
+            _dispatch(action, project, config, resolved_version, auth, puppy_home, site, pack, force, verbosity)
 
 
 def _run_dry(action, project, config, version, verbosity):
@@ -139,15 +142,15 @@ def _run_dry(action, project, config, version, verbosity):
         print(f"[{project.name}] dry-run payload written to {out}")
 
 
-def _dispatch(action, project, config, version, auth, puppy_home, site, verbosity):
+def _dispatch(action, project, config, version, auth, puppy_home, site, pack, force, verbosity):
     if action == "import":
         from puppy.importer import run_import
         run_import(project=project, config=config, auth=auth, worker_dir=WORKER_DIR, site=site, verbosity=verbosity)
     elif action == "create":
         from puppy.creator import run_create
         run_create(project=project, config=config, worker_dir=WORKER_DIR, site=site, verbosity=verbosity)
-    elif action == "sync":
-        from puppy.syncer import run_sync
-        run_sync(project=project, config=config, worker_dir=WORKER_DIR, puppy_home=puppy_home, site=site, verbosity=verbosity)
+    elif action == "push":
+        from puppy.syncer import run_push
+        run_push(project=project, config=config, worker_dir=WORKER_DIR, puppy_home=puppy_home, site=site, version=version, pack=pack, force=force, verbosity=verbosity)
     else:
         raise NotImplementedError(f"action '{action}' not yet implemented")

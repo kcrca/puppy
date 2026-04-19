@@ -26,7 +26,7 @@ _SITE_NAMES = {
 }
 
 
-def run_sync(*, project: Project, config: dict, worker_dir: Path, puppy_home: Path, site: str | None, verbosity: int) -> None:
+def run_push(*, project: Project, config: dict, worker_dir: Path, puppy_home: Path, site: str | None, version: str | None, pack: bool, force: bool, verbosity: int) -> None:
     puppy_dir = project.root / "puppy"
     icon = _resolve_asset(config.get("icon"), puppy_dir, _find_icon)
     _validate_square(icon)
@@ -38,8 +38,13 @@ def run_sync(*, project: Project, config: dict, worker_dir: Path, puppy_home: Pa
 
     _stage(project, config, icon, puppy_dir, worker_dir, site)
     _run_worker(worker_dir, verbosity)
+
+    if pack:
+        from puppy.publisher import upload_pack
+        upload_pack(project=project, config=config, worker_dir=worker_dir, site=site, version=version, force=force, verbosity=verbosity)
+
     if verbosity >= 1:
-        print(f"[{project.name}] sync complete")
+        print(f"[{project.name}] push complete")
 
 
 def _stage(
