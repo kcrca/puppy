@@ -1,17 +1,16 @@
 from pathlib import Path
 
 
-# Extension priority per site family
-_HTML_SITES = {"curseforge", "modrinth"}
-_BBCODE_SITES = {"pmc"}
+_EXT_PRIORITY = {
+    "curseforge": [".html", ".md"],
+    "modrinth": [".html", ".md"],
+    "planetminecraft": [".bbcode", ".md"],
+}
+_DEFAULT_EXTS = [".md"]
 
 
 def _extensions_for_site(site: str | None) -> list[str]:
-    if site in _HTML_SITES:
-        return [".html", ".md"]
-    if site in _BBCODE_SITES:
-        return [".bbcode", ".md"]
-    return [".md"]
+    return _EXT_PRIORITY.get(site or "", _DEFAULT_EXTS)
 
 
 class ContentDiscovery:
@@ -19,31 +18,52 @@ class ContentDiscovery:
         self.puppy_home = Path(puppy_home)
         self.project_root = Path(project_root)
 
-    def find_fragment(self, name: str, *, site: str | None = None) -> tuple[str, Path]:
+    def find_fragment(self, name: str, *, site: str | None = None) -> tuple[str, Path] | tuple[None, None]:
         """
         Search order (first match wins):
-          1. YAML strings block  — handled upstream; not searched here
-          2. Project site file   (project/puppy/<site>/<name>)
-          3. Project general     (project/puppy/<name>)
-          4. Global site file    (puppy_home/<site>/<name>)
-          5. Global general      (puppy_home/<name>)
-        Returns (content, path).
+          1. Project site dir   ({project}/puppy/{site}/{name}.{ext})
+          2. Project general    ({project}/puppy/{name}.{ext})
+          3. Global site dir    ({puppy_home}/{site}/{name}.{ext})
+          4. Global general     ({puppy_home}/{name}.{ext})
+        Extension priority per site: .html/.md for CF/Modrinth; .bbcode/.md for PMC; .md otherwise.
         """
         project_puppy = self.project_root / "puppy"
-        extensions = _extensions_for_site(site)
+        exts = _extensions_for_site(site)
 
-        search_dirs: list[Path] = []
+        dirs: list[Path] = []
         if site:
-            search_dirs.append(project_puppy / site)
-        search_dirs.append(project_puppy)
+            dirs.append(project_puppy / site)
+        dirs.append(project_puppy)
         if site:
-            search_dirs.append(self.puppy_home / site)
-        search_dirs.append(self.puppy_home)
+            dirs.append(self.puppy_home / site)
+        dirs.append(self.puppy_home)
 
-        for directory in search_dirs:
-            for ext in extensions:
-                candidate = directory / f"{name}{ext}"
+        for d in dirs:
+            for ext in exts:
+                candidate = d / f"{name}{ext}"
                 if candidate.exists():
                     return candidate.read_text(), candidate
 
-        raise FileNotFoundError(f"Fragment '{name}' not found for site '{site}'")
+        return None, None
+
+    def find_description(self, *, site: str | None = None) -> tuple[str, Path] | tuple[None, None]:
+        """
+        Find description body. Checks site-specific 'body' override first,
+        then falls back to general 'description' at project and global levels.
+        """
+        project_puppy = self.project_root / "puppy"
+        exts = _extensions_for_site(site)
+
+        if site:
+            for ext in exts:
+                candidate = project_puppy / site / f"body{ext}"
+                if candidate.exists():
+                    return candidate.read_text(), candidate
+
+        for directory in (project_puppy, self.puppy_home):
+            for ext in exts:
+                candidate = directory / f"description{ext}"
+                if candidate.exists():
+                    return candidate.read_text(), candidate
+
+        return None, None

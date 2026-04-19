@@ -8,6 +8,9 @@ version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = ["pyyaml", "jinja2"]
 
+[project.optional-dependencies]
+test = ["pytest", "pyyaml"]
+
 [project.scripts]
 puppy = "puppy.cli:main"
 

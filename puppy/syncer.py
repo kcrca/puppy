@@ -11,7 +11,8 @@ from puppy.creator import (
     _resolve_asset,
     _validate_square,
 )
-from puppy.renderer import find_description, substitute
+from puppy.renderer import render
+from puppy.searcher import ContentDiscovery
 
 _TEMPLATE_EXT = {
     "curseforge": ".html",
@@ -31,10 +32,11 @@ def run_push(*, project: Project, config: dict, worker_dir: Path, puppy_home: Pa
     icon = _resolve_asset(config.get("icon"), puppy_dir, _find_icon)
     _validate_square(icon)
 
-    body, source = find_description(puppy_dir, puppy_home)
+    discovery = ContentDiscovery(puppy_home, project.root)
+    body, source = discovery.find_description(site=site)
     if body:
         config = dict(config)
-        config["description"] = [substitute(body, config, source=source)]
+        config["description"] = [render(body, config, discovery=discovery, site=site, source=str(source))]
 
     _stage(project, config, icon, puppy_dir, worker_dir, site)
     _run_worker(worker_dir, verbosity)

@@ -121,7 +121,7 @@ def run(
             print(f"[{project.name}] {label}" + (f" v{resolved_version}" if resolved_version else ""))
 
         if dry_run:
-            _run_dry(action, project, config, resolved_version, verbosity)
+            _run_dry(action, project, config, resolved_version, verbosity, puppy_home, site)
         else:
             _worker_prep(verbosity)
             _write_auth(auth)
@@ -129,17 +129,33 @@ def run(
             _dispatch(action, project, config, resolved_version, auth, puppy_home, site, pack, force, verbosity)
 
 
-def _run_dry(action, project, config, version, verbosity):
+def _run_dry(action, project, config, version, verbosity, puppy_home, site):
     import shutil
+    from puppy.renderer import render
+    from puppy.searcher import ContentDiscovery
+    from puppy.syncer import _TEMPLATE_EXT
+
     debug_dir = Path(tempfile.gettempdir()) / "puppy" / project.pack
     if debug_dir.exists():
         shutil.rmtree(debug_dir)
     debug_dir.mkdir(parents=True)
-    payload = {"action": action, "version": version, "config": config}
-    out = debug_dir / f"{action}.json"
-    out.write_text(json.dumps(payload, indent=2))
+
+    (debug_dir / "config.json").write_text(json.dumps(config, indent=2, default=str))
+
+    if action in ("push",):
+        discovery = ContentDiscovery(puppy_home, project.root)
+        sites = [s for s in _TEMPLATE_EXT if not site or s == site]
+        for s in sites:
+            body, source = discovery.find_description(site=s)
+            if body:
+                rendered = render(body, config, discovery=discovery, site=s, source=str(source))
+                ext = _TEMPLATE_EXT[s]
+                out = debug_dir / s / f"description{ext}"
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(rendered)
+
     if verbosity >= 1:
-        print(f"[{project.name}] dry-run payload written to {out}")
+        print(f"[{project.name}] dry-run output written to {debug_dir}")
 
 
 def _dispatch(action, project, config, version, auth, puppy_home, site, pack, force, verbosity):

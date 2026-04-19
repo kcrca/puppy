@@ -1,4 +1,4 @@
-from pathlib import Path
+import re
 
 from jinja2 import Environment, Undefined
 
@@ -12,14 +12,22 @@ class _WarnUndefined(Undefined):
 _env = Environment(undefined=_WarnUndefined)
 
 
-def substitute(text: str, config: dict, source: str = "<description>") -> str:
+def _expand_snippets(text: str, discovery, site: str | None) -> str:
+    def replace(m: re.Match) -> str:
+        name = m.group(1).strip()
+        content, _ = discovery.find_fragment(name, site=site)
+        if content is not None:
+            return content
+        print(f"WARNING: snippet '{name}' not found")
+        return m.group(0)
+    return re.sub(r'\{\{\s*snippet:(\w+)\s*\}\}', replace, text)
+
+
+def render(text: str, config: dict, *, discovery=None, site: str | None = None, source: str = "<description>") -> str:
+    if discovery:
+        text = _expand_snippets(text, discovery, site)
     return _env.from_string(text).render(config)
 
 
-def find_description(puppy_dir: Path, puppy_home: Path) -> tuple[str, str] | tuple[None, None]:
-    for directory in (puppy_dir, puppy_home):
-        for ext in (".md", ".html", ".bbcode"):
-            candidate = directory / f"description{ext}"
-            if candidate.exists():
-                return candidate.read_text(), str(candidate)
-    return None, None
+def substitute(text: str, config: dict, source: str = "<description>") -> str:
+    return render(text, config, source=source)

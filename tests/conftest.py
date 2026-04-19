@@ -1,30 +1,38 @@
 import pytest
+import yaml
+from pathlib import Path
 
 
 @pytest.fixture
-def puppy_env(tmp_path):
-    """
-    Sets up the standard dual-layer directory structure:
-      <tmp>/puppy/                           (Global puppy home)
-      <tmp>/puppy/NeonGlow/                  (Project root)
-      <tmp>/puppy/NeonGlow/puppy/            (Project puppy dir)
-      <tmp>/puppy/NeonGlow/puppy/curseforge/ (Project site dir)
-    """
-    home = tmp_path / "puppy"
-    home.mkdir()
+def project_env(tmp_path, monkeypatch):
+    """Creates the 'Global > Home > Project' structure from the spec."""
+    root = tmp_path / "neon"
+    home = root / "puppy"
+    project = home / "NeonGlow"
+    source = project / "puppy"
 
-    project_root = home / "NeonGlow"
-    project_root.mkdir()
+    for d in [home, project, source]:
+        d.mkdir(parents=True)
 
-    project_puppy = project_root / "puppy"
-    project_puppy.mkdir()
+    (home / ".gitignore").write_text("auth.yaml\n")
+    (home / "auth.yaml").write_text(yaml.dump({
+        "modrinth": "token123",
+        "curseforge": {"token": "cf456"},
+    }))
 
-    project_cf = project_puppy / "curseforge"
-    project_cf.mkdir()
+    monkeypatch.chdir(project)
 
-    return {
-        "home": home,
-        "project_root": project_root,
-        "project_puppy": project_puppy,
-        "project_cf": project_cf,
-    }
+    return {"root": root, "home": home, "project": project, "source": source}
+
+
+@pytest.fixture
+def run_puppy(monkeypatch):
+    """Invokes the CLI directly via the entry point."""
+    def _run(*args):
+        import puppy.__main__
+        monkeypatch.setattr("sys.argv", ["puppy"] + list(args))
+        try:
+            return puppy.__main__.main()
+        except SystemExit as e:
+            return e.code
+    return _run
