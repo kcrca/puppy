@@ -3,7 +3,7 @@ from pathlib import Path
 
 _AUTH_YAML = """\
 # auth.yaml — API credentials. NEVER commit this file.
-# See puppy/.gitignore — auth.yaml must be listed there or puppy will refuse to run.
+# Listed in .gitignore — puppy will refuse to run if it is not.
 
 curseforge:
   token: YOUR_CURSEFORGE_API_TOKEN
@@ -24,9 +24,19 @@ def _derive_identity(directory: Path) -> tuple[str, str]:
     return dir_name, dir_name.lower()
 
 
-def _puppy_yaml(name: str, pack: str) -> str:
+def _global_puppy_yaml(name: str) -> str:
     return f"""\
-# puppy.yaml — project configuration.
+# Global puppy.yaml — defaults that apply to all projects.
+# Place site-specific overrides in puppy/[sitename]/puppy.yaml.
+
+projects:
+  - {name}
+"""
+
+
+def _project_puppy_yaml(name: str, pack: str) -> str:
+    return f"""\
+# puppy.yaml — project configuration for {name}.
 
 name: {name}
 pack: {pack}
@@ -57,12 +67,20 @@ planetminecraft:
 
 def run_init(directory: Path) -> None:
     name, pack = _derive_identity(directory)
-    puppy_dir = directory / "puppy"
-    puppy_dir.mkdir(parents=True, exist_ok=True)
 
-    _write_if_missing(puppy_dir / "puppy.yaml", _puppy_yaml(name, pack))
-    _write_if_missing(puppy_dir / "auth.yaml", _AUTH_YAML)
-    _write_if_missing(puppy_dir / ".gitignore", _GITIGNORE)
+    # Puppy home: {directory}/puppy/
+    puppy_home = directory / "puppy"
+    puppy_home.mkdir(parents=True, exist_ok=True)
+
+    _write_if_missing(puppy_home / "auth.yaml", _AUTH_YAML)
+    _write_if_missing(puppy_home / ".gitignore", _GITIGNORE)
+    _write_if_missing(puppy_home / "puppy.yaml", _global_puppy_yaml(name))
+
+    # Project source: {directory}/puppy/{name}/puppy/
+    project_source = puppy_home / name / "puppy"
+    project_source.mkdir(parents=True, exist_ok=True)
+
+    _write_if_missing(project_source / "puppy.yaml", _project_puppy_yaml(name, pack))
 
 
 def _write_if_missing(path: Path, content: str) -> None:

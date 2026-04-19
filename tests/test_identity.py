@@ -45,3 +45,24 @@ def test_override_both(puppy_env):
     p = Project(puppy_env["project_root"], override_name="My Pack", override_pack="mypack")
     assert p.name == "My Pack"
     assert p.pack == "mypack"
+
+
+def test_from_config_writes_back_missing_fields(puppy_env):
+    from puppy.core import Project
+    import yaml
+
+    puppy_yaml = puppy_env["project_puppy"] / "puppy.yaml"
+
+    # Only name provided — pack should be derived and written back
+    puppy_yaml.write_text("name: NeonGlow\n")
+    p = Project.from_config(puppy_env["project_root"], {"name": "NeonGlow"})
+    assert p.pack == "neonglow"
+    config = yaml.safe_load(puppy_yaml.read_text())
+    assert config["pack"] == "neonglow"
+
+    # Only pack provided — name should be derived and written back
+    puppy_yaml.write_text("pack: clean\n")
+    p2 = Project.from_config(puppy_env["project_root"], {"pack": "clean"})
+    assert p2.name == "Clean"
+    config2 = yaml.safe_load(puppy_yaml.read_text())
+    assert config2["name"] == "Clean"

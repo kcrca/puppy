@@ -1,3 +1,4 @@
+import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -7,32 +8,66 @@ from puppy.config import ConfigSynthesizer
 from puppy.core import Project
 
 
-WORKER_DIR = Path.home() / "PackUpdate"
+WORKER_DIR = Path.home() / "PackUploader"
 
 
-def _resolve_projects(directory: Path, puppy_home: Path) -> list[Path]:
+def _resolve_projects(puppy_home: Path) -> list[Path]:
     from puppy.config import _load_yaml
     config = _load_yaml(puppy_home / "puppy.yaml")
-    names = config.get("projects", [])
-    if not names:
-        raise SystemExit(
-            f"No projects: list found in {puppy_home / 'puppy.yaml'} — "
-            "add a projects: key to run in batch mode"
-        )
-    roots = []
-    for name in names:
-        root = puppy_home / name
-        if not root.is_dir():
-            raise SystemExit(f"Project directory not found: {root}")
-        roots.append(root)
-    return roots
+    names = config.get("projects")
+    if names:
+        roots = []
+        for name in names:
+            root = puppy_home / name
+            if not root.is_dir():
+                raise SystemExit(f"Project directory not found: {root}")
+            roots.append(root)
+        return roots
+    if config.get("pack") or config.get("name"):
+        # Flat single-project: puppy_home is the project source, parent is the project root
+        return [puppy_home.parent]
+    raise SystemExit(
+        f"Cannot find projects in {puppy_home / 'puppy.yaml'} — "
+        "add a projects: list or a pack:/name: key"
+    )
 
 
 def _determine_roots(directory: Path) -> tuple[Path, list[Path]]:
-    """Return (puppy_home, [project_roots])."""
+    """Return (puppy_home, [project_roots]).
+
+    Three valid starting points:
+      Global Root  (e.g. ~/clean)          — has puppy/auth.yaml
+      Puppy Home   (e.g. ~/clean/puppy)    — has auth.yaml directly
+      Project Root (e.g. ~/clean/puppy/Clean) — has puppy/ subdir, no auth.yaml
+    """
+    # Global Root: auth.yaml lives inside the puppy/ subdir
+    if (directory / "puppy" / "auth.yaml").exists():
+        puppy_home = directory / "puppy"
+        return puppy_home, _resolve_projects(puppy_home)
+
+    # Puppy Home itself
+    if (directory / "auth.yaml").exists():
+        return directory, _resolve_projects(directory)
+
+    # Project Root: has a puppy/ subdir (the project source)
     if (directory / "puppy").is_dir():
         return directory.parent, [directory]
-    return directory, _resolve_projects(directory, directory)
+
+    raise SystemExit(
+        f"Cannot determine project structure from {directory}\n"
+        "Run from the global root, puppy home, or a project root."
+    )
+
+
+def _write_auth(auth: dict) -> None:
+    (WORKER_DIR / "auth.json").write_text(json.dumps(auth, indent=2))
+
+
+def _patch_settings() -> None:
+    settings_path = WORKER_DIR / "settings.json"
+    settings = json.loads(settings_path.read_text())
+    settings["ewan"] = False
+    settings_path.write_text(json.dumps(settings, indent=2))
 
 
 def _worker_prep(verbosity: int) -> None:
@@ -72,8 +107,8 @@ def run(
     auth = check_auth(puppy_home)
 
     for project_root in projects:
-        project = Project(project_root)
         config = ConfigSynthesizer(puppy_home, project_root, site=site).get_running_config()
+        project = Project.from_config(project_root, config)
 
         resolved_version = version or config.get("version")
         if action == "publish" and not resolved_version:
@@ -86,11 +121,12 @@ def run(
             _run_dry(action, project, config, resolved_version, verbosity)
         else:
             _worker_prep(verbosity)
+            _write_auth(auth)
+            _patch_settings()
             _dispatch(action, project, config, resolved_version, auth, puppy_home, site, verbosity)
 
 
 def _run_dry(action, project, config, version, verbosity):
-    import json
     import shutil
     debug_dir = Path(tempfile.gettempdir()) / "puppy" / project.pack
     if debug_dir.exists():
@@ -106,6 +142,6 @@ def _run_dry(action, project, config, version, verbosity):
 def _dispatch(action, project, config, version, auth, puppy_home, site, verbosity):
     if action == "import":
         from puppy.importer import run_import
-        run_import(project=project, config=config, worker_dir=WORKER_DIR, verbosity=verbosity)
+        run_import(project=project, config=config, worker_dir=WORKER_DIR, site=site, verbosity=verbosity)
     else:
         raise NotImplementedError(f"action '{action}' not yet implemented")

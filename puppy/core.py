@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import yaml
+
 
 class Project:
     def __init__(self, project_root: Path, override_name: str | None = None, override_pack: str | None = None):
@@ -19,6 +21,35 @@ class Project:
             self.pack = dir_name.lower()
             self.name = dir_name if dir_name != dir_name.lower() else dir_name.title()
 
+    @classmethod
+    def from_config(cls, project_root: Path, config: dict) -> "Project":
+        had_name = "name" in config
+        had_pack = "pack" in config
+
+        project = cls(
+            project_root,
+            override_name=config.get("name"),
+            override_pack=config.get("pack"),
+        )
+
+        if not had_name or not had_pack:
+            _update_yaml(project_root / "puppy" / "puppy.yaml", {
+                "name": project.name,
+                "pack": project.pack,
+            })
+
+        return project
+
     @property
     def puppy_dir(self) -> Path:
         return self.root / "puppy"
+
+
+def _update_yaml(path: Path, updates: dict) -> None:
+    existing = {}
+    if path.exists():
+        with path.open() as f:
+            existing = yaml.safe_load(f) or {}
+    existing.update(updates)
+    with path.open("w") as f:
+        yaml.dump(existing, f, default_flow_style=False, allow_unicode=True, sort_keys=False)

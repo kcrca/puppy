@@ -1,100 +1,124 @@
-# **Puppy Design Specification (Final Production Blueprint)**
+# **Puppy Design Specification**
 
 ## **1. Design Principles**
 * **User-Centric Simplicity:** Defaults favor the user. Puppy acts on all projects and sites unless filtered.
-* **Worker-First Execution:** Puppy acts as a thin management layer for `PackUpdate` (pu). It handles staging, factory-resetting the worker, and dependency checks automatically.
+* **Worker-First Execution:** Puppy acts as a thin management layer for `PackUploader` (`pu`). It handles staging, factory-resetting the worker, and dependency checks automatically.
 * **Implicit Discovery:** Asset discovery (icons, zips, fragments) is preferred over manual path mapping.
 * **Integrated Versioning:** All data and harvested IDs reside in the project source directory.
 * **Markdown-First:** Content is written in Markdown. Site-specific native files (`.html`, `.bbcode`) act as overrides.
 * **Non-Interactive (Fail-Fast):** No prompts. Errors (missing IDs, mismatched versions, security flaws) result in an immediate exit.
+* **Cross-Platform:** All paths and subprocesses must work on macOS, Linux, and Windows.
 
 ## **2. Core Identity & Naming**
-* **`pack` (Internal Slug):** The lowercase version of the parent directory name (e.g., `NeonGlow` $\to$ `neonglow`).
-* **`name` (Display Name):** * Preserves casing if uppercase letters exist (`NeonGlow`).
-    * Converts to Title Case if strictly lowercase (`clean` $\to$ `Clean`).
-* **Overrides:** Explicit `name:` or `pack:` keys in any `puppy.yaml` override these derivations.
+* **`pack` (Internal Slug):** Always lowercase. Derived from the directory name unless overridden.
+* **`name` (Display Name):** Preserves casing if uppercase letters exist (`NeonGlow`). Converts to Title Case if strictly lowercase (`clean` → `Clean`).
+* **Single override:** If only `name:` is provided, `pack` is derived as `name.lower()`. If only `pack:` is provided, `name` is derived by the same casing rules. Both can be set explicitly.
+* **Auto-update:** Whenever a project is loaded for any action, if either `name` or `pack` was absent from `puppy.yaml`, the derived value is written back automatically.
 
 ## **3. Directory Architecture**
 
-For a basic pack named "neon", the structure for a pack (or other project) that is being published via puppy is:
+For a pack named "neon" the structure is:
 
 * **Global Root:** `~/neon/`
-* **Puppy Root:** `~/neon/puppy/`
-* **Security & Auth:** `~/neon/puppy/auth.yaml`
+* **Puppy Home:** `~/neon/puppy/`
+* **Auth & Gitignore:** `~/neon/puppy/auth.yaml`, `~/neon/puppy/.gitignore`
+* **Global Config:** `~/neon/puppy/puppy.yaml`
 * **Project Root:** `~/neon/puppy/[ProjectName]/`
 * **Project Source:** `~/neon/puppy/[ProjectName]/puppy/`
-* **Worker Directory:** `~/PackUpdate` (The staging area).
-* **Debug Output:** `~/puppy/[ProjectName]/puppy/debug/` (Used for `--dry-run`).
+* **Worker Directory:** `~/PackUploader/` (the PackUploader repo — reset before each run)
+* **Debug Output:** `{tempdir}/puppy/{pack}/` (used for `--dry-run`, wiped fresh each run)
+* **Images:** `~/neon/puppy/images/`
+
+### **3.1 Flat Single-Project Mode**
+For a pack with only one project, `puppy.yaml` may live directly in the Puppy Home (i.e. `~/neon/puppy/puppy.yaml`) with `pack:` or `name:` set. Puppy infers the single project automatically — no `projects:` list required.
+
+### **3.2 Running Location**
+Puppy can be invoked from:
+* **Global Root** (e.g. `~/neon/`) — detected by presence of `puppy/auth.yaml`
+* **Puppy Home** (e.g. `~/neon/puppy/`) — detected by presence of `auth.yaml`
+* **Project Root** (e.g. `~/neon/puppy/NeonGlow/`) — detected by presence of `puppy/` subdir
 
 ## **4. CLI & Actions**
 `puppy [options] [action]`
 
 ### **4.1 Actions**
 * **`sync` (Default):** Updates metadata, summaries, descriptions, and icons.
-* **`publish`:** Performs a full `sync` plus artifact upload. Requires `--version`.
+* **`publish`:** Performs a full `sync` plus artifact upload. Requires `--version` or `version:` in `puppy.yaml`.
 * **`create`:** Registers projects on sites with missing IDs. **Requires `--create` flag.**
-* **`import`:** Pulls live site data and reverse-migrates to local `.md` and `.yaml` files.
-* **`init`:** Creates the `puppy/` directory structure in the target directory, writing skeleton `puppy.yaml`, `auth.yaml`, and `.gitignore` (which ignores `auth.yaml`). Any file that already exists is left untouched and a warning is printed.
+* **`import`:** Pulls live site data and reverse-migrates to local files. Writes to `puppy.yaml`, `puppy/images/`, and site-specific description template files. **Description body text import varies by platform:**
+  * **Modrinth:** Full description body imported via API.
+  * **CurseForge:** Only the summary is imported — full HTML description not available via API.
+  * **Planet Minecraft:** No description imported. Manually paste content into `puppy/planetminecraft/description.bbcode`.
+* **`init`:** Creates the `puppy/` directory structure in the target directory: `puppy.yaml`, `auth.yaml`, and `.gitignore`. Derives `name` and `pack` from the directory name. Any file that already exists is left untouched with a warning.
 
 ### **4.2 Options & Flags**
-* **`-n/--dry-run`:** Executes the entire pipeline (merging YAML, resolving fragments, translating text) and outputs the final payloads to the `debug/` folder *without* executing the worker or hitting APIs.
+* **`-n/--dry-run`:** Executes the full pipeline and writes payloads to `{tempdir}/puppy/{pack}/` without hitting APIs or running the worker.
 * **`-v` / `-vv`:** High-level progress (`-v`) or raw worker stdout/stderr (`-vv`).
-* **`-d/--dir [path]`:** Sets project directory. Defaults to CWD.
-* **`-s/--site [sitename]`:** Limits action to a specific site (e.g., `modrinth`).
-* **`-V/--version [string]`:** Required for `publish`. Matches via `{{project}}*{{version}}.zip`.
+* **`-d/--dir [path]`:** Sets working directory. Defaults to CWD.
+* **`-s/--site [sitename]`:** Limits action to a specific site (e.g. `modrinth`, `curseforge`, `planetminecraft`).
+* **`-V/--version [string]`:** Version string for `publish`. Falls back to `version:` in `puppy.yaml`. Artifact matched via `{project}*{version}.zip` where version must be the last component before `.zip`.
+* **`--create`:** Required flag to enable the `create` action.
 
 ## **5. Cascading Configuration & Discovery**
 
 ### **5.0 auth.yaml**
-auth.yaml should never be committed to any repo. puppy will exit with an error if auth.yaml doesn't
-exist, or if it is not in puppy/.gitignore. (No, we won't check the top level of the repo.) We will
-add support for other VCS systems as required.
+`auth.yaml` stores API credentials and must never be committed. Puppy exits with a fatal error if `auth.yaml` does not exist or is not listed in `puppy/.gitignore`.
+
+Structure mirrors PackUploader's `auth.json`:
+```yaml
+curseforge:
+  token: ...
+  cookie: CobaltSession=...
+modrinth: <token>
+planetminecraft: pmc_autologin=<cookie>
+```
 
 ### **5.1 Config Merge (Additive Synthesis)**
-1. Global Defaults (`~/puppy/puppy.yaml`)
-2. Global Site Overrides (`~/puppy/[sitename]/puppy.yaml`)
-3. Project Root (`~/puppy/[ProjectName]/puppy/puppy.yaml`)
-4. Project Site Overrides (`~/puppy/[ProjectName]/puppy/[sitename]/puppy.yaml`)
-*(Dictionaries merge additively; scalars overwrite).*
+Layers applied in order (later layers win for scalars; dicts merge additively):
+1. Global Defaults (`{puppy_home}/puppy.yaml`)
+2. Global Site Overrides (`{puppy_home}/[sitename]/puppy.yaml`)
+3. Project Source (`{project_root}/puppy/puppy.yaml`)
+4. Project Site Overrides (`{project_root}/puppy/[sitename]/puppy.yaml`)
+
+**Batch mode:** Projects listed explicitly under `projects:` in the global `puppy.yaml`. Subdirectories are not auto-scanned.
 
 ### **5.2 Content Discovery (The Cascade)**
-For fragments (e.g., `{{ header }}`), Puppy searches:
+For fragments (e.g. `{{ header }}`), Puppy searches:
 1. YAML `strings` block.
-2. Project Site File.
-3. Project General File.
-4. Global Site File.
-5. Global General File.
-* **Extension Priority:** CF/Modrinth (`.html` $\to$ `.md`); PMC (`.bbcode` $\to$ `.md`).
+2. Project Site File (`{project_root}/puppy/[sitename]/[fragment]`)
+3. Project General File (`{project_root}/puppy/[fragment]`)
+4. Global Site File (`{puppy_home}/[sitename]/[fragment]`)
+5. Global General File (`{puppy_home}/[fragment]`)
+
+**Extension Priority:** CurseForge/Modrinth (`.html` → `.md`); PMC (`.bbcode` → `.md`).
 
 ### **5.3 Path Resolution Rules**
-* **Internal Files:** Files inside the `puppy/` directories follow the Cascading Discovery logic.
-* **External Files:** Paths explicitly referencing locations outside `puppy/` (e.g., `../assets/banner.png` or `/var/www/packs/`) are treated as **literal**. Puppy does not guess extensions or search hierarchies for external references.
+* **Internal Files:** Follow the Cascading Discovery logic above.
+* **External Files:** Paths outside `puppy/` are treated as literal — no extension guessing or hierarchy search.
 
 ## **6. Operational Logic**
 
 ### **6.1 Security & Auth Protocol**
-* Puppy looks for `~/puppy/auth.yaml` to source API keys.
-* **Hard Block:** On startup, Puppy checks `~/puppy/.gitignore`. If `auth.yaml` is not explicitly listed in the ignore file, Puppy throws a fatal error and refuses to run.
+* Puppy reads `{puppy_home}/auth.yaml` and writes it to `~/PackUploader/auth.json` before each worker run.
+* **Hard Block:** If `auth.yaml` does not exist or is not listed in `{puppy_home}/.gitignore`, Puppy exits immediately.
 
 ### **6.2 Pre-Flight & Worker Hygiene**
-* **Dependency Check:** Verifies `git`, `node`, and `npm` exist in the shell environment.
-* **Worker Prep:** *Before* populating `~/PackUpdate` with project files, Puppy runs `git reset --hard HEAD` and `git clean -fd` to ensure absolute cleanliness.
-* **NPM Install:** If `~/PackUpdate/node_modules` is missing, Puppy automatically runs `npm install` before executing the `pu` script.
+* **Dependency Check:** Verifies `git`, `node`, and `npm` are in PATH.
+* **Worker Reset:** Runs `git reset --hard HEAD` and `git clean -fd` in `~/PackUploader/` before each run.
+* **Settings Patch:** Sets `ewan: false` in `~/PackUploader/settings.json` after reset (the repo default enables ewanhowell.com-specific behaviour that is not applicable outside that context).
+* **NPM Install:** If `~/PackUploader/node_modules/` is missing, runs `npm install` automatically.
+* **Worker invocation:** `node --no-warnings scripts/{action}.js` run from `~/PackUploader/`.
 
 ### **6.3 Multi-Project Iteration**
-If a command (e.g., `puppy sync`) is executed from the global root (`~/puppy/`) without a `--dir` flag, Puppy treats it as a batch operation, iterating through every valid subdirectory and executing the action sequentially.
+Batch mode iterates projects listed under `projects:` in the global `puppy.yaml` sequentially. If only `pack:` or `name:` is present (flat single-project mode), the parent of the Puppy Home is used as the sole project.
 
 ### **6.4 State Harvesting**
-Harvested IDs and Slugs (from `create` or `import`) are automatically written back to the root project `puppy.yaml`.
+After `import` or `create`, platform IDs, slugs, and full metadata are written back to the project's `puppy.yaml`. Images are written to `{puppy_home}/images/`. Site description templates are written to `{puppy_home}/[sitename]/description.{ext}` if not already present.
 
 ### **6.5 Artifact Match**
-Strict boundary check ensures `1.2` does not accidentally capture `1.2.4`.
+Version must be the last component before `.zip`, separated by `-`, `_`, or `.` (e.g. `mypack-1.2.zip`). Strict boundary check ensures `1.2` does not match `1.2.4`.
 
 ### **6.6 Translation & Shielding**
 * **Cross-Linking:** Puppy pre-scans all projects, allowing `{{ projects.[other_pack].url }}` to resolve to site-correct links.
-* **Shielding:** `valid_tags` (default `['u']`) are protected from Markdown translation and mapped to target-site equivalents (e.g., `<u>` $\to$ `[u]` for PMC). Users own the risk of unsupported HTML tags.
-* **Exclusions:** Puppy respects a `.puppyignore` file in the project root to prevent bulky/irrelevant files (e.g., `.psd`, videos) from being staged into `~/PackUpdate`, though best practice dictates keeping the source folder clean natively.
-
---- 
-
-I believe this completely solidifies the rulebook. Everything from how it reads a file, to how it ensures the worker doesn't leak state, to how it stops you from accidentally committing your API keys to GitHub is codified here.
+* **Shielding:** `valid_tags` (default `['u']`) are protected from Markdown translation and mapped to target-site equivalents (e.g. `<u>` → `[u]` for PMC).
+* **Exclusions:** Puppy respects a `.puppyignore` file in the project root to prevent large/irrelevant files from being staged into the worker directory.
