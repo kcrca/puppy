@@ -34,6 +34,7 @@ For a basic pack named "neon", the structure for a pack (or other project) that 
 * **`publish`:** Performs a full `sync` plus artifact upload. Requires `--version`.
 * **`create`:** Registers projects on sites with missing IDs. **Requires `--create` flag.**
 * **`import`:** Pulls live site data and reverse-migrates to local `.md` and `.yaml` files.
+* **`init`:** Creates the `puppy/` directory structure in the target directory, writing skeleton `puppy.yaml`, `auth.yaml`, and `.gitignore` (which ignores `auth.yaml`). Any file that already exists is left untouched and a warning is printed.
 
 ### **4.2 Options & Flags**
 * **`-n/--dry-run`:** Executes the entire pipeline (merging YAML, resolving fragments, translating text) and outputs the final payloads to the `debug/` folder *without* executing the worker or hitting APIs.

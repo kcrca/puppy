@@ -6,17 +6,18 @@ class Project:
         self.root = Path(project_root)
         dir_name = self.root.name
 
-        if override_pack:
+        if override_name and override_pack:
+            self.name = override_name
             self.pack = override_pack
+        elif override_name:
+            self.name = override_name
+            self.pack = override_name.lower()
+        elif override_pack:
+            self.pack = override_pack
+            self.name = override_pack if override_pack != override_pack.lower() else override_pack.title()
         else:
             self.pack = dir_name.lower()
-
-        if override_name:
-            self.name = override_name
-        elif dir_name == dir_name.lower():
-            self.name = dir_name.title()
-        else:
-            self.name = dir_name
+            self.name = dir_name if dir_name != dir_name.lower() else dir_name.title()
 
     @property
     def puppy_dir(self) -> Path:

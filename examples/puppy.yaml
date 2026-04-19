@@ -1,0 +1,28 @@
+# puppy.yaml — project configuration.
+# Place at: {puppy_home}/{ProjectName}/puppy/puppy.yaml
+
+# Optional: override the name and pack slug derived from the directory name.
+# name: My Project
+# pack: myproject
+
+# Current version of the project. Used by publish if --version is not passed on the CLI.
+version: "1.0.0"
+
+# Platform IDs and slugs. Required for import, create, and publish.
+# Set id to null if the project does not yet exist on that platform.
+curseforge:
+  id: 123456
+  slug: my-project
+
+modrinth:
+  id: AbCdEfGh
+  slug: my-project
+
+planetminecraft:
+  id: 1234567
+  slug: my-project-full-slug
+
+# Content fragments used in description templates.
+# strings:
+#   header: "My Project Header"
+#   footer: "My Project Footer"

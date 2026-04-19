@@ -1,0 +1,10 @@
+# auth.yaml — API credentials for each platform.
+# NEVER commit this file. Ensure it is listed in puppy/.gitignore.
+
+curseforge:
+  token: YOUR_CURSEFORGE_API_TOKEN
+  cookie: CobaltSession=YOUR_COBALT_SESSION_COOKIE
+
+modrinth: YOUR_MODRINTH_TOKEN
+
+planetminecraft: pmc_autologin=YOUR_PMC_AUTOLOGIN_COOKIE

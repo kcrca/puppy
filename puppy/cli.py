@@ -12,7 +12,7 @@ def build_parser() -> argparse.ArgumentParser:
         "action",
         nargs="?",
         default="sync",
-        choices=["sync", "publish", "create", "import"],
+        choices=["sync", "publish", "create", "import", "init"],
         help="Action to perform (default: sync).",
     )
 
