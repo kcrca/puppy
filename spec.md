@@ -43,13 +43,17 @@ Puppy can be invoked from:
 
 ### **4.1 Actions**
 * **`sync` (Default):** Updates metadata, summaries, descriptions, and icons.
-* **`publish`:** Performs a full `sync` plus artifact upload. Requires `--version` or `version:` in `puppy.yaml`.
+* **`publish`:** Performs a full `sync` plus artifact upload. Requires `--version` or `version:` in `puppy.yaml`. Upload is skipped per-site if the artifact is already current; skip logic varies by platform:
+  * **Modrinth:** Compares SHA-512 hash of local zip against the hash stored in the latest version's file listing.
+  * **CurseForge:** Compares both version string and file size (bytes) against the most recent uploaded file; uploads if either differs.
+  * **Planet Minecraft:** Compares version string only (no file metadata available via API).
+  * **`-f/--force`:** Bypasses skip logic and uploads unconditionally on all sites.
 * **`create`:** Registers projects on sites with missing IDs. **Requires `--create` flag.**
 * **`import`:** Pulls live site data and reverse-migrates to local files. Writes to `puppy.yaml` and `puppy/images/images.yaml`. Does **not** create description templates (those are created by `init`). **Description body text import varies by platform:**
   * **Modrinth:** Full description body imported via API.
   * **CurseForge:** Only the summary is imported — full HTML description not available via API.
   * **Planet Minecraft:** No description imported. Manually paste content into `puppy/planetminecraft/description.bbcode`.
-* **`init`:** Creates the `puppy/` directory structure in the target directory: `puppy.yaml`, `auth.yaml`, `.gitignore`, and starter description templates (`modrinth/description.md`, `curseforge/description.html`, `planetminecraft/description.bbcode`). Derives `name` and `pack` from the directory name. Any file that already exists is left untouched with a warning.
+* **`init`:** Creates the `puppy/` directory structure in the target directory: `puppy.yaml`, `auth.yaml`, `.gitignore`, and a starter `description.md`. Derives `name` and `pack` from the directory name. Any file that already exists is left untouched with a warning.
 
 ### **4.2 Options & Flags**
 * **`-n/--dry-run`:** Executes the full pipeline and writes payloads to `{tempdir}/puppy/{pack}/` without hitting APIs or running the worker.
@@ -103,12 +107,20 @@ Description body files are rendered as Jinja2 templates. All config keys from `p
 ### **5.5 Path Resolution Rules**
 * **Internal Files:** Follow the Cascading Discovery logic above.
 * **External Files:** Paths outside `puppy/` are treated as literal — no extension guessing or hierarchy search.
+* **Relative Paths:** All relative paths in any YAML file are resolved relative to the project's `puppy/` directory, regardless of which subdirectory the YAML file lives in. So `../site` in `puppy/images/images.yaml` and `../site` in `puppy/puppy.yaml` both resolve to the same directory.
 
 ### **5.6 Asset Discovery**
 For `create` and `sync`, the icon and zip artifact are resolved as follows:
 * **Explicit paths** (`icon:` and `zip:` in `puppy.yaml`): resolved relative to the project's `puppy/` directory.
 * **Implicit discovery** (fallback): a single `.png` in `puppy/` (excluding `thumbnail.png` and `logo.png`) is the icon; a single `.zip` in `puppy/` is the artifact. Multiple files of either type is a fatal error.
 * **Icon validation:** The icon must be a square PNG.
+
+### **5.7 Image Metadata**
+Image metadata (the list of images with names, descriptions, and file references) lives in one of two locations — both are valid, but not both simultaneously:
+* **`puppy/images.yaml`** — used when images live outside the puppy directory (referenced via `source:`).
+* **`puppy/images/images.yaml`** — used when image files are stored inside `puppy/images/`.
+
+Both formats support an optional top-level `source:` key pointing to a directory (resolved relative to `puppy/`) where image files are found. If `source:` is absent, images are loaded from `puppy/images/`.
 
 ## **6. Operational Logic**
 

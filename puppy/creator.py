@@ -103,11 +103,8 @@ def _stage(
     shutil.copy(icon, data_dir / "pack.png")
     shutil.copy(zip_path, data_dir / "pack.zip")
 
-    images_src = puppy_dir / "images"
-    if images_src.exists():
-        shutil.copytree(images_src, data_dir / "images", ignore=shutil.ignore_patterns("*.yaml"))
-    else:
-        (data_dir / "images").mkdir()
+    from puppy.syncer import _copy_images
+    _copy_images(config, puppy_dir, data_dir / "images")
 
     for optional in ("thumbnail.png", "logo.png"):
         src = puppy_dir / optional
@@ -131,10 +128,7 @@ def _stage(
     (project_dir / "project.json").write_text(json.dumps(project_json, indent=2))
 
     shutil.copy(icon, project_dir / "pack.png")
-    if images_src.exists():
-        shutil.copytree(images_src, project_dir / "images")
-    else:
-        (project_dir / "images").mkdir()
+    _copy_images(config, puppy_dir, project_dir / "images")
 
     for optional in ("thumbnail.png", "logo.png"):
         src = puppy_dir / optional

@@ -117,8 +117,11 @@ def _harvest_yaml(project: Project, result_data: dict, puppy_dir: Path, site: st
             {**img, "file": img["file"].strip("_")} if "file" in img else img
             for img in imported["images"]
         ]
-        images_yaml = puppy_dir / "images" / "images.yaml"
-        images_yaml.parent.mkdir(parents=True, exist_ok=True)
+        if (puppy_dir / "images.yaml").exists():
+            images_yaml = puppy_dir / "images.yaml"
+        else:
+            images_yaml = puppy_dir / "images" / "images.yaml"
+            images_yaml.parent.mkdir(parents=True, exist_ok=True)
         with images_yaml.open("w") as f:
             yaml.dump(images, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
         config.pop("images", None)
@@ -144,9 +147,10 @@ def _harvest_images(project_worker_dir: Path, puppy_dir: Path) -> None:
     if not src.exists():
         return
     dest = puppy_dir / "images"
-    if dest.exists():
-        shutil.rmtree(dest)
-    dest.mkdir(parents=True)
+    dest.mkdir(parents=True, exist_ok=True)
+    for p in dest.iterdir():
+        if p.suffix != ".yaml":
+            p.unlink()
     for img in src.iterdir():
         clean_name = img.stem.strip("_") + img.suffix
         shutil.copy(img, dest / clean_name)

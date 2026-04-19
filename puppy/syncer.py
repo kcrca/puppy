@@ -76,11 +76,7 @@ def _stage(
 
     shutil.copy(icon, project_dir / "pack.png")
 
-    images_src = puppy_dir / "images"
-    if images_src.exists():
-        shutil.copytree(images_src, project_dir / "images", ignore=shutil.ignore_patterns("*.yaml"))
-    else:
-        (project_dir / "images").mkdir()
+    _copy_images(config, puppy_dir, project_dir / "images")
 
     for optional in ("thumbnail.png", "logo.png"):
         src = puppy_dir / optional
@@ -95,6 +91,18 @@ _MINIMAL_TEMPLATE = {
     ".html": "{{ description }}\n\n{{ images }}\n",
     ".bbcode": "{{ description }}\n\n{{ images }}\n",
 }
+
+
+def _copy_images(config: dict, puppy_dir: Path, dest: Path) -> None:
+    dest.mkdir(parents=True, exist_ok=True)
+    src = Path(config["images_source"]) if config.get("images_source") else puppy_dir / "images"
+    for img in config.get("images", []):
+        name = img["file"] + ".png"
+        candidate = src / name
+        if candidate.exists():
+            shutil.copy(candidate, dest / name)
+        else:
+            print(f"WARNING: image not found: {candidate}")
 
 
 def _stage_templates(project_dir: Path, puppy_dir: Path, site: str | None) -> None:

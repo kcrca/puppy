@@ -44,10 +44,24 @@ class ConfigSynthesizer:
         for layer in layers:
             config = _deep_merge(config, _load_yaml(layer))
 
-        images_yaml = project_puppy / "images" / "images.yaml"
-        if images_yaml.exists():
-            images = yaml.safe_load(images_yaml.read_text()) or []
+        images_path = project_puppy / "images"
+        if images_path.exists() and not images_path.is_dir():
+            raise SystemExit(f"{images_path} exists but is not a directory")
+        top_level = project_puppy / "images.yaml"
+        in_dir = images_path / "images.yaml"
+        if top_level.exists() and in_dir.exists():
+            raise SystemExit(f"Ambiguous images config: both {top_level} and {in_dir} exist")
+        images_yaml = top_level if top_level.exists() else in_dir if in_dir.exists() else None
+        if images_yaml:
+            raw = yaml.safe_load(images_yaml.read_text()) or []
+            if isinstance(raw, list):
+                images, images_source = raw, None
+            else:
+                images = raw.get("images", [])
+                images_source = raw.get("source")
             if images:
                 config["images"] = images
+            if images_source:
+                config["images_source"] = str((project_puppy / images_source).resolve())
 
         return config
