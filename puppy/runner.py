@@ -142,9 +142,12 @@ def _run_dry(action, project, config, version, verbosity):
 def _dispatch(action, project, config, version, auth, puppy_home, site, verbosity):
     if action == "import":
         from puppy.importer import run_import
-        run_import(project=project, config=config, worker_dir=WORKER_DIR, site=site, verbosity=verbosity)
+        run_import(project=project, config=config, auth=auth, worker_dir=WORKER_DIR, site=site, verbosity=verbosity)
     elif action == "create":
         from puppy.creator import run_create
         run_create(project=project, config=config, worker_dir=WORKER_DIR, site=site, verbosity=verbosity)
+    elif action == "sync":
+        from puppy.syncer import run_sync
+        run_sync(project=project, config=config, worker_dir=WORKER_DIR, puppy_home=puppy_home, site=site, verbosity=verbosity)
     else:
         raise NotImplementedError(f"action '{action}' not yet implemented")

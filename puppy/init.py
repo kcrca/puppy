@@ -16,6 +16,11 @@ planetminecraft: pmc_autologin=YOUR_PMC_AUTOLOGIN_COOKIE
 
 _GITIGNORE = "auth.yaml\n"
 
+_DESCRIPTION_MD = """\
+<!-- Add your pack description here. Jinja2 variables from puppy.yaml are available,
+     e.g. {{ version }}, {{ name }}. Conditionals: {% if key %}...{% endif %} -->
+"""
+
 
 def _derive_identity(directory: Path) -> tuple[str, str]:
     dir_name = directory.name
@@ -81,6 +86,7 @@ def run_init(directory: Path) -> None:
     project_source.mkdir(parents=True, exist_ok=True)
 
     _write_if_missing(project_source / "puppy.yaml", _project_puppy_yaml(name, pack))
+    _write_if_missing(project_source / "description.md", _DESCRIPTION_MD)
 
 
 def _write_if_missing(path: Path, content: str) -> None:

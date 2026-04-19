@@ -1,6 +1,7 @@
 import json
 import shutil
 import subprocess
+import urllib.request
 from pathlib import Path
 
 import yaml
@@ -10,14 +11,9 @@ from puppy.core import Project
 
 SITES = ["curseforge", "modrinth", "planetminecraft"]
 
-_TEMPLATE_EXT = {
-    "curseforge": ".html",
-    "modrinth": ".md",
-    "planetminecraft": ".bbcode",
-}
 
-
-def run_import(*, project: Project, config: dict, worker_dir: Path, site: str | None, verbosity: int) -> None:
+def run_import(*, project: Project, config: dict, auth: dict, worker_dir: Path, site: str | None, verbosity: int) -> None:
+    config = _resolve_ids(config, auth, site, verbosity)
     _stage(project, config, worker_dir, site)
     _clean_existing(project, worker_dir)
     _run_worker(worker_dir, verbosity)
@@ -27,12 +23,38 @@ def run_import(*, project: Project, config: dict, worker_dir: Path, site: str | 
         print(f"[{project.name}] import complete")
 
 
+def _resolve_ids(config: dict, auth: dict, site: str | None, verbosity: int) -> dict:
+    config = dict(config)
+
+    modrinth = config.get("modrinth", {})
+    if (not site or site == "modrinth") and not modrinth.get("id") and modrinth.get("slug"):
+        slug = modrinth["slug"]
+        try:
+            headers = {"User-Agent": "puppy/1.0"}
+            token = auth.get("modrinth")
+            if token:
+                headers["Authorization"] = token
+            req = urllib.request.Request(
+                f"https://api.modrinth.com/v2/project/{slug}",
+                headers=headers,
+            )
+            with urllib.request.urlopen(req) as r:
+                data = json.loads(r.read())
+            config["modrinth"] = dict(modrinth, id=data["id"], slug=data["slug"])
+            if verbosity >= 1:
+                print(f"Resolved Modrinth ID for slug '{slug}': {data['id']}")
+        except Exception as e:
+            raise SystemExit(f"Could not resolve Modrinth ID for slug '{slug}': {e}")
+
+    return config
+
+
 def _stage(project: Project, config: dict, worker_dir: Path, site: str | None) -> None:
     import_data: dict = {"id": project.pack}
     for s in SITES:
         site_cfg = config.get(s, {})
         import_data[s] = {
-            "id": site_cfg.get("id"),
+            "id": site_cfg.get("id") if not site or s == site else None,
             "slug": site_cfg.get("slug"),
         }
     data_dir = worker_dir / "data"
@@ -74,7 +96,6 @@ def _harvest(project: Project, result_data: dict, worker_dir: Path, site: str | 
 
     _harvest_yaml(project, result_data, puppy_dir, site)
     _harvest_images(project_worker_dir, puppy_dir)
-    _harvest_templates(project_worker_dir, puppy_dir, site)
 
 
 def _harvest_yaml(project: Project, result_data: dict, puppy_dir: Path, site: str | None) -> None:
@@ -130,25 +151,3 @@ def _harvest_images(project_worker_dir: Path, puppy_dir: Path) -> None:
         clean_name = img.stem.strip("_") + img.suffix
         shutil.copy(img, dest / clean_name)
 
-
-def _harvest_templates(project_worker_dir: Path, puppy_dir: Path, site: str | None) -> None:
-    """
-    Copy site description templates as starting points.
-    Note: description body text is NOT imported — paste your content in manually.
-    """
-    src_templates = project_worker_dir / "templates"
-    if not src_templates.exists():
-        return
-    for s, ext in _TEMPLATE_EXT.items():
-        if site and s != site:
-            continue
-        src = src_templates / f"{s}{ext}"
-        if not src.exists():
-            continue
-        dest_dir = puppy_dir / s
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        dest = dest_dir / f"description{ext}"
-        if dest.exists():
-            print(f"WARNING: {dest} already exists — left untouched")
-        else:
-            shutil.copy(src, dest)

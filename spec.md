@@ -45,11 +45,11 @@ Puppy can be invoked from:
 * **`sync` (Default):** Updates metadata, summaries, descriptions, and icons.
 * **`publish`:** Performs a full `sync` plus artifact upload. Requires `--version` or `version:` in `puppy.yaml`.
 * **`create`:** Registers projects on sites with missing IDs. **Requires `--create` flag.**
-* **`import`:** Pulls live site data and reverse-migrates to local files. Writes to `puppy.yaml`, `puppy/images/`, and site-specific description template files. **Description body text import varies by platform:**
+* **`import`:** Pulls live site data and reverse-migrates to local files. Writes to `puppy.yaml` and `puppy/images/images.yaml`. Does **not** create description templates (those are created by `init`). **Description body text import varies by platform:**
   * **Modrinth:** Full description body imported via API.
   * **CurseForge:** Only the summary is imported — full HTML description not available via API.
   * **Planet Minecraft:** No description imported. Manually paste content into `puppy/planetminecraft/description.bbcode`.
-* **`init`:** Creates the `puppy/` directory structure in the target directory: `puppy.yaml`, `auth.yaml`, and `.gitignore`. Derives `name` and `pack` from the directory name. Any file that already exists is left untouched with a warning.
+* **`init`:** Creates the `puppy/` directory structure in the target directory: `puppy.yaml`, `auth.yaml`, `.gitignore`, and starter description templates (`modrinth/description.md`, `curseforge/description.html`, `planetminecraft/description.bbcode`). Derives `name` and `pack` from the directory name. Any file that already exists is left untouched with a warning.
 
 ### **4.2 Options & Flags**
 * **`-n/--dry-run`:** Executes the full pipeline and writes payloads to `{tempdir}/puppy/{pack}/` without hitting APIs or running the worker.
@@ -92,9 +92,23 @@ For fragments (e.g. `{{ header }}`), Puppy searches:
 
 **Extension Priority:** CurseForge/Modrinth (`.html` → `.md`); PMC (`.bbcode` → `.md`).
 
-### **5.3 Path Resolution Rules**
+### **5.3 Description Body vs. Template Wrapper**
+Each site has two distinct files:
+* **Wrapper Template** (`{project_root}/puppy/[sitename]/description.{ext}`): Scaffolding with `{{ description }}`, `{{ images }}`, `{{ snippet:header }}` etc. Staged for the worker as `templates/{site}.{ext}`. Created by `init`.
+* **Description Body** (`{project_root}/puppy/description.md` or `{puppy_home}/description.md`): The actual content substituted for `{{ description }}` in the wrapper. Discovered via the non-site-specific cascade levels (steps 3 and 5 above). Site-specific body overrides can live at `{project_root}/puppy/[sitename]/body.{ext}`.
+
+### **5.4 Template Variable Substitution**
+Description body files are rendered as Jinja2 templates. All config keys from `puppy.yaml` are available as variables: `{{ version }}`, `{{ name }}`, `{{ modrinth.slug }}` etc. Full Jinja2 syntax is supported (`{% if %}`, `{% for %}`, filters, etc.). Unrecognised variables produce a warning and are left as-is.
+
+### **5.5 Path Resolution Rules**
 * **Internal Files:** Follow the Cascading Discovery logic above.
 * **External Files:** Paths outside `puppy/` are treated as literal — no extension guessing or hierarchy search.
+
+### **5.6 Asset Discovery**
+For `create` and `sync`, the icon and zip artifact are resolved as follows:
+* **Explicit paths** (`icon:` and `zip:` in `puppy.yaml`): resolved relative to the project's `puppy/` directory.
+* **Implicit discovery** (fallback): a single `.png` in `puppy/` (excluding `thumbnail.png` and `logo.png`) is the icon; a single `.zip` in `puppy/` is the artifact. Multiple files of either type is a fatal error.
+* **Icon validation:** The icon must be a square PNG.
 
 ## **6. Operational Logic**
 
@@ -113,7 +127,7 @@ For fragments (e.g. `{{ header }}`), Puppy searches:
 Batch mode iterates projects listed under `projects:` in the global `puppy.yaml` sequentially. If only `pack:` or `name:` is present (flat single-project mode), the parent of the Puppy Home is used as the sole project.
 
 ### **6.4 State Harvesting**
-After `import` or `create`, platform IDs, slugs, and full metadata are written back to the project's `puppy.yaml`. Images are written to `{puppy_home}/images/`. Site description templates are written to `{puppy_home}/[sitename]/description.{ext}` if not already present.
+After `import` or `create`, platform IDs, slugs, and full metadata are written back to the project's `puppy.yaml`. Images and their metadata are written to `{project_root}/puppy/images/` and `{project_root}/puppy/images/images.yaml` respectively. Leading and trailing underscores are stripped from image filenames on harvest.
 
 ### **6.5 Artifact Match**
 Version must be the last component before `.zip`, separated by `-`, `_`, or `.` (e.g. `mypack-1.2.zip`). Strict boundary check ensures `1.2` does not match `1.2.4`.

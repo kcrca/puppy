@@ -105,7 +105,7 @@ def _stage(
 
     images_src = puppy_dir / "images"
     if images_src.exists():
-        shutil.copytree(images_src, data_dir / "images")
+        shutil.copytree(images_src, data_dir / "images", ignore=shutil.ignore_patterns("*.yaml"))
     else:
         (data_dir / "images").mkdir()
 
