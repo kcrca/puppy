@@ -21,6 +21,12 @@ _DESCRIPTION_MD = """\
      e.g. {{ version }}, {{ name }}. Conditionals: {% if key %}...{% endif %} -->
 """
 
+_SITE_TEMPLATES = {
+    "curseforge": ("description.html", "<!-- CurseForge description (HTML) -->\n"),
+    "modrinth": ("description.md", "<!-- Modrinth description (Markdown) -->\n"),
+    "planetminecraft": ("description.bbcode", "[b]Planet Minecraft description (BBCode)[/b]\n"),
+}
+
 
 def _derive_identity(directory: Path) -> tuple[str, str]:
     dir_name = directory.name
@@ -63,10 +69,6 @@ planetminecraft:
   id: null
   slug: {pack}
 
-# Content fragments used in description templates.
-# strings:
-#   header: "{name} Header"
-#   footer: "{name} Footer"
 """
 
 
@@ -87,6 +89,11 @@ def run_init(directory: Path) -> None:
 
     _write_if_missing(project_source / "puppy.yaml", _project_puppy_yaml(name, pack))
     _write_if_missing(project_source / "description.md", _DESCRIPTION_MD)
+
+    for site, (fname, content) in _SITE_TEMPLATES.items():
+        site_dir = project_source / site
+        site_dir.mkdir(exist_ok=True)
+        _write_if_missing(site_dir / fname, content)
 
 
 def _write_if_missing(path: Path, content: str) -> None:

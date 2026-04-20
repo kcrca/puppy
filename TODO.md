@@ -12,8 +12,8 @@
 
 ## `init` Action
 
-- **Stale `strings:` comment** in generated `puppy.yaml` — refers to the removed snippet system. Remove it.
-- **Site-specific template wrappers not created**: Spec says `init` creates `description.{ext}` wrapper templates per site (`planetminecraft/description.bbcode` etc.). Currently only `description.md` is created.
+- ✅ Stale `strings:` comment removed from generated `puppy.yaml`.
+- ✅ Per-site template wrappers (`curseforge/description.html`, `modrinth/description.md`, `planetminecraft/description.bbcode`) now created by `init`.
 
 ## Testing Gaps
 
