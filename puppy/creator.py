@@ -6,8 +6,7 @@ from pathlib import Path
 import yaml
 
 from puppy.core import Project
-
-SITES = ["curseforge", "modrinth", "planetminecraft"]
+from puppy.sites import SITES, SiteVisitor
 
 
 def run_create(*, project: Project, config: dict, worker_dir: Path, site: str | None, verbosity: int) -> None:
@@ -127,9 +126,10 @@ def _stage(
         shutil.rmtree(project_dir)
     project_dir.mkdir(parents=True)
 
+    visitor = SiteVisitor(site)
     existing = {
         s: {
-            "id": config.get(s, {}).get("id") or ("__skip__" if site and s != site else None),
+            "id": visitor.id_or_skip(s, config.get(s, {}).get("id")),
             "slug": config.get(s, {}).get("slug", "my-project"),
         }
         for s in SITES
@@ -170,9 +170,7 @@ def _harvest(project: Project, result_data: dict, site: str | None) -> None:
     if puppy_yaml.exists():
         config = yaml.safe_load(puppy_yaml.read_text()) or {}
 
-    for s in SITES:
-        if site and s != site:
-            continue
+    for s in SiteVisitor(site):
         platform_data = result_data.get(s, {})
         harvested_id = platform_data.get("id")
         if harvested_id and harvested_id != "__skip__":

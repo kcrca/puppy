@@ -5,12 +5,12 @@ from pathlib import Path
 
 from puppy.core import Project
 from puppy.creator import (
-    SITES,
     _build_config,
     _find_icon,
     _resolve_asset,
     _validate_square,
 )
+from puppy.sites import SITES, SiteVisitor
 from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
 
@@ -74,9 +74,10 @@ def _stage(
         shutil.rmtree(project_dir)
     project_dir.mkdir(parents=True)
 
+    visitor = SiteVisitor(site)
     platform_ids = {
         s: {
-            "id": config.get(s, {}).get("id") if not site or s == site else None,
+            "id": visitor.id_or_skip(s, config.get(s, {}).get("id")),
             "slug": config.get(s, {}).get("slug"),
         }
         for s in SITES
@@ -118,8 +119,9 @@ def _copy_images(config: dict, puppy_dir: Path, dest: Path) -> None:
 def _stage_templates(project_dir: Path, puppy_dir: Path, site: str | None) -> None:
     templates_dir = project_dir / "templates"
     templates_dir.mkdir()
+    visitor = SiteVisitor(site)
     for s, ext in _TEMPLATE_EXT.items():
-        if site and s != site:
+        if s not in visitor:
             continue
         dest = templates_dir / f"{s}{ext}"
         src = puppy_dir / s / f"description{ext}"

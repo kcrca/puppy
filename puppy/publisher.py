@@ -9,7 +9,7 @@ from pathlib import Path
 import yaml
 
 from puppy.core import Project
-from puppy.creator import SITES
+from puppy.sites import SITES, SiteVisitor
 
 
 def upload_pack(*, project: Project, config: dict, worker_dir: Path, site: str | None, version: str, force: bool, verbosity: int) -> None:
@@ -55,7 +55,7 @@ def _read_auth(puppy_dir: Path) -> dict:
 
 
 def _sites_needing_upload(project: Project, config: dict, auth: dict, zip_path: Path, version: str, site: str | None, force: bool, verbosity: int) -> list[str]:
-    candidates = [s for s in SITES if (not site or s == site) and config.get(s, {}).get("id")]
+    candidates = [s for s in SiteVisitor(site) if config.get(s, {}).get("id")]
     result = []
     for s in candidates:
         if force:
@@ -145,8 +145,8 @@ def _patch_project_json(worker_dir: Path, project: Project, config: dict, sites_
     data["config"]["version"] = None  # bypass update.js same-version check
     data["config"]["versions"] = _expand_versions(config)
     for s in SITES:
-        if s not in sites_to_upload and s in data:
-            data[s]["id"] = None
+        if s not in sites_to_upload:
+            data.setdefault(s, {})["id"] = None
     path.write_text(json.dumps(data, indent=2))
 
 

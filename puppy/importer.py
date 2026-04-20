@@ -7,9 +7,7 @@ from pathlib import Path
 import yaml
 
 from puppy.core import Project
-
-
-SITES = ["curseforge", "modrinth", "planetminecraft"]
+from puppy.sites import SITES, SiteVisitor
 
 
 def run_import(*, project: Project, config: dict, auth: dict, worker_dir: Path, site: str | None, verbosity: int) -> None:
@@ -51,10 +49,11 @@ def _resolve_ids(config: dict, auth: dict, site: str | None, verbosity: int) -> 
 
 def _stage(project: Project, config: dict, worker_dir: Path, site: str | None) -> None:
     import_data: dict = {"id": project.pack}
+    visitor = SiteVisitor(site)
     for s in SITES:
         site_cfg = config.get(s, {})
         import_data[s] = {
-            "id": site_cfg.get("id") if not site or s == site else None,
+            "id": visitor.id_or_skip(s, site_cfg.get("id")),
             "slug": site_cfg.get("slug"),
         }
     data_dir = worker_dir / "data"
@@ -127,9 +126,7 @@ def _harvest_yaml(project: Project, result_data: dict, puppy_dir: Path, site: st
         config.pop("images", None)
 
     # Platform IDs/slugs and site-specific config
-    for s in SITES:
-        if site and s != site:
-            continue
+    for s in SiteVisitor(site):
         if s in result_data:
             config.setdefault(s, {})
             config[s]["id"] = result_data[s].get("id")

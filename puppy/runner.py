@@ -142,10 +142,11 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site):
 
     if action in ("push",):
         from puppy.config import build_projects_context
+        from puppy.sites import SiteVisitor
         config = dict(config)
         config["projects"] = build_projects_context(puppy_home)
         discovery = ContentDiscovery(puppy_home, project.root)
-        sites = [s for s in _TEMPLATE_EXT if not site or s == site]
+        sites = list(SiteVisitor(site))
         source_exts: dict[str, str] = {}
         for s in sites:
             body, source_path = discovery.find_description(site=s)
