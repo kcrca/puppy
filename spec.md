@@ -61,7 +61,7 @@ Puppy can be invoked from:
   * **CurseForge:** Compares both version string and file size (bytes) against the most recent uploaded file; uploads if either differs.
   * **Planet Minecraft:** Compares version string against last version recorded in `puppy/.publish_state.yaml`.
 * **`-f/--force`:** With `-p`, bypasses skip logic and uploads unconditionally on all sites.
-* **`--create`:** Required flag to enable the `create` action.
+* **`-y/--yes`:** Skip confirmation prompts. The `create` action prompts for confirmation unless this flag is set.
 
 ## **5. Cascading Configuration & Discovery**
 

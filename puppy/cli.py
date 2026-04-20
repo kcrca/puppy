@@ -75,10 +75,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--create",
+        "-y", "--yes",
         action="store_true",
-        dest="create",
-        help="Required flag to enable the create action.",
+        dest="yes",
+        help="Skip confirmation prompts (for scripting).",
     )
 
     return parser
@@ -88,8 +88,10 @@ def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if args.action == "create" and not args.create:
-        parser.error("create action requires --create flag")
+    if args.action == "create" and not args.yes:
+        answer = input("Create new projects on sites? This cannot be undone. [y/N] ")
+        if not answer.strip().lower().startswith("y"):
+            raise SystemExit("Aborted.")
 
     directory = args.directory or Path.cwd()
 
