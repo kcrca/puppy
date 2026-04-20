@@ -119,7 +119,7 @@ def run(
             print(f"[{project.name}] {label}" + (f" v{resolved_version}" if resolved_version else ""))
 
         if dry_run:
-            _run_dry(action, project, config, resolved_version, verbosity, puppy_home, site)
+            _run_dry(action, project, config, resolved_version, verbosity, puppy_home, site, pack=pack)
         else:
             check_preflight()
             _worker_prep(verbosity)
@@ -128,7 +128,7 @@ def run(
             _dispatch(action, project, config, resolved_version, auth, puppy_home, site, pack, force, verbosity)
 
 
-def _run_dry(action, project, config, version, verbosity, puppy_home, site):
+def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack=False):
     import shutil
     from puppy.preview import generate as generate_preview
     from puppy.renderer import render
@@ -140,6 +140,7 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site):
         shutil.rmtree(debug_dir)
     debug_dir.mkdir(parents=True)
 
+    zip_name: str | None = None
     if action in ("push",):
         from puppy.config import build_projects_context
         from puppy.sites import SiteVisitor
@@ -157,7 +158,15 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site):
                 out.parent.mkdir(parents=True, exist_ok=True)
                 out.write_text(rendered)
                 source_exts[s] = source_path.suffix if source_path else ext
-        generate_preview(project, config, debug_dir, sites, source_exts)
+
+        if pack:
+            from puppy.publisher import _resolve_zip
+            puppy_dir = project.root / "puppy"
+            zip_src = _resolve_zip(config, puppy_dir, version, project)
+            shutil.copy(zip_src, debug_dir / zip_src.name)
+            zip_name = zip_src.name
+
+        generate_preview(project, config, debug_dir, sites, source_exts, zip_name=zip_name)
 
     preview_path = debug_dir / "index.html"
     print(f"file://{preview_path}")

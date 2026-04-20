@@ -21,6 +21,7 @@ def generate(
     debug_dir: Path,
     sites: list[str],
     source_exts: dict[str, str],
+    zip_name: str | None = None,
 ) -> None:
     puppy_dir = project.root / "puppy"
 
@@ -60,7 +61,7 @@ def generate(
             + _images_html(image_entries)
         )
 
-    (debug_dir / "index.html").write_text(_page(project, config, sites, per_site_html))
+    (debug_dir / "index.html").write_text(_page(project, config, sites, per_site_html, zip_name=zip_name))
 
 
 # ── conversion ───────────────────────────────────────────────────────────────
@@ -217,7 +218,7 @@ def _images_html(images: list[tuple[str, str, str]]) -> str:
 
 # ── page shell ────────────────────────────────────────────────────────────────
 
-def _page(project: Project, config: dict, sites: list[str], per_site_html: dict[str, str]) -> str:
+def _page(project: Project, config: dict, sites: list[str], per_site_html: dict[str, str], zip_name: str | None = None) -> str:
     meta_table = _combined_metadata_table(project, config, sites)
 
     tab_buttons = ""
@@ -229,6 +230,7 @@ def _page(project: Project, config: dict, sites: list[str], per_site_html: dict[
         tab_buttons += f'<button class="tab-btn{active_cls}" onclick="showTab(\'{s}\')" id="btn-{s}">{label}</button>\n'
         tab_panes += f'<div class="tab-pane" id="pane-{s}" style="display:{display}">{per_site_html.get(s, "")}</div>\n'
 
+    zip_line = f'<p class="zip">Pack: <a href="{_e(zip_name)}">{_e(zip_name)}</a></p>\n' if zip_name else ""
     title = _e(project.name)
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -258,7 +260,7 @@ def _page(project: Project, config: dict, sites: list[str], per_site_html: dict[
 </head>
 <body>
 <h1>{title}</h1>
-{meta_table}<div class="tabs">
+{zip_line}{meta_table}<div class="tabs">
 {tab_buttons}</div>
 {tab_panes}<script>
 function showTab(id) {{
