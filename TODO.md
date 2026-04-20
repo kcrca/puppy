@@ -7,7 +7,7 @@
 
 ## Unimplemented Features
 
-- **Neutral pack metadata** (spec 6.7): Top-level `license:`, `resolution:`, `category:` keys translated to per-site fields. Clean mappings exist for `license` (needs cross-reference table) and `resolution`. Category taxonomy differs too much between sites for a full mapping.
+- **Neutral pack metadata** (spec 6.7): ✅ `resolution:`, `progress:`, `license:` implemented. `category:` skipped — taxonomy too different between sites.
 
 ## `init` Action
 
@@ -16,6 +16,6 @@
 
 ## Testing Gaps
 
-- **Batch mode**: Multiple projects under `projects:` untested.
+- ✅ **Batch mode**: Unit tests added for batch execution, site filtering, zip links, variable isolation.
 - ✅ **`create`, `import`, publisher staging**: Unit tests added.
 - **Integration tests on live sites**: End-to-end `create`, `import`, and `push --pack` against real CurseForge, Modrinth, and PMC accounts.

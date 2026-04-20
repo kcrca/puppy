@@ -161,8 +161,8 @@ After `import` or `create`, platform IDs, slugs, and full metadata are written b
 ### **6.5 Artifact Match**
 Version must be the last component before `.zip`, separated by `-`, `_`, or `.` (e.g. `mypack-1.2.zip`). Strict boundary check ensures `1.2` does not match `1.2.4`.
 
-### **6.7 Neutral Pack Metadata (Not Yet Implemented)**
-Certain properties are intrinsic to the pack and should not need to be repeated under each site's config block. A future neutral key layer would allow top-level keys that puppy translates to each site's native representation when staging:
+### **6.7 Neutral Pack Metadata**
+Certain properties are intrinsic to the pack and should not need to be repeated under each site's config block. Puppy translates top-level neutral keys to each site's native representation when staging:
 
 | Neutral key | CurseForge | Modrinth | PMC |
 |---|---|---|---|

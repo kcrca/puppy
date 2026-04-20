@@ -64,7 +64,34 @@ class ConfigSynthesizer:
             if images_source:
                 config["images_source"] = str((project_puppy / images_source).resolve())
 
-        return config
+        return _apply_neutral_metadata(config)
+
+
+def _apply_neutral_metadata(config: dict) -> dict:
+    """Expand top-level neutral keys into per-site fields; per-site values win."""
+    config = dict(config)
+
+    resolution = config.get("resolution")
+    if resolution is not None:
+        res = str(resolution)
+        cf = config.setdefault("curseforge", {})
+        cf.setdefault("mainCategory", f"{res}x")
+        mr = config.setdefault("modrinth", {})
+        mr.setdefault("tags", {}).setdefault(f"{res}x", True)
+        pmc = config.setdefault("planetminecraft", {})
+        pmc.setdefault("resolution", int(resolution))
+
+    progress = config.get("progress")
+    if progress is not None:
+        pmc = config.setdefault("planetminecraft", {})
+        pmc.setdefault("progress", int(progress))
+
+    license_ = config.get("license")
+    if license_:
+        for site in ("curseforge", "modrinth"):
+            config.setdefault(site, {}).setdefault("license", license_)
+
+    return config
 
 
 _SITE_URL = {
