@@ -123,7 +123,11 @@ def _combined_metadata_table(project: Project, config: dict, sites: list[str]) -
     header = "<tr><th></th>" + "".join(f"<th>{l}</th>" for l in labels) + "</tr>"
     rows = ""
     for field in order:
-        cells = "".join(f"<td>{site_fields[s].get(field, '')}</td>" for s in sites)
+        cells = "".join(
+            f"<td>{site_fields[s][field]}</td>" if field in site_fields[s]
+            else "<td class='na'>—</td>"
+            for s in sites
+        )
         rows += f"<tr><th>{_html.escape(field)}</th>{cells}</tr>"
 
     return f'<table class="meta">{header}{rows}</table>\n'
@@ -246,6 +250,7 @@ def _page(project: Project, config: dict, sites: list[str], per_site_html: dict[
   table.meta thead th {{ text-align: center; }}
   table.meta tbody th {{ width: 10rem; }}
   .gloss {{ color: #888; font-size: 0.85em; }}
+  td.na {{ color: #999; text-align: center; background: #f8f8f8; }}
   .tabs {{ display: flex; gap: 0.5rem; margin: 1.5rem 0 1rem; }}
   .tab-btn {{ padding: 0.4rem 1.1rem; border: 1px solid #bbb; border-radius: 4px; background: #f5f5f5; cursor: pointer; font-size: 0.95rem; }}
   .tab-btn.active {{ background: #222; color: #fff; border-color: #222; }}
