@@ -68,10 +68,12 @@ class ConfigSynthesizer:
 
 
 _SITE_URL = {
-    "modrinth": "https://modrinth.com/mod/{ref}",
+    "modrinth": "https://modrinth.com/{type}/{ref}",
     "curseforge": "https://www.curseforge.com/minecraft/texture-packs/{ref}",
     "planetminecraft": "https://www.planetminecraft.com/texture-pack/{ref}/",
 }
+
+_MODRINTH_DEFAULT_TYPE = "mod"
 
 
 def build_projects_context(puppy_home: Path) -> dict:
@@ -90,7 +92,8 @@ def build_projects_context(puppy_home: Path) -> dict:
             sc = cfg.get(site, {})
             ref = sc.get("slug") or sc.get("id")
             if ref:
-                site_urls[site] = {"url": template.format(ref=ref)}
+                site_type = sc.get("type", _MODRINTH_DEFAULT_TYPE) if site == "modrinth" else ""
+                site_urls[site] = {"url": template.format(ref=ref, type=site_type)}
         if site_urls:
             projects[pack] = site_urls
     return projects

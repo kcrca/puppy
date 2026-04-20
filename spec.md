@@ -174,6 +174,6 @@ Certain properties are intrinsic to the pack and should not need to be repeated 
 Per-site overrides in `curseforge:`, `modrinth:`, `planetminecraft:` blocks take precedence over neutral keys. Site-specific fields with no neutral equivalent (e.g. CF `additionalCategories`, PMC `modifies`) remain site-specific.
 
 ### **6.6 Translation & Shielding**
-* **Cross-Linking:** Puppy pre-scans all sibling projects in `puppy_home`, injecting a `projects` dict into the Jinja context. Each entry is keyed by `pack` slug and contains per-site `url` values (e.g. `{{ projects.other.modrinth.url }}`). URLs are built from `slug` if available, falling back to `id`.
+* **Cross-Linking:** Puppy pre-scans all sibling projects in `puppy_home`, injecting a `projects` dict into the Jinja context. Each entry is keyed by `pack` slug and contains per-site `url` values (e.g. `{{ projects.other.modrinth.url }}`). URLs are built from `slug` if available, falling back to `id`. The Modrinth URL path segment defaults to `mod`; set `modrinth.type:` (e.g. `resourcepack`, `modpack`) to override.
 * **Shielding:** `md_html_tags` in `puppy.yaml` (default `['u']`) lists HTML tags to be protected from Markdown translation and mapped to target-site equivalents (e.g. `<u>` → `[u]` for PMC).
 * **Exclusions:** Puppy respects a `.puppyignore` file in the project root to prevent large/irrelevant files from being staged into the worker directory.
