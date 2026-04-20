@@ -28,6 +28,10 @@ _SITE_NAMES = {
 
 
 def run_push(*, project: Project, config: dict, worker_dir: Path, puppy_home: Path, site: str | None, version: str | None, pack: bool, force: bool, verbosity: int) -> None:
+    from puppy.config import build_projects_context
+    config = dict(config)
+    config["projects"] = build_projects_context(puppy_home)
+
     puppy_dir = project.root / "puppy"
     icon = _resolve_asset(config.get("icon"), puppy_dir, _find_icon)
     _validate_square(icon)

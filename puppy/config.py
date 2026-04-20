@@ -65,3 +65,32 @@ class ConfigSynthesizer:
                 config["images_source"] = str((project_puppy / images_source).resolve())
 
         return config
+
+
+_SITE_URL = {
+    "modrinth": "https://modrinth.com/mod/{ref}",
+    "curseforge": "https://www.curseforge.com/minecraft/texture-packs/{ref}",
+    "planetminecraft": "https://www.planetminecraft.com/texture-pack/{ref}/",
+}
+
+
+def build_projects_context(puppy_home: Path) -> dict:
+    """Scan sibling projects and return a {pack: {site: {url: ...}}} dict."""
+    projects: dict = {}
+    for candidate in puppy_home.iterdir():
+        if not candidate.is_dir():
+            continue
+        yaml_path = candidate / "puppy" / "puppy.yaml"
+        if not yaml_path.exists():
+            continue
+        cfg = _load_yaml(yaml_path)
+        pack = cfg.get("pack") or candidate.name.lower()
+        site_urls: dict = {}
+        for site, template in _SITE_URL.items():
+            sc = cfg.get(site, {})
+            ref = sc.get("slug") or sc.get("id")
+            if ref:
+                site_urls[site] = {"url": template.format(ref=ref)}
+        if site_urls:
+            projects[pack] = site_urls
+    return projects

@@ -141,6 +141,9 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site):
     debug_dir.mkdir(parents=True)
 
     if action in ("push",):
+        from puppy.config import build_projects_context
+        config = dict(config)
+        config["projects"] = build_projects_context(puppy_home)
         discovery = ContentDiscovery(puppy_home, project.root)
         sites = [s for s in _TEMPLATE_EXT if not site or s == site]
         source_exts: dict[str, str] = {}
