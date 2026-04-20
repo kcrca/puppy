@@ -103,8 +103,6 @@ def run(
         run_init(directory)
         return
 
-    check_preflight()
-
     puppy_home, projects = _determine_roots(directory)
     auth = check_auth(puppy_home)
 
@@ -123,6 +121,7 @@ def run(
         if dry_run:
             _run_dry(action, project, config, resolved_version, verbosity, puppy_home, site)
         else:
+            check_preflight()
             _worker_prep(verbosity)
             _write_auth(auth)
             _patch_settings()
@@ -148,7 +147,7 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site):
         for s in sites:
             body, source = discovery.find_description(site=s)
             if body:
-                rendered = render(body, config, discovery=discovery, site=s, source=str(source))
+                rendered = render(body, config, source=str(source))
                 ext = _TEMPLATE_EXT[s]
                 out = debug_dir / s / f"description{ext}"
                 out.parent.mkdir(parents=True, exist_ok=True)

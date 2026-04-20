@@ -32,11 +32,10 @@ def run_push(*, project: Project, config: dict, worker_dir: Path, puppy_home: Pa
     icon = _resolve_asset(config.get("icon"), puppy_dir, _find_icon)
     _validate_square(icon)
 
-    discovery = ContentDiscovery(puppy_home, project.root)
-    body, source = discovery.find_description(site=site)
+    body, source = ContentDiscovery(puppy_home, project.root).find_description(site=site)
     if body:
         config = dict(config)
-        config["description"] = [render(body, config, discovery=discovery, site=site, source=str(source))]
+        config["description"] = [render(body, config, source=str(source))]
 
     _stage(project, config, icon, puppy_dir, worker_dir, site)
     _run_worker(worker_dir, verbosity)

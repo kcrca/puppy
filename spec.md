@@ -3,7 +3,7 @@
 ## **1. Design Principles**
 * **User-Centric Simplicity:** Defaults favor the user. Puppy acts on all projects and sites unless filtered.
 * **Worker-First Execution:** Puppy acts as a thin management layer for `PackUploader` (`pu`). It handles staging, factory-resetting the worker, and dependency checks automatically.
-* **Implicit Discovery:** Asset discovery (icons, zips, fragments) is preferred over manual path mapping.
+* **Implicit Discovery:** Asset discovery (icons, zips) is preferred over manual path mapping.
 * **Integrated Versioning:** All data and harvested IDs reside in the project source directory.
 * **Markdown-First:** Content is written in Markdown. Site-specific native files (`.html`, `.bbcode`) act as overrides.
 * **Non-Interactive (Fail-Fast):** No prompts. Errors (missing IDs, mismatched versions, security flaws) result in an immediate exit.
@@ -90,18 +90,16 @@ Layers applied in order (later layers win for scalars; dicts merge additively):
 **Batch mode:** Projects listed explicitly under `projects:` in the global `puppy.yaml`. Subdirectories are not auto-scanned.
 
 ### **5.2 Content Discovery (The Cascade)**
-For fragments (e.g. `{{ header }}`), Puppy searches:
-1. YAML `strings` block.
-2. Project Site File (`{project_root}/puppy/[sitename]/[fragment]`)
-3. Project General File (`{project_root}/puppy/[fragment]`)
-4. Global Site File (`{puppy_home}/[sitename]/[fragment]`)
-5. Global General File (`{puppy_home}/[fragment]`)
+The description body is discovered by searching in order:
+1. Project Site File (`{project_root}/puppy/[sitename]/body.{ext}`)
+2. Project General File (`{project_root}/puppy/description.{ext}`)
+3. Global General File (`{puppy_home}/description.{ext}`)
 
 **Extension Priority:** CurseForge/Modrinth (`.html` → `.md`); PMC (`.bbcode` → `.md`).
 
 ### **5.3 Description Body vs. Template Wrapper**
 Each site has two distinct files:
-* **Wrapper Template** (`{project_root}/puppy/[sitename]/description.{ext}`): Scaffolding with `{{ description }}`, `{{ images }}`, `{{ snippet:header }}` etc. Staged for the worker as `templates/{site}.{ext}`. Created by `init`.
+* **Wrapper Template** (`{project_root}/puppy/[sitename]/description.{ext}`): Scaffolding with `{{ description }}`, `{{ images }}` etc. Staged for the worker as `templates/{site}.{ext}`. Created by `init`.
 * **Description Body** (`{project_root}/puppy/description.md` or `{puppy_home}/description.md`): The actual content substituted for `{{ description }}` in the wrapper. Discovered via the non-site-specific cascade levels (steps 3 and 5 above). Site-specific body overrides can live at `{project_root}/puppy/[sitename]/body.{ext}`.
 
 ### **5.4 Template Variable Substitution**
