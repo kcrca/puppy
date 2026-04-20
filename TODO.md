@@ -16,6 +16,9 @@
 
 ## Design Questions
 
+- **Jinja conditional wrapping**: No clean syntax for wrapping text in tags conditionally. Options: macro+call block, repeated `{% if %}` tags, or a custom Jinja extension. Verbose in current form.
+
+
 - **Site abbreviations**: `cf`, `mr`, `pmc` added as aliases — reconsider whether this is a good idea.
 
 ## UX
