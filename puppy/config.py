@@ -77,9 +77,15 @@ def _apply_neutral_metadata(config: dict) -> dict:
         cf = config.setdefault("curseforge", {})
         cf.setdefault("mainCategory", f"{res}x")
         mr = config.setdefault("modrinth", {})
-        mr.setdefault("tags", {}).setdefault(f"{res}x", True)
+        tags = mr.setdefault("tags", {})
+        for tier in ["8x-", "16x", "32x", "48x", "64x", "128x", "256x", "512x+"]:
+            tags.setdefault(tier, tier == f"{res}x")
         pmc = config.setdefault("planetminecraft", {})
         pmc.setdefault("resolution", int(resolution))
+        pmc_tags = pmc.setdefault("tags", [])
+        for res_tag in [f"{res}x", f"{res}x{res}"]:
+            if res_tag not in pmc_tags:
+                pmc_tags.append(res_tag)
 
     progress = config.get("progress")
     if progress is not None:

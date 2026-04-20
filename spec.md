@@ -162,16 +162,15 @@ After `import` or `create`, platform IDs, slugs, and full metadata are written b
 Version must be the last component before `.zip`, separated by `-`, `_`, or `.` (e.g. `mypack-1.2.zip`). Strict boundary check ensures `1.2` does not match `1.2.4`.
 
 ### **6.7 Neutral Pack Metadata**
-Certain properties are intrinsic to the pack and should not need to be repeated under each site's config block. Puppy translates top-level neutral keys to each site's native representation when staging:
+Certain properties are intrinsic to the pack and should not need to be repeated under each site's config block. Puppy translates top-level neutral keys to each site's native representation when staging. A neutral key sets the *entire group* of related per-site fields — for example, `resolution: 16` sets all Modrinth resolution tier tags (only `16x` true, all others false), sets CF `mainCategory: 16x`, sets PMC `resolution: 16`, and adds `16x` and `16x16` to PMC tags. There is no need to specify these in the site blocks unless overriding.
 
 | Neutral key | CurseForge | Modrinth | PMC |
 |---|---|---|---|
-| `license: CC-BY 4.0` | `license:` (different name strings — needs cross-reference table) | `license: CC-BY 4.0` | ignored |
-| `resolution: 16` | `mainCategory: 16x` | `tags.16x: true` | `resolution: "16"` |
-| `category: Simplistic` | no clean mapping (different taxonomy) | `tags.simplistic: true` | `category: Simplistic` |
+| `license: CC-BY 4.0` | `license: CC-BY 4.0` | `license: CC-BY 4.0` | ignored |
+| `resolution: 16` | `mainCategory: 16x` | full tier group (`16x: true`, others false) | `resolution: 16`, tags `16x` and `16x16` |
 | `progress: 100` | ignored | ignored | `progress: 100` |
 
-Per-site overrides in `curseforge:`, `modrinth:`, `planetminecraft:` blocks take precedence over neutral keys. Site-specific fields with no neutral equivalent (e.g. CF `additionalCategories`, PMC `modifies`) remain site-specific.
+Per-site overrides in `curseforge:`, `modrinth:`, `planetminecraft:` blocks take precedence over neutral keys — explicit per-site values are never overwritten. Site-specific fields with no neutral equivalent (e.g. CF `additionalCategories`, PMC `modifies`, PMC `tags`) should list all options explicitly so intent is clear.
 
 ### **6.6 Translation & Shielding**
 * **Cross-Linking:** Puppy pre-scans all sibling projects in `puppy_home`, injecting a `projects` dict into the Jinja context. Each entry is keyed by `pack` slug and contains per-site `url` values (e.g. `{{ projects.other.modrinth.url }}`). URLs are built from `slug` if available, falling back to `id`. The Modrinth URL path segment defaults to `mod`; set `modrinth.type:` (e.g. `resourcepack`, `modpack`) to override.
