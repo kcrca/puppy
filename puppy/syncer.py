@@ -36,12 +36,17 @@ def run_push(*, project: Project, config: dict, worker_dir: Path, puppy_home: Pa
     icon = _resolve_asset(config.get("icon"), puppy_dir, _find_icon)
     _validate_square(icon)
 
-    body, source = ContentDiscovery(puppy_home, project.root).find_description(site=site)
-    if body:
-        config = dict(config)
-        config["description"] = [render(body, config, source=str(source), site=site)]
+    discovery = ContentDiscovery(puppy_home, project.root)
+    descriptions: dict[str, str] = {}
+    for s in SiteVisitor(site):
+        body, source = discovery.find_description(site=s)
+        if body:
+            descriptions[s] = render(body, config, source=str(source), site=s)
 
-    _stage(project, config, icon, puppy_dir, worker_dir, site)
+    config = dict(config)
+    config["description"] = []
+
+    _stage(project, config, icon, puppy_dir, worker_dir, site, descriptions)
     _run_worker(worker_dir, verbosity)
 
     if pack:
@@ -59,6 +64,7 @@ def _stage(
     puppy_dir: Path,
     worker_dir: Path,
     site: str | None,
+    descriptions: dict[str, str] | None = None,
 ) -> None:
     cfg = _build_config(project, config)
 
@@ -95,7 +101,7 @@ def _stage(
         if src.exists():
             shutil.copy(src, project_dir / optional)
 
-    _stage_templates(project_dir, puppy_dir, site)
+    _stage_templates(project_dir, puppy_dir, site, descriptions or {})
 
 
 _MINIMAL_TEMPLATE = {
@@ -116,7 +122,7 @@ def _copy_images(config: dict, puppy_dir: Path, dest: Path) -> None:
             print(f"WARNING: {e}")
 
 
-def _stage_templates(project_dir: Path, puppy_dir: Path, site: str | None) -> None:
+def _stage_templates(project_dir: Path, puppy_dir: Path, site: str | None, descriptions: dict[str, str]) -> None:
     templates_dir = project_dir / "templates"
     templates_dir.mkdir()
     visitor = SiteVisitor(site)
@@ -125,7 +131,11 @@ def _stage_templates(project_dir: Path, puppy_dir: Path, site: str | None) -> No
             continue
         dest = templates_dir / f"{s}{ext}"
         src = puppy_dir / s / f"description{ext}"
-        if src.exists():
+        rendered = descriptions.get(s)
+        if rendered is not None:
+            # Bake rendered description; leave {{ images }} for the worker
+            dest.write_text(f"{rendered}\n\n{{{{ images }}}}\n")
+        elif src.exists():
             shutil.copy(src, dest)
         else:
             dest.write_text(_MINIMAL_TEMPLATE[ext])
