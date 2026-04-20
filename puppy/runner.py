@@ -59,14 +59,74 @@ def _determine_roots(directory: Path) -> tuple[Path, list[Path]]:
     )
 
 
+def _deep_clear(existing: dict, blank: dict) -> dict:
+    """Apply blank over existing: blank keys win, extra existing keys are preserved."""
+    result = dict(existing)
+    for k, v in blank.items():
+        if isinstance(v, dict) and isinstance(result.get(k), dict):
+            result[k] = _deep_clear(result[k], v)
+        else:
+            result[k] = v
+    return result
+
+
 def _write_auth(auth: dict) -> None:
     (WORKER_DIR / "auth.json").write_text(json.dumps(auth, indent=2))
 
 
-def _patch_settings() -> None:
+_SETTINGS_BLANK = {
+    "ewan": False,
+    "curseforge": {
+        "donation": {"type": None, "value": None},
+        "socials": {k: None for k in [
+            "bluesky", "discord", "facebook", "github", "instagram",
+            "mastodon", "patreon", "pinterest", "reddit", "tiktok",
+            "twitch", "twitter", "website", "youtube",
+        ]},
+    },
+    "planetminecraft": {
+        "website": {"link": None, "title": None},
+    },
+    "modrinth": {
+        "discord": None,
+        "donation": {k: None for k in [
+            "buyMeACoffee", "github", "kofi", "other", "patreon", "paypal",
+        ]},
+    },
+    "templateDefaults": {},
+}
+
+
+def _patch_settings(config: dict) -> None:
     settings_path = WORKER_DIR / "settings.json"
     settings = json.loads(settings_path.read_text())
-    settings["ewan"] = False
+
+    # Clear all personal defaults (blank wins over existing values)
+    for key, blank in _SETTINGS_BLANK.items():
+        if blank == {}:
+            settings[key] = {}
+        elif isinstance(blank, dict) and isinstance(settings.get(key), dict):
+            settings[key] = _deep_clear(settings[key], blank)
+        else:
+            settings[key] = blank
+
+    # Overlay values from merged puppy config
+    cf = config.get("curseforge", {})
+    if cf.get("socials"):
+        settings["curseforge"]["socials"].update(cf["socials"])
+    if cf.get("donation"):
+        settings["curseforge"]["donation"].update(cf["donation"])
+
+    mr = config.get("modrinth", {})
+    if mr.get("discord"):
+        settings["modrinth"]["discord"] = mr["discord"]
+    if mr.get("donation"):
+        settings["modrinth"]["donation"].update(mr["donation"])
+
+    pmc = config.get("planetminecraft", {})
+    if pmc.get("website"):
+        settings["planetminecraft"]["website"].update(pmc["website"])
+
     settings_path.write_text(json.dumps(settings, indent=2))
 
 
@@ -124,7 +184,7 @@ def run(
             check_preflight()
             _worker_prep(verbosity)
             _write_auth(auth)
-            _patch_settings()
+            _patch_settings(config)
             _dispatch(action, project, config, resolved_version, auth, puppy_home, site, pack, force, verbosity)
 
 
