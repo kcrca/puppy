@@ -51,7 +51,7 @@ Puppy can be invoked from:
 * **`init`:** Creates the `puppy/` directory structure in the target directory: `puppy.yaml`, `auth.yaml`, `.gitignore`, and a starter `description.md`. Derives `name` and `pack` from the directory name. Any file that already exists is left untouched with a warning.
 
 ### **4.2 Options & Flags**
-* **`-n/--dry-run`:** Executes the full pipeline and writes payloads to `{tempdir}/puppy/{pack}/` without hitting APIs or running the worker.
+* **`-n/--dry-run`:** Executes the full pipeline without hitting APIs or running the worker. Writes a per-site preview to `{tempdir}/puppy/{pack}/index.html` — a tabbed HTML page showing rendered descriptions, project metadata, icon, and images for each site. Also prints the `file://` URL to open it directly.
 * **`-v` / `-vv`:** High-level progress (`-v`) or raw worker stdout/stderr (`-vv`).
 * **`-d/--dir [path]`:** Sets working directory. Defaults to CWD.
 * **`-s/--site [sitename]`:** Limits action to a specific site (e.g. `modrinth`, `curseforge`, `planetminecraft`).
@@ -100,10 +100,24 @@ The description body is discovered by searching in order:
 ### **5.3 Description Body vs. Template Wrapper**
 Each site has two distinct files:
 * **Wrapper Template** (`{project_root}/puppy/[sitename]/description.{ext}`): Scaffolding with `{{ description }}`, `{{ images }}` etc. Staged for the worker as `templates/{site}.{ext}`. Created by `init`.
-* **Description Body** (`{project_root}/puppy/description.md` or `{puppy_home}/description.md`): The actual content substituted for `{{ description }}` in the wrapper. Discovered via the non-site-specific cascade levels (steps 3 and 5 above). Site-specific body overrides can live at `{project_root}/puppy/[sitename]/body.{ext}`.
+* **Description Body** (`{project_root}/puppy/description.md` or `{puppy_home}/description.md`): The actual content substituted for `{{ description }}` in the wrapper. Site-specific body overrides can live at `{project_root}/puppy/[sitename]/body.{ext}`.
 
 ### **5.4 Template Variable Substitution**
 Description body files are rendered as Jinja2 templates. All config keys from `puppy.yaml` are available as variables: `{{ version }}`, `{{ name }}`, `{{ modrinth.slug }}` etc. Full Jinja2 syntax is supported (`{% if %}`, `{% for %}`, filters, etc.). Unrecognised variables produce a warning and are left as-is.
+
+**Standard config fields passed to the worker:**
+* `summary:` — one-line project description shown in search results
+* `optifine: true/false` — whether the pack requires OptiFine (default false)
+* `video: true/false` — whether a video is associated (default false)
+* `github: true/false` — whether a GitHub repo is associated (default false)
+
+**Special image files** (placed in `{project_root}/puppy/`):
+* `thumbnail.png` — hero/banner image; staged and uploaded separately from gallery images
+* `logo.png` — project logo; displayed at fixed aspect ratio (1280×256)
+
+**Image entry flags** (in `images.yaml`):
+* `embed: true` — image is embedded in the description body
+* `featured: true` — image is promoted as a featured/highlighted gallery image on supporting sites
 
 ### **5.5 Path Resolution Rules**
 * **Internal Files:** Follow the Cascading Discovery logic above.
@@ -111,7 +125,7 @@ Description body files are rendered as Jinja2 templates. All config keys from `p
 * **Relative Paths:** All relative paths in any YAML file are resolved relative to the project's `puppy/` directory, regardless of which subdirectory the YAML file lives in. So `../site` in `puppy/images/images.yaml` and `../site` in `puppy/puppy.yaml` both resolve to the same directory.
 
 ### **5.6 Asset Discovery**
-For `create` and `sync`, the icon and zip artifact are resolved as follows:
+For `create` and `push`, the icon and zip artifact are resolved as follows:
 * **Explicit paths** (`icon:` and `zip:` in `puppy.yaml`): resolved relative to the project's `puppy/` directory.
 * **Implicit discovery** (fallback): a single `.png` in `puppy/` (excluding `thumbnail.png` and `logo.png`) is the icon; a single `.zip` in `puppy/` is the artifact. Multiple files of either type is a fatal error.
 * **Icon validation:** The icon must be a square PNG.
@@ -122,6 +136,8 @@ Image metadata (the list of images with names, descriptions, and file references
 * **`puppy/images/images.yaml`** — used when image files are stored inside `puppy/images/`.
 
 Both formats support an optional top-level `source:` key pointing to a directory (resolved relative to `puppy/`) where image files are found. If `source:` is absent, images are loaded from `puppy/images/`.
+
+**Image format handling:** The `file` field may include or omit a file extension. If omitted, Puppy searches for any file with a recognised image extension (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, etc.). Any non-PNG source is converted to PNG using Pillow before staging, since the worker always reads `{file}.png`. If the file cannot be found or converted, Puppy exits with an error.
 
 ## **6. Operational Logic**
 
@@ -144,6 +160,18 @@ After `import` or `create`, platform IDs, slugs, and full metadata are written b
 
 ### **6.5 Artifact Match**
 Version must be the last component before `.zip`, separated by `-`, `_`, or `.` (e.g. `mypack-1.2.zip`). Strict boundary check ensures `1.2` does not match `1.2.4`.
+
+### **6.7 Neutral Pack Metadata (Not Yet Implemented)**
+Certain properties are intrinsic to the pack and should not need to be repeated under each site's config block. A future neutral key layer would allow top-level keys that puppy translates to each site's native representation when staging:
+
+| Neutral key | CurseForge | Modrinth | PMC |
+|---|---|---|---|
+| `license: CC-BY 4.0` | `license:` (different name strings — needs cross-reference table) | `license: CC-BY 4.0` | ignored |
+| `resolution: 16` | `mainCategory: 16x` | `tags.16x: true` | `resolution: "16"` |
+| `category: Simplistic` | no clean mapping (different taxonomy) | `tags.simplistic: true` | `category: Simplistic` |
+| `progress: 100` | ignored | ignored | `progress: 100` |
+
+Per-site overrides in `curseforge:`, `modrinth:`, `planetminecraft:` blocks take precedence over neutral keys. Site-specific fields with no neutral equivalent (e.g. CF `additionalCategories`, PMC `modifies`) remain site-specific.
 
 ### **6.6 Translation & Shielding**
 * **Cross-Linking:** Puppy pre-scans all projects, allowing `{{ projects.[other_pack].url }}` to resolve to site-correct links.

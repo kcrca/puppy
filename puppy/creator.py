@@ -1,6 +1,5 @@
 import json
 import shutil
-import struct
 import subprocess
 from pathlib import Path
 
@@ -52,13 +51,14 @@ def _find_zip(puppy_dir: Path) -> Path:
 
 
 def _validate_square(icon: Path) -> None:
-    # PNG header: bytes 16-24 are width and height as big-endian uint32
-    data = icon.read_bytes()
-    if data[:8] != b"\x89PNG\r\n\x1a\n":
-        raise SystemExit(f"Icon {icon.name} is not a valid PNG")
-    width, height = struct.unpack(">II", data[16:24])
-    if width != height:
-        raise SystemExit(f"Icon {icon.name} must be square ({width}x{height})")
+    try:
+        from PIL import Image
+        with Image.open(icon) as img:
+            w, h = img.size
+    except Exception as e:
+        raise SystemExit(f"Icon {icon.name} could not be read: {e}")
+    if w != h:
+        raise SystemExit(f"Icon {icon.name} must be square ({w}x{h})")
 
 
 def _expand_versions(config: dict) -> dict:
@@ -109,7 +109,8 @@ def _stage(
     data_dir.mkdir(parents=True)
 
     (data_dir / "create.json").write_text(json.dumps(cfg, indent=2))
-    shutil.copy(icon, data_dir / "pack.png")
+    from puppy.images import stage_image
+    stage_image(icon, data_dir / "pack.png")
     shutil.copy(zip_path, data_dir / "pack.zip")
 
     from puppy.syncer import _copy_images
@@ -136,7 +137,7 @@ def _stage(
     project_json = {"config": cfg, **existing}
     (project_dir / "project.json").write_text(json.dumps(project_json, indent=2))
 
-    shutil.copy(icon, project_dir / "pack.png")
+    stage_image(icon, project_dir / "pack.png")
     _copy_images(config, puppy_dir, project_dir / "images")
 
     for optional in ("thumbnail.png", "logo.png"):

@@ -80,7 +80,8 @@ def _stage(
     project_json = {"config": cfg, **platform_ids}
     (project_dir / "project.json").write_text(json.dumps(project_json, indent=2))
 
-    shutil.copy(icon, project_dir / "pack.png")
+    from puppy.images import stage_image
+    stage_image(icon, project_dir / "pack.png")
 
     _copy_images(config, puppy_dir, project_dir / "images")
 
@@ -100,15 +101,14 @@ _MINIMAL_TEMPLATE = {
 
 
 def _copy_images(config: dict, puppy_dir: Path, dest: Path) -> None:
-    dest.mkdir(parents=True, exist_ok=True)
-    src = Path(config["images_source"]) if config.get("images_source") else puppy_dir / "images"
+    from puppy.images import find_image, stage_image
+    src_dir = Path(config["images_source"]) if config.get("images_source") else puppy_dir / "images"
     for img in config.get("images", []):
-        name = img["file"] + ".png"
-        candidate = src / name
-        if candidate.exists():
-            shutil.copy(candidate, dest / name)
-        else:
-            print(f"WARNING: image not found: {candidate}")
+        try:
+            src = find_image(img["file"], src_dir)
+            stage_image(src, dest / (Path(img["file"]).stem + ".png"))
+        except SystemExit as e:
+            print(f"WARNING: {e}")
 
 
 def _stage_templates(project_dir: Path, puppy_dir: Path, site: str | None) -> None:

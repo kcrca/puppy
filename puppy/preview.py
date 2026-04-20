@@ -5,6 +5,7 @@ from pathlib import Path
 
 from puppy.core import Project
 from puppy.creator import _expand_versions, _find_icon, _resolve_asset
+from puppy.images import find_image, stage_image
 from puppy.syncer import _TEMPLATE_EXT
 
 _SITE_LABEL = {
@@ -26,21 +27,23 @@ def generate(
     icon_rel = None
     try:
         icon_src = _resolve_asset(config.get("icon"), puppy_dir, _find_icon)
-        shutil.copy(icon_src, debug_dir / "icon.png")
+        stage_image(icon_src, debug_dir / "icon.png")
         icon_rel = "icon.png"
     except SystemExit:
         pass
 
     image_entries: list[tuple[str, str, str]] = []
     images_src = Path(config["images_source"]) if config.get("images_source") else puppy_dir / "images"
+    images_dest = debug_dir / "images"
     for img in config.get("images", []):
-        fname = img["file"] + ".png"
-        src = images_src / fname
-        if src.exists():
-            dest = debug_dir / "images"
-            dest.mkdir(exist_ok=True)
-            shutil.copy(src, dest / fname)
+        stem = Path(img["file"]).stem
+        fname = stem + ".png"
+        try:
+            src = find_image(img["file"], images_src)
+            stage_image(src, images_dest / fname)
             image_entries.append((fname, img.get("name", ""), img.get("description", "")))
+        except SystemExit as e:
+            print(f"WARNING: {e}")
 
     per_site_html: dict[str, str] = {}
     for s in sites:
