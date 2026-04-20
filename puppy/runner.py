@@ -147,7 +147,7 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site):
         for s in sites:
             body, source_path = discovery.find_description(site=s)
             if body:
-                rendered = render(body, config, source=str(source_path))
+                rendered = render(body, config, source=str(source_path), site=s)
                 ext = _TEMPLATE_EXT[s]
                 out = debug_dir / s / f"description{ext}"
                 out.parent.mkdir(parents=True, exist_ok=True)

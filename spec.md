@@ -175,5 +175,5 @@ Per-site overrides in `curseforge:`, `modrinth:`, `planetminecraft:` blocks take
 
 ### **6.6 Translation & Shielding**
 * **Cross-Linking:** Puppy pre-scans all projects, allowing `{{ projects.[other_pack].url }}` to resolve to site-correct links.
-* **Shielding:** `valid_tags` (default `['u']`) are protected from Markdown translation and mapped to target-site equivalents (e.g. `<u>` → `[u]` for PMC).
+* **Shielding:** `md_html_tags` in `puppy.yaml` (default `['u']`) lists HTML tags to be protected from Markdown translation and mapped to target-site equivalents (e.g. `<u>` → `[u]` for PMC).
 * **Exclusions:** Puppy respects a `.puppyignore` file in the project root to prevent large/irrelevant files from being staged into the worker directory.

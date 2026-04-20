@@ -45,12 +45,15 @@ def generate(
         except SystemExit as e:
             print(f"WARNING: {e}")
 
+    from puppy.renderer import DEFAULT_SHIELD_TAGS
+    shield_tags = config.get("md_html_tags", DEFAULT_SHIELD_TAGS)
+
     per_site_html: dict[str, str] = {}
     for s in sites:
         ext = _TEMPLATE_EXT[s]
         desc_file = debug_dir / s / f"description{ext}"
         src_ext = source_exts.get(s, ext)
-        body_html = _to_html(desc_file.read_text(), src_ext) if desc_file.exists() else "<em>(no description)</em>"
+        body_html = _to_html(desc_file.read_text(), src_ext, shield_tags) if desc_file.exists() else "<em>(no description)</em>"
         per_site_html[s] = (
             (_icon_html(icon_rel) if icon_rel else "")
             + f'<div class="description">{body_html}</div>\n'
@@ -62,12 +65,21 @@ def generate(
 
 # ── conversion ───────────────────────────────────────────────────────────────
 
-def _to_html(text: str, ext: str) -> str:
+def _to_html(text: str, ext: str, shield_tags: list[str] | None = None) -> str:
     if ext == ".html":
         return text
     if ext == ".md":
         import markdown
-        return markdown.markdown(text, extensions=["extra"])
+        tags = shield_tags or []
+        placeholders = {tag: f"\x00{tag}\x00" for tag in tags}
+        for tag in tags:
+            text = text.replace(f"<{tag}>", placeholders[tag])
+            text = text.replace(f"</{tag}>", f"\x00/{tag}\x00")
+        result = markdown.markdown(text, extensions=["extra"])
+        for tag in tags:
+            result = result.replace(placeholders[tag], f"<{tag}>")
+            result = result.replace(f"\x00/{tag}\x00", f"</{tag}>")
+        return result
     if ext == ".bbcode":
         return _bbcode_to_html(text)
     return f"<pre>{_html.escape(text)}</pre>"
