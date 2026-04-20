@@ -31,9 +31,7 @@ class ConfigSynthesizer:
     def get_running_config(self) -> dict[str, Any]:
         project_puppy = self.project_root / "puppy"
 
-        layers: list[Path] = [
-            self.puppy_home / "puppy.yaml",
-        ]
+        layers: list[Path] = [self.puppy_home / "puppy.yaml"]
         if self.site:
             layers.append(self.puppy_home / self.site / "puppy.yaml")
         layers.append(project_puppy / "puppy.yaml")

@@ -1,3 +1,9 @@
+import re
+
+import markdown as _md
+import mistune
+from md2bbcode.main import convert_markdown_to_bbcode
+from md2bbcode.renderers.bbcode import BBCodeRenderer
 from jinja2 import Environment, Undefined
 
 
@@ -20,6 +26,27 @@ def _site_tag_maps(site: str, tags: list[str]) -> tuple[dict, dict]:
     if site == "planetminecraft":
         return {t: f"[{t}]" for t in tags}, {t: f"[/{t}]" for t in tags}
     return {}, {}
+
+
+def md_to_html(text: str) -> str:
+    return _md.markdown(text, extensions=["extra"])
+
+
+class _PMCRenderer(BBCodeRenderer):
+    def image(self, text: str, url: str, title=None) -> str:
+        return f"[img]{url}[/img]"
+
+    def heading(self, text: str, level: int, **attrs) -> str:
+        return f"[h{level}]{text}[/h{level}]\n"
+
+
+_pmc_parser = mistune.create_markdown(renderer=_PMCRenderer(domain=""))
+
+
+def md_to_bbcode(text: str) -> str:
+    # Normalize soft-wrapped lines (single newlines) to spaces before converting
+    text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
+    return _pmc_parser(text)
 
 
 def render(text: str, config: dict, source: str = "<description>", *, site: str | None = None) -> str:

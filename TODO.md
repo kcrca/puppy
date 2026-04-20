@@ -14,6 +14,16 @@
 - ✅ Stale `strings:` comment removed from generated `puppy.yaml`.
 - ✅ Per-site template wrappers (`curseforge/description.html`, `modrinth/description.md`, `planetminecraft/description.bbcode`) now created by `init`.
 
+## Design Questions
+
+- **Site abbreviations**: `cf`, `mr`, `pmc` added as aliases — reconsider whether this is a good idea.
+
+## UX
+
+- ✅ **Worker output buffering**: Fixed. Now uses `Popen` with line-by-line reading.
+
+- **Default verbosity**: Consider making `-v` the default since uploads take a while and silence is confusing. Currently requires explicit `-v` flag.
+
 ## Testing Gaps
 
 - ✅ **Batch mode**: Unit tests added for batch execution, site filtering, zip links, variable isolation.

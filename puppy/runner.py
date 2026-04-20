@@ -6,6 +6,7 @@ from pathlib import Path
 from puppy.checks import check_auth, check_preflight
 from puppy.config import ConfigSynthesizer
 from puppy.core import Project
+from puppy.sites import _ALIASES
 
 
 WORKER_DIR = Path.home() / "PackUploader"
@@ -163,6 +164,8 @@ def run(
         run_init(directory)
         return
 
+    if site:
+        site = ",".join(_ALIASES.get(s.strip(), s.strip()) for s in site.split(","))
     puppy_home, projects = _determine_roots(directory)
     auth = check_auth(puppy_home)
 
@@ -191,7 +194,7 @@ def run(
 def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack=False):
     import shutil
     from puppy.preview import generate as generate_preview
-    from puppy.renderer import render
+    from puppy.renderer import md_to_bbcode, md_to_html, render
     from puppy.searcher import ContentDiscovery
     from puppy.syncer import _TEMPLATE_EXT
 
@@ -212,12 +215,22 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack
         for s in sites:
             body, source_path = discovery.find_description(site=s)
             if body:
-                rendered = render(body, config, source=str(source_path), site=s)
+                site_config = ConfigSynthesizer(puppy_home, project.root, site=s).get_running_config()
+                site_config["projects"] = config["projects"]
+                rendered = render(body, site_config, source=str(source_path), site=s)
+                staged_ext = source_path.suffix if source_path else _TEMPLATE_EXT[s]
+                if source_path and source_path.suffix == ".md":
+                    if s == "curseforge":
+                        rendered = md_to_html(rendered)
+                        staged_ext = ".html"
+                    elif s == "planetminecraft":
+                        rendered = md_to_bbcode(rendered)
+                        staged_ext = ".bbcode"
                 ext = _TEMPLATE_EXT[s]
                 out = debug_dir / s / f"description{ext}"
                 out.parent.mkdir(parents=True, exist_ok=True)
                 out.write_text(rendered)
-                source_exts[s] = source_path.suffix if source_path else ext
+                source_exts[s] = staged_ext
 
         if pack:
             from puppy.publisher import _resolve_zip

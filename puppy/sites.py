@@ -3,6 +3,8 @@ from __future__ import annotations
 
 SITES = ["curseforge", "modrinth", "planetminecraft"]
 
+_ALIASES = {"cf": "curseforge", "mr": "modrinth", "pmc": "planetminecraft"}
+
 
 class SiteVisitor:
     """Iterates over the active sites, respecting an optional filter.
@@ -12,7 +14,7 @@ class SiteVisitor:
 
     def __init__(self, filter: str | None = None):
         if filter:
-            requested = [s.strip() for s in filter.split(",")]
+            requested = [_ALIASES.get(s.strip(), s.strip()) for s in filter.split(",")]
             unknown = [s for s in requested if s not in SITES]
             if unknown:
                 raise SystemExit(f"Unknown site(s): {', '.join(unknown)}. Valid: {', '.join(SITES)}")

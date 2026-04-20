@@ -3,6 +3,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from puppy.config import ConfigSynthesizer, _deep_merge, build_projects_context
 from puppy.core import Project
 from puppy.creator import (
     _build_config,
@@ -11,7 +12,7 @@ from puppy.creator import (
     _validate_square,
 )
 from puppy.sites import SITES, SiteVisitor
-from puppy.renderer import render
+from puppy.renderer import md_to_bbcode, md_to_html, render
 from puppy.searcher import ContentDiscovery
 
 _TEMPLATE_EXT = {
@@ -28,7 +29,6 @@ _SITE_NAMES = {
 
 
 def run_push(*, project: Project, config: dict, worker_dir: Path, puppy_home: Path, site: str | None, version: str | None, pack: bool, force: bool, verbosity: int) -> None:
-    from puppy.config import build_projects_context
     config = dict(config)
     config["projects"] = build_projects_context(puppy_home)
 
@@ -39,9 +39,19 @@ def run_push(*, project: Project, config: dict, worker_dir: Path, puppy_home: Pa
     discovery = ContentDiscovery(puppy_home, project.root)
     descriptions: dict[str, str] = {}
     for s in SiteVisitor(site):
+        site_config = ConfigSynthesizer(puppy_home, project.root, site=s).get_running_config()
+        site_config["projects"] = config["projects"]
+        if s in site_config:
+            config = _deep_merge(config, {s: site_config[s]})
         body, source = discovery.find_description(site=s)
         if body:
-            descriptions[s] = render(body, config, source=str(source), site=s)
+            rendered = render(body, site_config, source=str(source), site=s)
+            if source and source.suffix == ".md":
+                if s == "curseforge":
+                    rendered = md_to_html(rendered)
+                elif s == "planetminecraft":
+                    rendered = md_to_bbcode(rendered)
+            descriptions[s] = rendered
 
     config = dict(config)
     config["description"] = []
@@ -143,10 +153,21 @@ def _stage_templates(project_dir: Path, puppy_dir: Path, site: str | None, descr
 
 def _run_worker(worker_dir: Path, verbosity: int) -> None:
     cmd = ["node", "--no-warnings", "scripts/details.js"]
-    kwargs: dict = {"cwd": worker_dir}
-    if verbosity < 2:
-        kwargs["capture_output"] = True
-    result = subprocess.run(cmd, **kwargs)
-    if result.returncode != 0:
-        detail = result.stderr.decode() if verbosity < 2 else ""
-        raise SystemExit(f"Worker sync failed\n{detail}".strip())
+    proc = subprocess.Popen(cmd, cwd=worker_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    stdout_lines: list[str] = []
+    for line in proc.stdout:
+        stdout_lines.append(line)
+        if verbosity >= 1:
+            print(line, end="", flush=True)
+    stderr = proc.stderr.read()
+    proc.wait()
+    if proc.returncode != 0:
+        raise SystemExit(f"Worker sync failed\n{stderr}".strip())
+    failures = [l for l in stdout_lines if "failed" in l.lower()]
+    if failures:
+        if verbosity < 1:
+            print("WARNING: worker reported failures:")
+            for line in failures:
+                print(f"  {line}", end="")
+        else:
+            print(f"WARNING: {len(failures)} failure(s) in worker output (see above)")
