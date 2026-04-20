@@ -94,8 +94,10 @@ def _apply_neutral_metadata(config: dict) -> dict:
 
     license_ = config.get("license")
     if license_:
-        for site in ("curseforge", "modrinth"):
-            config.setdefault(site, {}).setdefault("license", license_)
+        # Neutral form is SPDX (CC-BY-4.0); CF uses last-hyphen-as-space (CC-BY 4.0)
+        cf_license = " ".join(license_.rsplit("-", 1)) if "-" in license_ else license_
+        config.setdefault("curseforge", {}).setdefault("license", cf_license)
+        config.setdefault("modrinth", {}).setdefault("license", license_)
 
     return config
 

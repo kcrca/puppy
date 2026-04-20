@@ -78,6 +78,12 @@ def test_progress_pmc():
 
 
 def test_license_cf_and_modrinth():
+    config = _apply_neutral_metadata({"license": "CC-BY-4.0"})
+    assert config["curseforge"]["license"] == "CC-BY 4.0"
+    assert config["modrinth"]["license"] == "CC-BY-4.0"
+
+
+def test_license_no_hyphen_unchanged():
     config = _apply_neutral_metadata({"license": "MIT"})
     assert config["curseforge"]["license"] == "MIT"
     assert config["modrinth"]["license"] == "MIT"
@@ -85,11 +91,11 @@ def test_license_cf_and_modrinth():
 
 def test_license_per_site_override():
     config = _apply_neutral_metadata({
-        "license": "MIT",
+        "license": "CC-BY-4.0",
         "curseforge": {"license": "All Rights Reserved"},
     })
     assert config["curseforge"]["license"] == "All Rights Reserved"
-    assert config["modrinth"]["license"] == "MIT"
+    assert config["modrinth"]["license"] == "CC-BY-4.0"
 
 
 def test_resolution_expands_to_all_sites(project_env, run_puppy):

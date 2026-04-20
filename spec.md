@@ -166,7 +166,7 @@ Certain properties are intrinsic to the pack and should not need to be repeated 
 
 | Neutral key | CurseForge | Modrinth | PMC |
 |---|---|---|---|
-| `license: CC-BY 4.0` | `license: CC-BY 4.0` | `license: CC-BY 4.0` | ignored |
+| `license: CC-BY-4.0` (SPDX) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |
 | `resolution: 16` | `mainCategory: 16x` | full tier group (`16x: true`, others false) | `resolution: 16`, tags `16x` and `16x16` |
 | `progress: 100` | ignored | ignored | `progress: 100` |
 
