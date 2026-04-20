@@ -130,6 +130,7 @@ def run(
 
 def _run_dry(action, project, config, version, verbosity, puppy_home, site):
     import shutil
+    from puppy.preview import generate as generate_preview
     from puppy.renderer import render
     from puppy.searcher import ContentDiscovery
     from puppy.syncer import _TEMPLATE_EXT
@@ -139,22 +140,23 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site):
         shutil.rmtree(debug_dir)
     debug_dir.mkdir(parents=True)
 
-    (debug_dir / "config.json").write_text(json.dumps(config, indent=2, default=str))
-
     if action in ("push",):
         discovery = ContentDiscovery(puppy_home, project.root)
         sites = [s for s in _TEMPLATE_EXT if not site or s == site]
+        source_exts: dict[str, str] = {}
         for s in sites:
-            body, source = discovery.find_description(site=s)
+            body, source_path = discovery.find_description(site=s)
             if body:
-                rendered = render(body, config, source=str(source))
+                rendered = render(body, config, source=str(source_path))
                 ext = _TEMPLATE_EXT[s]
                 out = debug_dir / s / f"description{ext}"
                 out.parent.mkdir(parents=True, exist_ok=True)
                 out.write_text(rendered)
+                source_exts[s] = source_path.suffix if source_path else ext
+        generate_preview(project, config, debug_dir, sites, source_exts)
 
-    if verbosity >= 1:
-        print(f"[{project.name}] dry-run output written to {debug_dir}")
+    preview_path = debug_dir / "index.html"
+    print(f"file://{preview_path}")
 
 
 def _dispatch(action, project, config, version, auth, puppy_home, site, pack, force, verbosity):
