@@ -99,7 +99,7 @@ The description body is discovered by searching in order:
 
 **Extension Priority (native format wins):** CurseForge (`.html` → `.md`); Modrinth (`.md` → `.html`); PMC (`.bbcode` → `.md`).
 
-**PMC description format:** When the source is Markdown, Puppy converts it to PMC's BBCode dialect before staging. When the source is already `.bbcode`, it is used as-is. See Appendix A for the full PMC BBCode dialect reference.
+**PMC description format:** When the source is Markdown, Puppy converts it to PMC's BBCode dialect before staging. When the source is already `.bbcode`, it is used as-is. See Appendix B for the full PMC BBCode dialect reference.
 
 ### **5.3 Description Body vs. Template Wrapper**
 Each site has two distinct files:
@@ -183,7 +183,135 @@ Per-site overrides in `curseforge:`, `modrinth:`, `planetminecraft:` blocks take
 
 ---
 
-## Appendix A: Planet Minecraft BBCode Dialect
+## Appendix A: Pack Family Setup
+
+A "pack family" is a group of related packs managed together under one Puppy Home. They share auth, global config, and can cross-link to each other.
+
+### Directory Layout
+
+```
+~/neon/
+└── puppy/                          ← Puppy Home (auth.yaml, global config)
+    ├── auth.yaml                   ← shared credentials (never committed)
+    ├── .gitignore
+    ├── puppy.yaml                  ← shared config + projects list
+    ├── modrinth/
+    │   └── puppy.yaml              ← shared Modrinth overrides (discord link etc.)
+    ├── NeonGlow/                   ← Project Root: main pack
+    │   └── puppy/
+    │       ├── puppy.yaml
+    │       ├── description.md
+    │       ├── icon.png
+    │       ├── thumbnail.png
+    │       ├── neonglow-2.1.zip
+    │       └── images/
+    │           ├── images.yaml
+    │           └── screenshot1.png
+    └── DarkNeon/                   ← Project Root: dark variant
+        ├── screenshots/            ← images outside puppy/, referenced via source:
+        │   └── screenshot1.png
+        └── puppy/
+            ├── puppy.yaml
+            ├── description.md
+            ├── icon.png
+            ├── thumbnail.png
+            ├── darkneon-2.1.zip
+            └── images.yaml         ← flat format; source: ../screenshots
+```
+
+### Global `puppy.yaml`
+
+```yaml
+projects:
+  - NeonGlow
+  - DarkNeon
+
+# Shared across all family members
+license: CC-BY-4.0
+resolution: 16
+
+modrinth:
+  discord: https://discord.gg/yourserver
+```
+
+### Per-Project `puppy.yaml`
+
+Each project sets its own name, IDs, and any values that differ from the family defaults:
+
+```yaml
+# NeonGlow/puppy/puppy.yaml
+name: NeonGlow
+version: '2.1'
+
+curseforge:
+  id: 123456
+  slug: neonglow
+modrinth:
+  id: AbCdEfGh
+  slug: neonglow
+  type: resourcepack
+planetminecraft:
+  id: 1234567
+  slug: neonglow-texture-pack
+```
+
+```yaml
+# DarkNeon/puppy/puppy.yaml
+name: DarkNeon
+version: '2.1'
+
+curseforge:
+  id: 234567
+  slug: darkneon
+modrinth:
+  id: BcDeFgHi
+  slug: darkneon
+  type: resourcepack
+planetminecraft:
+  id: 2345678
+  slug: darkneon-texture-pack
+```
+
+### Cross-Linking Between Family Members
+
+Because all projects share the same Puppy Home, their URLs are available as Jinja variables in every description:
+
+```markdown
+# DarkNeon
+
+The dark-mode companion to [NeonGlow]({{ projects.neonglow.modrinth.url }}).
+
+Also available on [CurseForge]({{ projects.neonglow.curseforge.url }}).
+```
+
+And from NeonGlow's description:
+
+```markdown
+Looking for a darker palette? Check out
+[DarkNeon]({{ projects.darkneon.modrinth.url }}).
+```
+
+### Shared Description Content
+
+A `description.md` at the Puppy Home level acts as a fallback for any project that doesn't have its own — useful for a shared footer or boilerplate:
+
+```
+~/neon/puppy/description.md   ← used by any project with no description.md of its own
+```
+
+Project-level descriptions take priority (see section 5.2 cascade).
+
+### Running the Family
+
+```
+puppy push -n           # dry-run both packs
+puppy push              # publish both
+puppy push -s modrinth  # publish both, Modrinth only
+```
+
+---
+
+## Appendix B: Planet Minecraft BBCode Dialect
 
 Planet Minecraft uses a custom BBCode dialect that differs from standard forum BBCode. This appendix documents all supported tags, primarily as a reference for people authoring `.bbcode` description files by hand.
 
