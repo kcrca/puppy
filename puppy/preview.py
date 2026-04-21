@@ -198,12 +198,7 @@ def _write_metadata(site_dir: Path, project: Project, config: dict, site: Site) 
     if config.get('version'):
         meta['version'] = str(config['version'])
     sc = config.get(site.name, {})
-    if sc.get('id'):
-        meta['id'] = sc['id']
-    if sc.get('slug'):
-        meta['slug'] = sc['slug']
-    for label, value in site.preview_rows(sc):
-        meta[label.lower().replace(' ', '_')] = value
+    meta.update(sc)
     (site_dir / 'metadata.yaml').write_text(
         yaml.dump(meta, default_flow_style=False, allow_unicode=True, sort_keys=False)
     )
