@@ -1,6 +1,5 @@
 import json
 import shutil
-import urllib.request
 from pathlib import Path
 
 import yaml
@@ -30,32 +29,8 @@ def run_import(
 
 
 def _resolve_ids(config: dict, auth: dict, site: str | None, verbosity: int) -> dict:
-    config = dict(config)
-
-    modrinth = config.get('modrinth', {})
-    if (
-        (not site or site == 'modrinth')
-        and not modrinth.get('id')
-        and modrinth.get('slug')
-    ):
-        slug = modrinth['slug']
-        try:
-            headers = {'User-Agent': 'puppy/1.0'}
-            token = auth.get('modrinth')
-            if token:
-                headers['Authorization'] = token
-            req = urllib.request.Request(
-                f'https://api.modrinth.com/v2/project/{slug}',
-                headers=headers,
-            )
-            with urllib.request.urlopen(req) as r:
-                data = json.loads(r.read())
-            config['modrinth'] = dict(modrinth, id=data['id'], slug=data['slug'])
-            if verbosity >= 1:
-                print(f"Resolved Modrinth ID for slug '{slug}': {data['id']}")
-        except Exception as e:
-            raise SystemExit(f"Could not resolve Modrinth ID for slug '{slug}': {e}")
-
+    for s in SiteVisitor(site):
+        config = s.resolve_id(config, auth, verbosity)
     return config
 
 
@@ -63,8 +38,8 @@ def _stage(project: Project, config: dict, worker_dir: Path, site: str | None) -
     import_data: dict = {'id': project.pack}
     visitor = SiteVisitor(site)
     for s in SITES:
-        site_cfg = config.get(s, {})
-        import_data[s] = {
+        site_cfg = config.get(s.name, {})
+        import_data[s.name] = {
             'id': visitor.id_or_skip(s, site_cfg.get('id')),
             'slug': site_cfg.get('slug'),
         }
@@ -127,12 +102,12 @@ def _harvest_yaml(
 
     # Platform IDs/slugs and site-specific config
     for s in SiteVisitor(site):
-        if s in result_data:
-            config.setdefault(s, {})
-            config[s]['id'] = result_data[s].get('id')
-            config[s]['slug'] = result_data[s].get('slug')
-        if s in imported:
-            config.setdefault(s, {}).update(imported[s])
+        if s.name in result_data:
+            config.setdefault(s.name, {})
+            config[s.name]['id'] = result_data[s.name].get('id')
+            config[s.name]['slug'] = result_data[s.name].get('slug')
+        if s.name in imported:
+            config.setdefault(s.name, {}).update(imported[s.name])
 
     puppy_yaml.parent.mkdir(parents=True, exist_ok=True)
     with puppy_yaml.open('w') as f:

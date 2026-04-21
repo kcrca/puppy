@@ -12,22 +12,10 @@ from puppy.creator import (
 )
 from puppy.images import copy_images, stage_image
 from puppy.publisher import upload_pack
-from puppy.renderer import md_to_bbcode, md_to_html, render
+from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
 from puppy.sites import SITES, SiteVisitor
 from puppy.worker import run_worker
-
-_TEMPLATE_EXT = {
-    'curseforge': '.html',
-    'modrinth': '.md',
-    'planetminecraft': '.bbcode',
-}
-
-_SITE_NAMES = {
-    'planetminecraft': 'planetminecraft',
-    'curseforge': 'curseforge',
-    'modrinth': 'modrinth',
-}
 
 
 def run_push(
@@ -56,17 +44,14 @@ def run_push(
             puppy_home, project.root, site=s
         ).get_running_config()
         site_config['projects'] = config['projects']
-        if s in site_config:
-            config = _deep_merge(config, {s: site_config[s]})
+        if s.name in site_config:
+            config = _deep_merge(config, {s.name: site_config[s.name]})
         body, source = discovery.find_description(site=s)
         if body:
             rendered = render(body, site_config, source=str(source), site=s)
             if source and source.suffix == '.md':
-                if s == 'curseforge':
-                    rendered = md_to_html(rendered)
-                elif s == 'planetminecraft':
-                    rendered = md_to_bbcode(rendered)
-            descriptions[s] = rendered
+                rendered = s.convert_md(rendered)
+            descriptions[s.name] = rendered
 
     config = dict(config)
     config['description'] = []
@@ -114,9 +99,9 @@ def _stage(
 
     visitor = SiteVisitor(site)
     platform_ids = {
-        s: {
-            'id': visitor.id_or_skip(s, config.get(s, {}).get('id')),
-            'slug': config.get(s, {}).get('slug'),
+        s.name: {
+            'id': visitor.id_or_skip(s, config.get(s.name, {}).get('id')),
+            'slug': config.get(s.name, {}).get('slug'),
         }
         for s in SITES
     }
@@ -149,12 +134,11 @@ def _stage_templates(
     templates_dir = project_dir / 'templates'
     templates_dir.mkdir()
     visitor = SiteVisitor(site)
-    for s, ext in _TEMPLATE_EXT.items():
-        if s not in visitor:
-            continue
-        dest = templates_dir / f'{s}{ext}'
-        src = puppy_dir / s / f'description{ext}'
-        rendered = descriptions.get(s)
+    for s in visitor:
+        ext = s.template_ext
+        dest = templates_dir / f'{s.name}{ext}'
+        src = puppy_dir / s.name / f'description{ext}'
+        rendered = descriptions.get(s.name)
         if rendered is not None:
             # Bake rendered description; leave {{ images }} for the worker
             dest.write_text(f'{rendered}\n\n{{{{ images }}}}\n')

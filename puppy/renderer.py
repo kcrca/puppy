@@ -17,16 +17,6 @@ _env = Environment(undefined=_WarnUndefined)
 
 DEFAULT_SHIELD_TAGS = ['u']
 
-_PMC_TAG = {tag: f'[{tag}]' for tag in DEFAULT_SHIELD_TAGS}
-_PMC_CLOSE_TAG = {tag: f'[/{tag}]' for tag in DEFAULT_SHIELD_TAGS}
-
-
-def _site_tag_maps(site: str, tags: list[str]) -> tuple[dict, dict]:
-    """Return (open_map, close_map) translating HTML tags to site-native equivalents."""
-    if site == 'planetminecraft':
-        return {t: f'[{t}]' for t in tags}, {t: f'[/{t}]' for t in tags}
-    return {}, {}
-
 
 def md_to_html(text: str) -> str:
     return _md.markdown(text, extensions=['extra'])
@@ -49,13 +39,11 @@ def md_to_bbcode(text: str) -> str:
     return _pmc_parser(text)
 
 
-def render(
-    text: str, config: dict, source: str = '<description>', *, site: str = None
-) -> str:
+def render(text: str, config: dict, source: str = '<description>', *, site=None) -> str:
     tags = config.get('md_html_tags', DEFAULT_SHIELD_TAGS)
     result = _env.from_string(text).render(config)
     if site:
-        open_map, close_map = _site_tag_maps(site, tags)
+        open_map, close_map = site.shield_tags(tags)
         for tag, native in open_map.items():
             result = result.replace(f'<{tag}>', native)
         for tag, native in close_map.items():

@@ -46,7 +46,6 @@ def test_per_site_override_wins_over_neutral():
 
 
 def test_explicit_extra_resolution_tag_preserved():
-    # A pack that is 16x but also wants to tag itself as 8x-
     config = _apply_neutral_metadata(
         {
             'resolution': 16,

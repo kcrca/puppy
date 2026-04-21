@@ -28,7 +28,7 @@ def check_auth(puppy_home: Path, site: str = None) -> dict:
     auth = yaml.safe_load(auth_file.read_text())
     if not auth:
         raise SystemExit(f'auth.yaml is empty — add your site credentials')
-    unchanged = [s for s in SiteVisitor(site) if _has_placeholders(auth.get(s))]
+    unchanged = [s.name for s in SiteVisitor(site) if _has_placeholders(auth.get(s.name))]
     if unchanged:
         raise SystemExit(
             f'auth.yaml credentials unchanged for: {", ".join(unchanged)}'

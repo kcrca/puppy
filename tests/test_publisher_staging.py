@@ -11,11 +11,10 @@ from PIL import Image
 
 from puppy.core import Project
 from puppy.publisher import (
-    _stage,
     _patch_project_json,
-    _save_pmc_version,
-    _pmc_needs_upload,
+    _stage,
 )
+from puppy.sites import CURSEFORGE, MODRINTH, PMC
 
 
 @pytest.fixture
@@ -87,7 +86,7 @@ def test_update_json_staged(project_setup, worker_dir):
 
 def test_patch_project_json_nulls_skipped_sites(project_setup, worker_dir):
     project, config, puppy_dir, zip_path = project_setup
-    _patch_project_json(worker_dir, project, config, sites_to_upload=['modrinth'])
+    _patch_project_json(worker_dir, project, config, sites_to_upload=[MODRINTH])
 
     pj = json.loads((worker_dir / 'projects' / 'mypack' / 'project.json').read_text())
     assert pj['modrinth']['id'] == 'abc123'
@@ -101,7 +100,7 @@ def test_patch_project_json_all_sites(project_setup, worker_dir):
         worker_dir,
         project,
         config,
-        sites_to_upload=['curseforge', 'modrinth', 'planetminecraft'],
+        sites_to_upload=[CURSEFORGE, MODRINTH, PMC],
     )
 
     pj = json.loads((worker_dir / 'projects' / 'mypack' / 'project.json').read_text())
@@ -112,8 +111,8 @@ def test_patch_project_json_all_sites(project_setup, worker_dir):
 
 def test_save_and_check_pmc_version(project_setup):
     project, config, puppy_dir, zip_path = project_setup
-    assert _pmc_needs_upload(project, '1.0.0') is True
+    assert PMC.needs_upload(999, {}, zip_path, '1.0.0', project) is True
 
-    _save_pmc_version(puppy_dir, '1.0.0')
-    assert _pmc_needs_upload(project, '1.0.0') is False
-    assert _pmc_needs_upload(project, '1.0.1') is True
+    PMC.post_upload(puppy_dir, '1.0.0')
+    assert PMC.needs_upload(999, {}, zip_path, '1.0.0', project) is False
+    assert PMC.needs_upload(999, {}, zip_path, '1.0.1', project) is True

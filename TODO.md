@@ -37,6 +37,7 @@
 
 ## Testing Gaps
 
+- Have tests use yaml package instead of writing out yaml in text
 - ✅ **Batch mode**: Unit tests added for batch execution, site filtering, zip links, variable isolation.
 - ✅ **`create`, `import`, publisher staging**: Unit tests added.
 - **Integration tests on live sites**: End-to-end `create`, `import`, and `push --pack` against real CurseForge, Modrinth, and PMC accounts.

@@ -1,16 +1,8 @@
 from pathlib import Path
 
+from puppy.sites import Site
 
-_EXT_PRIORITY = {
-    'curseforge': ['.html', '.md'],
-    'modrinth': ['.html', '.md'],
-    'planetminecraft': ['.bbcode', '.md'],
-}
 _DEFAULT_EXTS = ['.md']
-
-
-def _extensions_for_site(site: str | None) -> list[str]:
-    return _EXT_PRIORITY.get(site or '', _DEFAULT_EXTS)
 
 
 class ContentDiscovery:
@@ -19,7 +11,7 @@ class ContentDiscovery:
         self.project_root = Path(project_root)
 
     def find_description(
-        self, *, site: str = None
+        self, *, site: Site = None
     ) -> tuple[str, Path] | tuple[None, None]:
         """
         Search order (first match wins):
@@ -28,11 +20,11 @@ class ContentDiscovery:
           3. Global general description  ({puppy_home}/description.{ext})
         """
         project_puppy = self.project_root / 'puppy'
-        exts = _extensions_for_site(site)
+        exts = site.desc_exts if site else _DEFAULT_EXTS
 
         if site:
             for ext in exts:
-                candidate = project_puppy / site / f'body{ext}'
+                candidate = project_puppy / site.name / f'body{ext}'
                 if candidate.exists():
                     return candidate.read_text(), candidate
 

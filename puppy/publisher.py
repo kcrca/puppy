@@ -1,12 +1,7 @@
-import hashlib
 import json
 import shutil
 import subprocess
-import urllib.parse
-import urllib.request
 from pathlib import Path
-
-import yaml
 
 from puppy.artifacts import ArtifactFinder
 from puppy.core import Project
@@ -46,8 +41,8 @@ def upload_pack(
     _stage(project, config, zip_path, worker_dir, version)
     _run_worker(worker_dir, verbosity)
 
-    if 'planetminecraft' in sites_to_upload:
-        _save_pmc_version(puppy_dir, version)
+    for s in sites_to_upload:
+        s.post_upload(puppy_dir, version)
 
 
 def _resolve_zip(config: dict, puppy_dir: Path, version: str, project: Project) -> Path:
@@ -79,15 +74,16 @@ def _sites_needing_upload(
     site: str | None,
     force: bool,
     verbosity: int,
-) -> list[str]:
-    candidates = [s for s in SiteVisitor(site) if config.get(s, {}).get('id')]
+) -> list:
+    candidates = [s for s in SiteVisitor(site) if config.get(s.name, {}).get('id')]
     result = []
     for s in candidates:
         if force:
             result.append(s)
             continue
+        site_id = config[s.name]['id']
         try:
-            needed = _needs_upload(s, project, config, auth, zip_path, version)
+            needed = s.needs_upload(site_id, auth, zip_path, version, project)
         except Exception as e:
             if verbosity >= 1:
                 print(f'WARNING: could not check {s} upload status ({e}), will upload')
@@ -99,83 +95,6 @@ def _sites_needing_upload(
     return result
 
 
-def _needs_upload(
-    site: str, project: Project, config: dict, auth: dict, zip_path: Path, version: str
-) -> bool:
-    site_id = config[site]['id']
-    if site == 'modrinth':
-        return _modrinth_needs_upload(site_id, auth.get('modrinth'), zip_path)
-    if site == 'curseforge':
-        return _curseforge_needs_upload(
-            site_id, auth.get('curseforge', {}), zip_path, version
-        )
-    if site == 'planetminecraft':
-        return _pmc_needs_upload(project, version)
-    return True
-
-
-def _modrinth_needs_upload(project_id: str, token: str | None, zip_path: Path) -> bool:
-    local_hash = hashlib.sha512(zip_path.read_bytes()).hexdigest()
-    headers = {'User-Agent': 'puppy/1.0'}
-    if token:
-        headers['Authorization'] = token
-    req = urllib.request.Request(
-        f'https://api.modrinth.com/v2/project/{project_id}/version',
-        headers=headers,
-    )
-    with urllib.request.urlopen(req) as r:
-        versions = json.loads(r.read())
-    for v in versions:
-        for f in v.get('files', []):
-            if f.get('hashes', {}).get('sha512') == local_hash:
-                return False
-    return True
-
-
-def _curseforge_needs_upload(
-    project_id: int, cf_auth: dict, zip_path: Path, version: str
-) -> bool:
-    local_size = zip_path.stat().st_size
-    params = urllib.parse.urlencode(
-        {
-            'filter': json.dumps({'projectId': project_id}),
-            'range': '[0, 0]',
-            'sort': '["DateCreated", "DESC"]',
-        }
-    )
-    req = urllib.request.Request(
-        f'https://authors.curseforge.com/_api/project-files?{params}',
-        headers={
-            'cookie': cf_auth.get('cookie', ''),
-            'Content-Type': 'application/json',
-        },
-    )
-    with urllib.request.urlopen(req) as r:
-        files = json.loads(r.read())
-    if not files:
-        return True
-    latest = files[0]
-    return not (
-        latest.get('size') == local_size
-        and f'v{version}' in latest.get('displayName', '')
-    )
-
-
-def _pmc_needs_upload(project: Project, version: str) -> bool:
-    state_path = project.root / 'puppy' / '.publish_state.yaml'
-    if not state_path.exists():
-        return True
-    state = yaml.safe_load(state_path.read_text()) or {}
-    return state.get('planetminecraft', {}).get('version') != str(version)
-
-
-def _save_pmc_version(puppy_dir: Path, version: str) -> None:
-    state_path = puppy_dir / '.publish_state.yaml'
-    state = yaml.safe_load(state_path.read_text()) if state_path.exists() else {}
-    state = state or {}
-    state.setdefault('planetminecraft', {})['version'] = str(version)
-    state_path.write_text(yaml.dump(state, default_flow_style=False))
-
 
 def _patch_project_json(
     worker_dir: Path, project: Project, config: dict, sites_to_upload: list[str]
@@ -186,7 +105,7 @@ def _patch_project_json(
     data['config']['versions'] = _expand_versions(config)
     for s in SITES:
         if s not in sites_to_upload:
-            data.setdefault(s, {})['id'] = None
+            data.setdefault(s.name, {})['id'] = None
     path.write_text(json.dumps(data, indent=2))
 
 

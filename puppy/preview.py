@@ -9,13 +9,7 @@ from puppy.core import Project
 from puppy.creator import _expand_versions, _find_icon, _resolve_asset
 from puppy.images import find_image, stage_image
 from puppy.renderer import DEFAULT_SHIELD_TAGS
-from puppy.syncer import _TEMPLATE_EXT
-
-_SITE_LABEL = {
-    'curseforge': 'CurseForge',
-    'modrinth': 'Modrinth',
-    'planetminecraft': 'Planet Minecraft',
-}
+from puppy.sites import Site
 
 
 def generate(
@@ -59,15 +53,15 @@ def generate(
 
     per_site_html: dict[str, str] = {}
     for s in sites:
-        ext = _TEMPLATE_EXT[s]
-        desc_file = debug_dir / s / f'description{ext}'
-        src_ext = source_exts.get(s, ext)
+        ext = s.template_ext
+        desc_file = debug_dir / s.name / f'description{ext}'
+        src_ext = source_exts.get(s.name, ext)
         body_html = (
             _to_html(desc_file.read_text(), src_ext, shield_tags)
             if desc_file.exists()
             else '<em>(no description)</em>'
         )
-        per_site_html[s] = (
+        per_site_html[s.name] = (
             (_icon_html(icon_rel) if icon_rel else '')
             + f'<div class="description">{body_html}</div>\n'
             + _images_html(image_entries)
@@ -125,7 +119,7 @@ def _bbcode_to_html(text: str) -> str:
 def _combined_metadata_table(project: Project, config: dict, sites: list[str]) -> str:
     # Build per-site field dicts, preserving insertion order
     site_fields: dict[str, dict[str, str]] = {
-        s: dict(_site_rows(s, project, config)) for s in sites
+        s.name: dict(_site_rows(s, project, config)) for s in sites
     }
 
     # Ordered union of all field names: common fields first, then site-specific
@@ -137,13 +131,13 @@ def _combined_metadata_table(project: Project, config: dict, sites: list[str]) -
                 seen.add(k)
                 order.append(k)
 
-    labels = [_SITE_LABEL.get(s, s) for s in sites]
+    labels = [s.label for s in sites]
     header = '<tr><th></th>' + ''.join(f'<th>{l}</th>' for l in labels) + '</tr>'
     rows = ''
     for field in order:
         cells = ''.join(
-            f'<td>{site_fields[s][field]}</td>'
-            if field in site_fields[s]
+            f'<td>{site_fields[s.name][field]}</td>'
+            if field in site_fields[s.name]
             else "<td class='na'>—</td>"
             for s in sites
         )
@@ -152,7 +146,7 @@ def _combined_metadata_table(project: Project, config: dict, sites: list[str]) -
     return f'<table class="meta">{header}{rows}</table>\n'
 
 
-def _site_rows(site: str, project: Project, config: dict) -> list[tuple[str, str]]:
+def _site_rows(site: Site, project: Project, config: dict) -> list[tuple[str, str]]:
     rows: list[tuple[str, str]] = []
 
     rows.append(('Name', _e(project.name)))
@@ -161,7 +155,7 @@ def _site_rows(site: str, project: Project, config: dict) -> list[tuple[str, str
         rows.append(('Version', _e(str(config['version']))))
 
     versions = _expand_versions(config)
-    v = versions.get(site)
+    v = versions.get(site.name)
     if v:
         if isinstance(v, dict):
             vstr = _e(str(v.get('version', '?')))
@@ -180,43 +174,14 @@ def _site_rows(site: str, project: Project, config: dict) -> list[tuple[str, str
     if config.get('summary'):
         rows.append(('Summary', _e(config['summary'])))
 
-    sc = config.get(site, {})
+    sc = config.get(site.name, {})
     if sc.get('id'):
         rows.append(('ID', _e(str(sc['id']))))
     if sc.get('slug'):
         rows.append(('Slug', _e(str(sc['slug']))))
 
-    if site == 'curseforge':
-        if sc.get('mainCategory'):
-            rows.append(('Main Category', _e(str(sc['mainCategory']))))
-        extra = {k: v for k, v in sc.get('additionalCategories', {}).items() if v}
-        if extra:
-            rows.append(('Categories', ', '.join(_e(k) for k in extra)))
-        if sc.get('license'):
-            rows.append(('License', _e(str(sc['license']))))
-
-    elif site == 'modrinth':
-        active_tags = [k for k, v in sc.get('tags', {}).items() if v]
-        if active_tags:
-            rows.append(('Tags', ', '.join(_e(t) for t in active_tags)))
-        if sc.get('license'):
-            rows.append(('License', _e(str(sc['license']))))
-
-    elif site == 'planetminecraft':
-        if sc.get('category'):
-            rows.append(('Category', _e(str(sc['category']))))
-        if sc.get('resolution'):
-            rows.append(('Resolution', f'{_e(str(sc["resolution"]))}x'))
-        if sc.get('progress') is not None:
-            rows.append(('Progress', f'{sc["progress"]}%'))
-        active_mods = [k for k, v in sc.get('modifies', {}).items() if v]
-        if active_mods:
-            rows.append(('Modifies', ', '.join(_e(m) for m in active_mods)))
-        pmc_tags = sc.get('tags', [])
-        if pmc_tags:
-            rows.append(('Tags', ', '.join(_e(str(t)) for t in pmc_tags)))
-        if sc.get('credit'):
-            rows.append(('Credit', _e(str(sc['credit']))))
+    for label, value in site.preview_rows(sc):
+        rows.append((label, _e(value)))
 
     return rows
 
@@ -264,9 +229,9 @@ def _page(
     for i, s in enumerate(sites):
         active_cls = ' active' if i == 0 else ''
         display = 'block' if i == 0 else 'none'
-        label = _SITE_LABEL.get(s, s)
+        label = s.label
         tab_buttons += f'<button class="tab-btn{active_cls}" onclick="showTab(\'{s}\')" id="btn-{s}">{label}</button>\n'
-        tab_panes += f'<div class="tab-pane" id="pane-{s}" style="display:{display}">{per_site_html.get(s, "")}</div>\n'
+        tab_panes += f'<div class="tab-pane" id="pane-{s}" style="display:{display}">{per_site_html.get(s.name, "")}</div>\n'
 
     zip_line = (
         f'<p class="zip">Pack: <a href="{_e(zip_name)}">{_e(zip_name)}</a></p>\n'

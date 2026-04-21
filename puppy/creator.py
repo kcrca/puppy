@@ -86,7 +86,7 @@ def _expand_versions(config: dict) -> dict:
         if not isinstance(minecraft, dict)
         else minecraft
     )
-    return {s: explicit.get(s, base) for s in SITES}
+    return {s.name: explicit.get(s.name, base) for s in SITES}
 
 
 def _build_config(project: Project, config: dict) -> dict:
@@ -104,9 +104,7 @@ def _build_config(project: Project, config: dict) -> dict:
         'version': config.get('version', '1.0.0'),
         'versions': _expand_versions(config),
         'images': config.get('images', []),
-        'curseforge': _site_config('curseforge'),
-        'planetminecraft': _site_config('planetminecraft'),
-        'modrinth': _site_config('modrinth'),
+        **{s.name: _site_config(s.name) for s in SITES},
     }
 
 
@@ -146,9 +144,9 @@ def _stage(
 
     visitor = SiteVisitor(site)
     existing = {
-        s: {
-            'id': visitor.id_or_skip(s, config.get(s, {}).get('id')),
-            'slug': config.get(s, {}).get('slug', 'my-project'),
+        s.name: {
+            'id': visitor.id_or_skip(s, config.get(s.name, {}).get('id')),
+            'slug': config.get(s.name, {}).get('slug', 'my-project'),
         }
         for s in SITES
     }
@@ -175,12 +173,12 @@ def _harvest(project: Project, result_data: dict, site: str | None) -> None:
         config = yaml.safe_load(puppy_yaml.read_text()) or {}
 
     for s in SiteVisitor(site):
-        platform_data = result_data.get(s, {})
+        platform_data = result_data.get(s.name, {})
         harvested_id = platform_data.get('id')
         if harvested_id and harvested_id != '__skip__':
-            config.setdefault(s, {})
-            config[s]['id'] = harvested_id
-            config[s]['slug'] = platform_data.get('slug')
+            config.setdefault(s.name, {})
+            config[s.name]['id'] = harvested_id
+            config[s.name]['slug'] = platform_data.get('slug')
 
     with puppy_yaml.open('w') as f:
         yaml.dump(

@@ -12,10 +12,10 @@ from puppy.importer import run_import
 from puppy.init import run_init
 from puppy.preview import generate as generate_preview
 from puppy.publisher import _resolve_zip
-from puppy.renderer import md_to_bbcode, md_to_html, render
+from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
-from puppy.sites import SiteVisitor, _ALIASES
-from puppy.syncer import _TEMPLATE_EXT, run_push
+from puppy.sites import SITES, SiteVisitor, _ALIASES
+from puppy.syncer import run_push
 
 
 WORKER_DIR = Path.home() / 'PackUploader'
@@ -68,96 +68,17 @@ def _determine_roots(directory: Path) -> tuple[Path, list[Path]]:
     )
 
 
-def _deep_clear(existing: dict, blank: dict) -> dict:
-    """Apply blank over existing: blank keys win, extra existing keys are preserved."""
-    result = dict(existing)
-    for k, v in blank.items():
-        if isinstance(v, dict) and isinstance(result.get(k), dict):
-            result[k] = _deep_clear(result[k], v)
-        else:
-            result[k] = v
-    return result
-
-
 def _write_auth(worker_dir: Path, auth: dict) -> None:
     (worker_dir / 'auth.json').write_text(json.dumps(auth, indent=2))
-
-
-_SETTINGS_BLANK = {
-    'ewan': False,
-    'curseforge': {
-        'donation': {'type': None, 'value': None},
-        'socials': {
-            k: None
-            for k in [
-                'bluesky',
-                'discord',
-                'facebook',
-                'github',
-                'instagram',
-                'mastodon',
-                'patreon',
-                'pinterest',
-                'reddit',
-                'tiktok',
-                'twitch',
-                'twitter',
-                'website',
-                'youtube',
-            ]
-        },
-    },
-    'planetminecraft': {
-        'website': {'link': None, 'title': None},
-    },
-    'modrinth': {
-        'discord': None,
-        'donation': {
-            k: None
-            for k in [
-                'buyMeACoffee',
-                'github',
-                'kofi',
-                'other',
-                'patreon',
-                'paypal',
-            ]
-        },
-    },
-    'templateDefaults': {},
-}
 
 
 def _patch_settings(worker_dir: Path, config: dict) -> None:
     settings_path = worker_dir / 'settings.json'
     settings = json.loads(settings_path.read_text())
-
-    # Clear all personal defaults (blank wins over existing values)
-    for key, blank in _SETTINGS_BLANK.items():
-        if blank == {}:
-            settings[key] = {}
-        elif isinstance(blank, dict) and isinstance(settings.get(key), dict):
-            settings[key] = _deep_clear(settings[key], blank)
-        else:
-            settings[key] = blank
-
-    # Overlay values from merged puppy config
-    cf = config.get('curseforge', {})
-    if cf.get('socials'):
-        settings['curseforge']['socials'].update(cf['socials'])
-    if cf.get('donation'):
-        settings['curseforge']['donation'].update(cf['donation'])
-
-    mr = config.get('modrinth', {})
-    if mr.get('discord'):
-        settings['modrinth']['discord'] = mr['discord']
-    if mr.get('donation'):
-        settings['modrinth']['donation'].update(mr['donation'])
-
-    pmc = config.get('planetminecraft', {})
-    if pmc.get('website'):
-        settings['planetminecraft']['website'].update(pmc['website'])
-
+    settings['ewan'] = False
+    settings['templateDefaults'] = {}
+    for site in SITES:
+        site.apply_settings(settings, config.get(site.name, {}))
     settings_path.write_text(json.dumps(settings, indent=2))
 
 
@@ -272,19 +193,15 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack
                 ).get_running_config()
                 site_config['projects'] = config['projects']
                 rendered = render(body, site_config, source=str(source_path), site=s)
-                staged_ext = source_path.suffix if source_path else _TEMPLATE_EXT[s]
+                staged_ext = source_path.suffix if source_path else s.template_ext
                 if source_path and source_path.suffix == '.md':
-                    if s == 'curseforge':
-                        rendered = md_to_html(rendered)
-                        staged_ext = '.html'
-                    elif s == 'planetminecraft':
-                        rendered = md_to_bbcode(rendered)
-                        staged_ext = '.bbcode'
-                ext = _TEMPLATE_EXT[s]
-                out = debug_dir / s / f'description{ext}'
+                    rendered = s.convert_md(rendered)
+                    staged_ext = s.template_ext
+                ext = s.template_ext
+                out = debug_dir / s.name / f'description{ext}'
                 out.parent.mkdir(parents=True, exist_ok=True)
                 out.write_text(rendered)
-                source_exts[s] = staged_ext
+                source_exts[s.name] = staged_ext
 
         if pack:
             puppy_dir = project.root / 'puppy'

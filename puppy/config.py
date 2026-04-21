@@ -3,6 +3,8 @@ from typing import Any
 
 import yaml
 
+from puppy.sites import SITES
+
 
 def _deep_merge(base: dict, override: dict) -> dict:
     """Merge override into base: dicts merge additively, scalars overwrite."""
@@ -23,10 +25,10 @@ def _load_yaml(path: Path) -> dict:
 
 
 class ConfigSynthesizer:
-    def __init__(self, puppy_home: Path, project_root: Path, site: str = None):
+    def __init__(self, puppy_home: Path, project_root: Path, site=None):
         self.puppy_home = Path(puppy_home)
         self.project_root = Path(project_root)
-        self.site = site
+        self.site = str(site) if site is not None else None
 
     def get_running_config(self) -> dict[str, Any]:
         project_puppy = self.project_root / 'puppy'
@@ -72,53 +74,9 @@ class ConfigSynthesizer:
 def _apply_neutral_metadata(config: dict) -> dict:
     """Expand top-level neutral keys into per-site fields; per-site values win."""
     config = dict(config)
-
-    resolution = config.get('resolution')
-    if resolution is not None:
-        res = str(resolution)
-        cf = config.setdefault('curseforge', {})
-        cf.setdefault('mainCategory', f'{res}x')
-        mr = config.setdefault('modrinth', {})
-        tags = mr.setdefault('tags', {})
-        for tier in ['8x-', '16x', '32x', '48x', '64x', '128x', '256x', '512x+']:
-            tags.setdefault(tier, tier == f'{res}x')
-        pmc = config.setdefault('planetminecraft', {})
-        pmc.setdefault('resolution', int(resolution))
-        pmc_tags = pmc.setdefault('tags', [])
-        for res_tag in [f'{res}x', f'{res}x{res}']:
-            if res_tag not in pmc_tags:
-                pmc_tags.append(res_tag)
-
-    progress = config.get('progress')
-    if progress is not None:
-        pmc = config.setdefault('planetminecraft', {})
-        pmc.setdefault('progress', int(progress))
-
-    license_ = config.get('license')
-    if license_:
-        # Neutral form is SPDX (CC-BY-4.0); CF uses last-hyphen-as-space (CC-BY 4.0)
-        cf_license = ' '.join(license_.rsplit('-', 1)) if '-' in license_ else license_
-        config.setdefault('curseforge', {}).setdefault('license', cf_license)
-        config.setdefault('modrinth', {}).setdefault('license', license_)
-
-    donation = config.get('donation')
-    if donation and isinstance(donation, dict):
-        first_platform, first_url = next(iter(donation.items()))
-        config.setdefault('curseforge', {}).setdefault(
-            'donation', {'type': first_platform, 'value': first_url}
-        )
-        config.setdefault('modrinth', {}).setdefault('donation', dict(donation))
-
+    for site in SITES:
+        site.apply_neutral(config)
     return config
-
-
-_SITE_URL = {
-    'modrinth': 'https://modrinth.com/{type}/{ref}',
-    'curseforge': 'https://www.curseforge.com/minecraft/texture-packs/{ref}',
-    'planetminecraft': 'https://www.planetminecraft.com/texture-pack/{ref}/',
-}
-
-_MODRINTH_DEFAULT_TYPE = 'mod'
 
 
 def build_projects_context(puppy_home: Path) -> dict:
@@ -133,14 +91,10 @@ def build_projects_context(puppy_home: Path) -> dict:
         cfg = _load_yaml(yaml_path)
         pack = cfg.get('pack') or candidate.name.lower()
         site_urls: dict = {}
-        for site, template in _SITE_URL.items():
-            sc = cfg.get(site, {})
-            ref = sc.get('slug') or sc.get('id')
-            if ref:
-                site_type = (
-                    sc.get('type', _MODRINTH_DEFAULT_TYPE) if site == 'modrinth' else ''
-                )
-                site_urls[site] = {'url': template.format(ref=ref, type=site_type)}
+        for site in SITES:
+            url = site.url_for(cfg.get(site.name, {}))
+            if url:
+                site_urls[site.name] = {'url': url}
         if site_urls:
             projects[pack] = site_urls
     return projects
