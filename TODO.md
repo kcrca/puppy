@@ -1,9 +1,5 @@
 # Puppy — Outstanding Work
 
-## Unimplemented Actions
-
-- **`clean` action**: Reset the PackUploader worker (`git reset --hard HEAD && git clean -fd`) without pushing.
-
 ## Design Questions
 
 - **Jinja conditional wrapping**: No clean syntax for wrapping text in tags conditionally. Options: macro+call block, repeated `{% if %}` tags, or a custom Jinja extension. Verbose in current form.
