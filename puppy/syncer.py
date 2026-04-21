@@ -1,6 +1,5 @@
 import json
 import shutil
-import subprocess
 from pathlib import Path
 
 from puppy.config import ConfigSynthesizer, _deep_merge, build_projects_context
@@ -11,60 +10,83 @@ from puppy.creator import (
     _resolve_asset,
     _validate_square,
 )
-from puppy.sites import SITES, SiteVisitor
+from puppy.images import copy_images, stage_image
+from puppy.publisher import upload_pack
 from puppy.renderer import md_to_bbcode, md_to_html, render
 from puppy.searcher import ContentDiscovery
+from puppy.sites import SITES, SiteVisitor
+from puppy.worker import run_worker
 
 _TEMPLATE_EXT = {
-    "curseforge": ".html",
-    "modrinth": ".md",
-    "planetminecraft": ".bbcode",
+    'curseforge': '.html',
+    'modrinth': '.md',
+    'planetminecraft': '.bbcode',
 }
 
 _SITE_NAMES = {
-    "planetminecraft": "planetminecraft",
-    "curseforge": "curseforge",
-    "modrinth": "modrinth",
+    'planetminecraft': 'planetminecraft',
+    'curseforge': 'curseforge',
+    'modrinth': 'modrinth',
 }
 
 
-def run_push(*, project: Project, config: dict, worker_dir: Path, puppy_home: Path, site: str | None, version: str | None, pack: bool, force: bool, verbosity: int) -> None:
+def run_push(
+    *,
+    project: Project,
+    config: dict,
+    worker_dir: Path,
+    puppy_home: Path,
+    site: str | None,
+    version: str | None,
+    pack: bool,
+    force: bool,
+    verbosity: int,
+) -> None:
     config = dict(config)
-    config["projects"] = build_projects_context(puppy_home)
+    config['projects'] = build_projects_context(puppy_home)
 
-    puppy_dir = project.root / "puppy"
-    icon = _resolve_asset(config.get("icon"), puppy_dir, _find_icon)
+    puppy_dir = project.root / 'puppy'
+    icon = _resolve_asset(config.get('icon'), puppy_dir, _find_icon)
     _validate_square(icon)
 
     discovery = ContentDiscovery(puppy_home, project.root)
     descriptions: dict[str, str] = {}
     for s in SiteVisitor(site):
-        site_config = ConfigSynthesizer(puppy_home, project.root, site=s).get_running_config()
-        site_config["projects"] = config["projects"]
+        site_config = ConfigSynthesizer(
+            puppy_home, project.root, site=s
+        ).get_running_config()
+        site_config['projects'] = config['projects']
         if s in site_config:
             config = _deep_merge(config, {s: site_config[s]})
         body, source = discovery.find_description(site=s)
         if body:
             rendered = render(body, site_config, source=str(source), site=s)
-            if source and source.suffix == ".md":
-                if s == "curseforge":
+            if source and source.suffix == '.md':
+                if s == 'curseforge':
                     rendered = md_to_html(rendered)
-                elif s == "planetminecraft":
+                elif s == 'planetminecraft':
                     rendered = md_to_bbcode(rendered)
             descriptions[s] = rendered
 
     config = dict(config)
-    config["description"] = []
+    config['description'] = []
 
     _stage(project, config, icon, puppy_dir, worker_dir, site, descriptions)
     _run_worker(worker_dir, verbosity)
 
     if pack:
-        from puppy.publisher import upload_pack
-        upload_pack(project=project, config=config, worker_dir=worker_dir, site=site, version=version, force=force, verbosity=verbosity)
+        upload_pack(
+            project=project,
+            config=config,
+            worker_dir=worker_dir,
+            site=site,
+            version=version,
+            force=force,
+            verbosity=verbosity,
+        )
 
     if verbosity >= 1:
-        print(f"[{project.name}] push complete")
+        print(f'[{project.name}] push complete')
 
 
 def _stage(
@@ -74,18 +96,18 @@ def _stage(
     puppy_dir: Path,
     worker_dir: Path,
     site: str | None,
-    descriptions: dict[str, str] | None = None,
+    descriptions: dict[str, str] = None,
 ) -> None:
     cfg = _build_config(project, config)
 
     # data/details.json
-    data_dir = worker_dir / "data"
+    data_dir = worker_dir / 'data'
     data_dir.mkdir(parents=True, exist_ok=True)
-    details = {"id": project.pack, "images": True, "live": True}
-    (data_dir / "details.json").write_text(json.dumps(details, indent=2))
+    details = {'id': project.pack, 'images': True, 'live': True}
+    (data_dir / 'details.json').write_text(json.dumps(details, indent=2))
 
     # projects/{pack}/
-    project_dir = worker_dir / "projects" / project.pack
+    project_dir = worker_dir / 'projects' / project.pack
     if project_dir.exists():
         shutil.rmtree(project_dir)
     project_dir.mkdir(parents=True)
@@ -93,20 +115,19 @@ def _stage(
     visitor = SiteVisitor(site)
     platform_ids = {
         s: {
-            "id": visitor.id_or_skip(s, config.get(s, {}).get("id")),
-            "slug": config.get(s, {}).get("slug"),
+            'id': visitor.id_or_skip(s, config.get(s, {}).get('id')),
+            'slug': config.get(s, {}).get('slug'),
         }
         for s in SITES
     }
-    project_json = {"config": cfg, **platform_ids}
-    (project_dir / "project.json").write_text(json.dumps(project_json, indent=2))
+    project_json = {'config': cfg, **platform_ids}
+    (project_dir / 'project.json').write_text(json.dumps(project_json, indent=2))
 
-    from puppy.images import stage_image
-    stage_image(icon, project_dir / "pack.png")
+    stage_image(icon, project_dir / 'pack.png')
 
-    _copy_images(config, puppy_dir, project_dir / "images")
+    copy_images(config, puppy_dir, project_dir / 'images')
 
-    for optional in ("thumbnail.png", "logo.png"):
+    for optional in ('thumbnail.png', 'logo.png'):
         src = puppy_dir / optional
         if src.exists():
             shutil.copy(src, project_dir / optional)
@@ -115,36 +136,28 @@ def _stage(
 
 
 _MINIMAL_TEMPLATE = {
-    ".md": "{{ description }}\n\n{{ images }}\n",
-    ".html": "{{ description }}\n\n{{ images }}\n",
-    ".bbcode": "{{ description }}\n\n{{ images }}\n",
+    '.md': '{{ description }}\n\n{{ images }}\n',
+    '.html': '{{ description }}\n\n{{ images }}\n',
+    '.bbcode': '{{ description }}\n\n{{ images }}\n',
 }
 
 
-def _copy_images(config: dict, puppy_dir: Path, dest: Path) -> None:
-    from puppy.images import find_image, stage_image
-    src_dir = Path(config["images_source"]) if config.get("images_source") else puppy_dir / "images"
-    for img in config.get("images", []):
-        try:
-            src = find_image(img["file"], src_dir)
-            stage_image(src, dest / (Path(img["file"]).stem + ".png"))
-        except SystemExit as e:
-            print(f"WARNING: {e}")
 
-
-def _stage_templates(project_dir: Path, puppy_dir: Path, site: str | None, descriptions: dict[str, str]) -> None:
-    templates_dir = project_dir / "templates"
+def _stage_templates(
+    project_dir: Path, puppy_dir: Path, site: str | None, descriptions: dict[str, str]
+) -> None:
+    templates_dir = project_dir / 'templates'
     templates_dir.mkdir()
     visitor = SiteVisitor(site)
     for s, ext in _TEMPLATE_EXT.items():
         if s not in visitor:
             continue
-        dest = templates_dir / f"{s}{ext}"
-        src = puppy_dir / s / f"description{ext}"
+        dest = templates_dir / f'{s}{ext}'
+        src = puppy_dir / s / f'description{ext}'
         rendered = descriptions.get(s)
         if rendered is not None:
             # Bake rendered description; leave {{ images }} for the worker
-            dest.write_text(f"{rendered}\n\n{{{{ images }}}}\n")
+            dest.write_text(f'{rendered}\n\n{{{{ images }}}}\n')
         elif src.exists():
             shutil.copy(src, dest)
         else:
@@ -152,22 +165,4 @@ def _stage_templates(project_dir: Path, puppy_dir: Path, site: str | None, descr
 
 
 def _run_worker(worker_dir: Path, verbosity: int) -> None:
-    cmd = ["node", "--no-warnings", "scripts/details.js"]
-    proc = subprocess.Popen(cmd, cwd=worker_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    stdout_lines: list[str] = []
-    for line in proc.stdout:
-        stdout_lines.append(line)
-        if verbosity >= 1:
-            print(line, end="", flush=True)
-    stderr = proc.stderr.read()
-    proc.wait()
-    if proc.returncode != 0:
-        raise SystemExit(f"Worker sync failed\n{stderr}".strip())
-    failures = [l for l in stdout_lines if "failed" in l.lower()]
-    if failures:
-        if verbosity < 1:
-            print("WARNING: worker reported failures:")
-            for line in failures:
-                print(f"  {line}", end="")
-        else:
-            print(f"WARNING: {len(failures)} failure(s) in worker output (see above)")
+    run_worker('scripts/details.js', worker_dir, verbosity, stream=True)

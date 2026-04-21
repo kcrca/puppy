@@ -16,3 +16,6 @@ puppy = "puppy.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
+
+[tool.ruff.format]
+quote-style = "single"

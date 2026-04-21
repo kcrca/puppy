@@ -14,17 +14,20 @@ modrinth: YOUR_MODRINTH_TOKEN
 planetminecraft: pmc_autologin=YOUR_PMC_AUTOLOGIN_COOKIE
 """
 
-_GITIGNORE = "auth.yaml\n"
+_GITIGNORE = 'auth.yaml\n'
 
 _DESCRIPTION_MD = """\
 <!-- Add your pack description here. Jinja2 variables from puppy.yaml are available,
-     e.g. {{ version }}, {{ name }}. Conditionals: {% if key %}...{% endif %} -->
+     Example: {{ version }}, {{ name }}. Conditionals: {% if key %}...{% endif %} -->
 """
 
 _SITE_TEMPLATES = {
-    "curseforge": ("description.html", "<!-- CurseForge description (HTML) -->\n"),
-    "modrinth": ("description.md", "<!-- Modrinth description (Markdown) -->\n"),
-    "planetminecraft": ("description.bbcode", "[b]Planet Minecraft description (BBCode)[/b]\n"),
+    'curseforge': ('description.html', '<!-- CurseForge description (HTML) -->\n'),
+    'modrinth': ('description.md', '<!-- Modrinth description (Markdown) -->\n'),
+    'planetminecraft': (
+        'description.bbcode',
+        '[b]Planet Minecraft description (BBCode)[/b]\n',
+    ),
 }
 
 
@@ -76,19 +79,19 @@ def run_init(directory: Path) -> None:
     name, pack = _derive_identity(directory)
 
     # Puppy home: {directory}/puppy/
-    puppy_home = directory / "puppy"
+    puppy_home = directory / 'puppy'
     puppy_home.mkdir(parents=True, exist_ok=True)
 
-    _write_if_missing(puppy_home / "auth.yaml", _AUTH_YAML)
-    _write_if_missing(puppy_home / ".gitignore", _GITIGNORE)
-    _write_if_missing(puppy_home / "puppy.yaml", _global_puppy_yaml(name))
+    _write_if_missing(puppy_home / 'auth.yaml', _AUTH_YAML)
+    _write_if_missing(puppy_home / '.gitignore', _GITIGNORE)
+    _write_if_missing(puppy_home / 'puppy.yaml', _global_puppy_yaml(name))
 
     # Project source: {directory}/puppy/{name}/puppy/
-    project_source = puppy_home / name / "puppy"
+    project_source = puppy_home / name / 'puppy'
     project_source.mkdir(parents=True, exist_ok=True)
 
-    _write_if_missing(project_source / "puppy.yaml", _project_puppy_yaml(name, pack))
-    _write_if_missing(project_source / "description.md", _DESCRIPTION_MD)
+    _write_if_missing(project_source / 'puppy.yaml', _project_puppy_yaml(name, pack))
+    _write_if_missing(project_source / 'description.md', _DESCRIPTION_MD)
 
     for site, (fname, content) in _SITE_TEMPLATES.items():
         site_dir = project_source / site
@@ -98,7 +101,7 @@ def run_init(directory: Path) -> None:
 
 def _write_if_missing(path: Path, content: str) -> None:
     if path.exists():
-        print(f"WARNING: {path} already exists — left untouched")
+        print(f'WARNING: {path} already exists — left untouched')
         return
     path.write_text(content)
-    print(f"Created {path}")
+    print(f'Created {path}')

@@ -23,44 +23,48 @@ def _load_yaml(path: Path) -> dict:
 
 
 class ConfigSynthesizer:
-    def __init__(self, puppy_home: Path, project_root: Path, site: str | None = None):
+    def __init__(self, puppy_home: Path, project_root: Path, site: str = None):
         self.puppy_home = Path(puppy_home)
         self.project_root = Path(project_root)
         self.site = site
 
     def get_running_config(self) -> dict[str, Any]:
-        project_puppy = self.project_root / "puppy"
+        project_puppy = self.project_root / 'puppy'
 
-        layers: list[Path] = [self.puppy_home / "puppy.yaml"]
+        layers: list[Path] = [self.puppy_home / 'puppy.yaml']
         if self.site:
-            layers.append(self.puppy_home / self.site / "puppy.yaml")
-        layers.append(project_puppy / "puppy.yaml")
+            layers.append(self.puppy_home / self.site / 'puppy.yaml')
+        layers.append(project_puppy / 'puppy.yaml')
         if self.site:
-            layers.append(project_puppy / self.site / "puppy.yaml")
+            layers.append(project_puppy / self.site / 'puppy.yaml')
 
         config: dict = {}
         for layer in layers:
             config = _deep_merge(config, _load_yaml(layer))
 
-        images_path = project_puppy / "images"
+        images_path = project_puppy / 'images'
         if images_path.exists() and not images_path.is_dir():
-            raise SystemExit(f"{images_path} exists but is not a directory")
-        top_level = project_puppy / "images.yaml"
-        in_dir = images_path / "images.yaml"
+            raise SystemExit(f'{images_path} exists but is not a directory')
+        top_level = project_puppy / 'images.yaml'
+        in_dir = images_path / 'images.yaml'
         if top_level.exists() and in_dir.exists():
-            raise SystemExit(f"Ambiguous images config: both {top_level} and {in_dir} exist")
-        images_yaml = top_level if top_level.exists() else in_dir if in_dir.exists() else None
+            raise SystemExit(
+                f'Ambiguous images config: both {top_level} and {in_dir} exist'
+            )
+        images_yaml = (
+            top_level if top_level.exists() else in_dir if in_dir.exists() else None
+        )
         if images_yaml:
             raw = yaml.safe_load(images_yaml.read_text()) or []
             if isinstance(raw, list):
                 images, images_source = raw, None
             else:
-                images = raw.get("images", [])
-                images_source = raw.get("source")
+                images = raw.get('images', [])
+                images_source = raw.get('source')
             if images:
-                config["images"] = images
+                config['images'] = images
             if images_source:
-                config["images_source"] = str((project_puppy / images_source).resolve())
+                config['images_source'] = str((project_puppy / images_source).resolve())
 
         return _apply_neutral_metadata(config)
 
@@ -69,44 +73,52 @@ def _apply_neutral_metadata(config: dict) -> dict:
     """Expand top-level neutral keys into per-site fields; per-site values win."""
     config = dict(config)
 
-    resolution = config.get("resolution")
+    resolution = config.get('resolution')
     if resolution is not None:
         res = str(resolution)
-        cf = config.setdefault("curseforge", {})
-        cf.setdefault("mainCategory", f"{res}x")
-        mr = config.setdefault("modrinth", {})
-        tags = mr.setdefault("tags", {})
-        for tier in ["8x-", "16x", "32x", "48x", "64x", "128x", "256x", "512x+"]:
-            tags.setdefault(tier, tier == f"{res}x")
-        pmc = config.setdefault("planetminecraft", {})
-        pmc.setdefault("resolution", int(resolution))
-        pmc_tags = pmc.setdefault("tags", [])
-        for res_tag in [f"{res}x", f"{res}x{res}"]:
+        cf = config.setdefault('curseforge', {})
+        cf.setdefault('mainCategory', f'{res}x')
+        mr = config.setdefault('modrinth', {})
+        tags = mr.setdefault('tags', {})
+        for tier in ['8x-', '16x', '32x', '48x', '64x', '128x', '256x', '512x+']:
+            tags.setdefault(tier, tier == f'{res}x')
+        pmc = config.setdefault('planetminecraft', {})
+        pmc.setdefault('resolution', int(resolution))
+        pmc_tags = pmc.setdefault('tags', [])
+        for res_tag in [f'{res}x', f'{res}x{res}']:
             if res_tag not in pmc_tags:
                 pmc_tags.append(res_tag)
 
-    progress = config.get("progress")
+    progress = config.get('progress')
     if progress is not None:
-        pmc = config.setdefault("planetminecraft", {})
-        pmc.setdefault("progress", int(progress))
+        pmc = config.setdefault('planetminecraft', {})
+        pmc.setdefault('progress', int(progress))
 
-    license_ = config.get("license")
+    license_ = config.get('license')
     if license_:
         # Neutral form is SPDX (CC-BY-4.0); CF uses last-hyphen-as-space (CC-BY 4.0)
-        cf_license = " ".join(license_.rsplit("-", 1)) if "-" in license_ else license_
-        config.setdefault("curseforge", {}).setdefault("license", cf_license)
-        config.setdefault("modrinth", {}).setdefault("license", license_)
+        cf_license = ' '.join(license_.rsplit('-', 1)) if '-' in license_ else license_
+        config.setdefault('curseforge', {}).setdefault('license', cf_license)
+        config.setdefault('modrinth', {}).setdefault('license', license_)
+
+    donation = config.get('donation')
+    if donation and isinstance(donation, dict):
+        first_platform, first_url = next(iter(donation.items()))
+        config.setdefault('curseforge', {}).setdefault(
+            'donation', {'type': first_platform, 'value': first_url}
+        )
+        config.setdefault('modrinth', {}).setdefault('donation', dict(donation))
 
     return config
 
 
 _SITE_URL = {
-    "modrinth": "https://modrinth.com/{type}/{ref}",
-    "curseforge": "https://www.curseforge.com/minecraft/texture-packs/{ref}",
-    "planetminecraft": "https://www.planetminecraft.com/texture-pack/{ref}/",
+    'modrinth': 'https://modrinth.com/{type}/{ref}',
+    'curseforge': 'https://www.curseforge.com/minecraft/texture-packs/{ref}',
+    'planetminecraft': 'https://www.planetminecraft.com/texture-pack/{ref}/',
 }
 
-_MODRINTH_DEFAULT_TYPE = "mod"
+_MODRINTH_DEFAULT_TYPE = 'mod'
 
 
 def build_projects_context(puppy_home: Path) -> dict:
@@ -115,18 +127,20 @@ def build_projects_context(puppy_home: Path) -> dict:
     for candidate in puppy_home.iterdir():
         if not candidate.is_dir():
             continue
-        yaml_path = candidate / "puppy" / "puppy.yaml"
+        yaml_path = candidate / 'puppy' / 'puppy.yaml'
         if not yaml_path.exists():
             continue
         cfg = _load_yaml(yaml_path)
-        pack = cfg.get("pack") or candidate.name.lower()
+        pack = cfg.get('pack') or candidate.name.lower()
         site_urls: dict = {}
         for site, template in _SITE_URL.items():
             sc = cfg.get(site, {})
-            ref = sc.get("slug") or sc.get("id")
+            ref = sc.get('slug') or sc.get('id')
             if ref:
-                site_type = sc.get("type", _MODRINTH_DEFAULT_TYPE) if site == "modrinth" else ""
-                site_urls[site] = {"url": template.format(ref=ref, type=site_type)}
+                site_type = (
+                    sc.get('type', _MODRINTH_DEFAULT_TYPE) if site == 'modrinth' else ''
+                )
+                site_urls[site] = {'url': template.format(ref=ref, type=site_type)}
         if site_urls:
             projects[pack] = site_urls
     return projects

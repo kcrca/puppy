@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 
-SITES = ["curseforge", "modrinth", "planetminecraft"]
+SITES = ['curseforge', 'modrinth', 'planetminecraft']
 
-_ALIASES = {"cf": "curseforge", "mr": "modrinth", "pmc": "planetminecraft"}
+_ALIASES = {'cf': 'curseforge', 'mr': 'modrinth', 'pmc': 'planetminecraft'}
 
 
 class SiteVisitor:
@@ -12,12 +12,14 @@ class SiteVisitor:
     Construct with the value of the -s/--site CLI flag (or None for all sites).
     """
 
-    def __init__(self, filter: str | None = None):
+    def __init__(self, filter: str = None):
         if filter:
-            requested = [_ALIASES.get(s.strip(), s.strip()) for s in filter.split(",")]
+            requested = [_ALIASES.get(s.strip(), s.strip()) for s in filter.split(',')]
             unknown = [s for s in requested if s not in SITES]
             if unknown:
-                raise SystemExit(f"Unknown site(s): {', '.join(unknown)}. Valid: {', '.join(SITES)}")
+                raise SystemExit(
+                    f'Unknown site(s): {", ".join(unknown)}. Valid: {", ".join(SITES)}'
+                )
             self.sites = [s for s in SITES if s in requested]
         else:
             self.sites = list(SITES)

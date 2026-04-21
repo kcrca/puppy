@@ -3,15 +3,18 @@ import re
 import shutil
 from pathlib import Path
 
+import markdown
+
 from puppy.core import Project
 from puppy.creator import _expand_versions, _find_icon, _resolve_asset
 from puppy.images import find_image, stage_image
+from puppy.renderer import DEFAULT_SHIELD_TAGS
 from puppy.syncer import _TEMPLATE_EXT
 
 _SITE_LABEL = {
-    "curseforge": "CurseForge",
-    "modrinth": "Modrinth",
-    "planetminecraft": "Planet Minecraft",
+    'curseforge': 'CurseForge',
+    'modrinth': 'Modrinth',
+    'planetminecraft': 'Planet Minecraft',
 }
 
 
@@ -21,95 +24,109 @@ def generate(
     debug_dir: Path,
     sites: list[str],
     source_exts: dict[str, str],
-    zip_name: str | None = None,
+    zip_name: str = None,
 ) -> None:
-    puppy_dir = project.root / "puppy"
+    puppy_dir = project.root / 'puppy'
 
     icon_rel = None
     try:
-        icon_src = _resolve_asset(config.get("icon"), puppy_dir, _find_icon)
-        stage_image(icon_src, debug_dir / "icon.png")
-        icon_rel = "icon.png"
+        icon_src = _resolve_asset(config.get('icon'), puppy_dir, _find_icon)
+        stage_image(icon_src, debug_dir / 'icon.png')
+        icon_rel = 'icon.png'
     except SystemExit:
         pass
 
     image_entries: list[tuple[str, str, str]] = []
-    images_src = Path(config["images_source"]) if config.get("images_source") else puppy_dir / "images"
-    images_dest = debug_dir / "images"
-    for img in config.get("images", []):
-        stem = Path(img["file"]).stem
-        fname = stem + ".png"
+    images_src = (
+        Path(config['images_source'])
+        if config.get('images_source')
+        else puppy_dir / 'images'
+    )
+    images_dest = debug_dir / 'images'
+    for img in config.get('images', []):
+        stem = Path(img['file']).stem
+        fname = stem + '.png'
         try:
-            src = find_image(img["file"], images_src)
+            src = find_image(img['file'], images_src)
             stage_image(src, images_dest / fname)
-            image_entries.append((fname, img.get("name", ""), img.get("description", "")))
+            image_entries.append(
+                (fname, img.get('name', ''), img.get('description', ''))
+            )
         except SystemExit as e:
-            print(f"WARNING: {e}")
+            print(f'WARNING: {e}')
 
-    from puppy.renderer import DEFAULT_SHIELD_TAGS
-    shield_tags = config.get("md_html_tags", DEFAULT_SHIELD_TAGS)
+    shield_tags = config.get('md_html_tags', DEFAULT_SHIELD_TAGS)
 
     per_site_html: dict[str, str] = {}
     for s in sites:
         ext = _TEMPLATE_EXT[s]
-        desc_file = debug_dir / s / f"description{ext}"
+        desc_file = debug_dir / s / f'description{ext}'
         src_ext = source_exts.get(s, ext)
-        body_html = _to_html(desc_file.read_text(), src_ext, shield_tags) if desc_file.exists() else "<em>(no description)</em>"
+        body_html = (
+            _to_html(desc_file.read_text(), src_ext, shield_tags)
+            if desc_file.exists()
+            else '<em>(no description)</em>'
+        )
         per_site_html[s] = (
-            (_icon_html(icon_rel) if icon_rel else "")
+            (_icon_html(icon_rel) if icon_rel else '')
             + f'<div class="description">{body_html}</div>\n'
             + _images_html(image_entries)
         )
 
-    (debug_dir / "index.html").write_text(_page(project, config, sites, per_site_html, zip_name=zip_name))
+    (debug_dir / 'index.html').write_text(
+        _page(project, config, sites, per_site_html, zip_name=zip_name)
+    )
 
 
 # ── conversion ───────────────────────────────────────────────────────────────
 
-def _to_html(text: str, ext: str, shield_tags: list[str] | None = None) -> str:
-    if ext == ".html":
+
+def _to_html(text: str, ext: str, shield_tags: list[str] = None) -> str:
+    if ext == '.html':
         return text
-    if ext == ".md":
-        import markdown
+    if ext == '.md':
         tags = shield_tags or []
-        placeholders = {tag: f"\x00{tag}\x00" for tag in tags}
+        placeholders = {tag: f'\x00{tag}\x00' for tag in tags}
         for tag in tags:
-            text = text.replace(f"<{tag}>", placeholders[tag])
-            text = text.replace(f"</{tag}>", f"\x00/{tag}\x00")
-        result = markdown.markdown(text, extensions=["extra"])
+            text = text.replace(f'<{tag}>', placeholders[tag])
+            text = text.replace(f'</{tag}>', f'\x00/{tag}\x00')
+        result = markdown.markdown(text, extensions=['extra'])
         for tag in tags:
-            result = result.replace(placeholders[tag], f"<{tag}>")
-            result = result.replace(f"\x00/{tag}\x00", f"</{tag}>")
+            result = result.replace(placeholders[tag], f'<{tag}>')
+            result = result.replace(f'\x00/{tag}\x00', f'</{tag}>')
         return result
-    if ext == ".bbcode":
+    if ext == '.bbcode':
         return _bbcode_to_html(text)
-    return f"<pre>{_html.escape(text)}</pre>"
+    return f'<pre>{_html.escape(text)}</pre>'
 
 
 def _bbcode_to_html(text: str) -> str:
     text = _html.escape(text)
     for pat, rep in [
-        (r'\[b\](.*?)\[/b\]',                  r'<strong>\1</strong>'),
-        (r'\[i\](.*?)\[/i\]',                  r'<em>\1</em>'),
-        (r'\[u\](.*?)\[/u\]',                  r'<u>\1</u>'),
-        (r'\[s\](.*?)\[/s\]',                  r'<s>\1</s>'),
-        (r'\[h([1-6])\](.*?)\[/h\1\]',         r'<h\1>\2</h\1>'),
-        (r'\[url=([^\]]+)\](.*?)\[/url\]',     r'<a href="\1">\2</a>'),
-        (r'\[url\](.*?)\[/url\]',              r'<a href="\1">\1</a>'),
-        (r'\[img\](.*?)\[/img\]',              r'<img src="\1" style="max-width:100%">'),
+        (r'\[b\](.*?)\[/b\]', r'<strong>\1</strong>'),
+        (r'\[i\](.*?)\[/i\]', r'<em>\1</em>'),
+        (r'\[u\](.*?)\[/u\]', r'<u>\1</u>'),
+        (r'\[s\](.*?)\[/s\]', r'<s>\1</s>'),
+        (r'\[h([1-6])\](.*?)\[/h\1\]', r'<h\1>\2</h\1>'),
+        (r'\[url=([^\]]+)\](.*?)\[/url\]', r'<a href="\1">\2</a>'),
+        (r'\[url\](.*?)\[/url\]', r'<a href="\1">\1</a>'),
+        (r'\[img\](.*?)\[/img\]', r'<img src="\1" style="max-width:100%">'),
         (r'\[color=([^\]]+)\](.*?)\[/color\]', r'<span style="color:\1">\2</span>'),
-        (r'\[quote\](.*?)\[/quote\]',          r'<blockquote>\1</blockquote>'),
-        (r'\[code\](.*?)\[/code\]',            r'<pre><code>\1</code></pre>'),
+        (r'\[quote\](.*?)\[/quote\]', r'<blockquote>\1</blockquote>'),
+        (r'\[code\](.*?)\[/code\]', r'<pre><code>\1</code></pre>'),
     ]:
         text = re.sub(pat, rep, text, flags=re.DOTALL | re.IGNORECASE)
-    return "<p>" + re.sub(r'\n{2,}', '</p><p>', text).replace('\n', '<br>') + "</p>"
+    return '<p>' + re.sub(r'\n{2,}', '</p><p>', text).replace('\n', '<br>') + '</p>'
 
 
 # ── metadata table ────────────────────────────────────────────────────────────
 
+
 def _combined_metadata_table(project: Project, config: dict, sites: list[str]) -> str:
     # Build per-site field dicts, preserving insertion order
-    site_fields: dict[str, dict[str, str]] = {s: dict(_site_rows(s, project, config)) for s in sites}
+    site_fields: dict[str, dict[str, str]] = {
+        s: dict(_site_rows(s, project, config)) for s in sites
+    }
 
     # Ordered union of all field names: common fields first, then site-specific
     seen: set[str] = set()
@@ -121,15 +138,16 @@ def _combined_metadata_table(project: Project, config: dict, sites: list[str]) -
                 order.append(k)
 
     labels = [_SITE_LABEL.get(s, s) for s in sites]
-    header = "<tr><th></th>" + "".join(f"<th>{l}</th>" for l in labels) + "</tr>"
-    rows = ""
+    header = '<tr><th></th>' + ''.join(f'<th>{l}</th>' for l in labels) + '</tr>'
+    rows = ''
     for field in order:
-        cells = "".join(
-            f"<td>{site_fields[s][field]}</td>" if field in site_fields[s]
+        cells = ''.join(
+            f'<td>{site_fields[s][field]}</td>'
+            if field in site_fields[s]
             else "<td class='na'>—</td>"
             for s in sites
         )
-        rows += f"<tr><th>{_html.escape(field)}</th>{cells}</tr>"
+        rows += f'<tr><th>{_html.escape(field)}</th>{cells}</tr>'
 
     return f'<table class="meta">{header}{rows}</table>\n'
 
@@ -137,61 +155,68 @@ def _combined_metadata_table(project: Project, config: dict, sites: list[str]) -
 def _site_rows(site: str, project: Project, config: dict) -> list[tuple[str, str]]:
     rows: list[tuple[str, str]] = []
 
-    rows.append(("Name", _e(project.name)))
-    rows.append(("Pack", _e(project.pack)))
-    if config.get("version"):
-        rows.append(("Version", _e(str(config["version"]))))
+    rows.append(('Name', _e(project.name)))
+    rows.append(('Pack', _e(project.pack)))
+    if config.get('version'):
+        rows.append(('Version', _e(str(config['version']))))
 
     versions = _expand_versions(config)
     v = versions.get(site)
     if v:
         if isinstance(v, dict):
-            vstr = _e(str(v.get("version", "?")))
-            vtype = v.get("type", "exact")
-            rows.append(("Minecraft", f"{vstr} <span class='gloss'>[{_e(vtype)}]</span>" if vtype != "exact" else vstr))
+            vstr = _e(str(v.get('version', '?')))
+            vtype = v.get('type', 'exact')
+            rows.append(
+                (
+                    'Minecraft',
+                    f"{vstr} <span class='gloss'>[{_e(vtype)}]</span>"
+                    if vtype != 'exact'
+                    else vstr,
+                )
+            )
         else:
-            rows.append(("Minecraft", _e(str(v))))
+            rows.append(('Minecraft', _e(str(v))))
 
-    if config.get("summary"):
-        rows.append(("Summary", _e(config["summary"])))
+    if config.get('summary'):
+        rows.append(('Summary', _e(config['summary'])))
 
     sc = config.get(site, {})
-    if sc.get("id"):
-        rows.append(("ID", _e(str(sc["id"]))))
-    if sc.get("slug"):
-        rows.append(("Slug", _e(str(sc["slug"]))))
+    if sc.get('id'):
+        rows.append(('ID', _e(str(sc['id']))))
+    if sc.get('slug'):
+        rows.append(('Slug', _e(str(sc['slug']))))
 
-    if site == "curseforge":
-        if sc.get("mainCategory"):
-            rows.append(("Main Category", _e(str(sc["mainCategory"]))))
-        extra = {k: v for k, v in sc.get("additionalCategories", {}).items() if v}
+    if site == 'curseforge':
+        if sc.get('mainCategory'):
+            rows.append(('Main Category', _e(str(sc['mainCategory']))))
+        extra = {k: v for k, v in sc.get('additionalCategories', {}).items() if v}
         if extra:
-            rows.append(("Categories", ", ".join(_e(k) for k in extra)))
-        if sc.get("license"):
-            rows.append(("License", _e(str(sc["license"]))))
+            rows.append(('Categories', ', '.join(_e(k) for k in extra)))
+        if sc.get('license'):
+            rows.append(('License', _e(str(sc['license']))))
 
-    elif site == "modrinth":
-        active_tags = [k for k, v in sc.get("tags", {}).items() if v]
+    elif site == 'modrinth':
+        active_tags = [k for k, v in sc.get('tags', {}).items() if v]
         if active_tags:
-            rows.append(("Tags", ", ".join(_e(t) for t in active_tags)))
-        if sc.get("license"):
-            rows.append(("License", _e(str(sc["license"]))))
+            rows.append(('Tags', ', '.join(_e(t) for t in active_tags)))
+        if sc.get('license'):
+            rows.append(('License', _e(str(sc['license']))))
 
-    elif site == "planetminecraft":
-        if sc.get("category"):
-            rows.append(("Category", _e(str(sc["category"]))))
-        if sc.get("resolution"):
-            rows.append(("Resolution", f"{_e(str(sc['resolution']))}x"))
-        if sc.get("progress") is not None:
-            rows.append(("Progress", f"{sc['progress']}%"))
-        active_mods = [k for k, v in sc.get("modifies", {}).items() if v]
+    elif site == 'planetminecraft':
+        if sc.get('category'):
+            rows.append(('Category', _e(str(sc['category']))))
+        if sc.get('resolution'):
+            rows.append(('Resolution', f'{_e(str(sc["resolution"]))}x'))
+        if sc.get('progress') is not None:
+            rows.append(('Progress', f'{sc["progress"]}%'))
+        active_mods = [k for k, v in sc.get('modifies', {}).items() if v]
         if active_mods:
-            rows.append(("Modifies", ", ".join(_e(m) for m in active_mods)))
-        pmc_tags = sc.get("tags", [])
+            rows.append(('Modifies', ', '.join(_e(m) for m in active_mods)))
+        pmc_tags = sc.get('tags', [])
         if pmc_tags:
-            rows.append(("Tags", ", ".join(_e(str(t)) for t in pmc_tags)))
-        if sc.get("credit"):
-            rows.append(("Credit", _e(str(sc["credit"]))))
+            rows.append(('Tags', ', '.join(_e(str(t)) for t in pmc_tags)))
+        if sc.get('credit'):
+            rows.append(('Credit', _e(str(sc['credit']))))
 
     return rows
 
@@ -202,40 +227,52 @@ def _e(s: str) -> str:
 
 # ── HTML fragments ────────────────────────────────────────────────────────────
 
+
 def _icon_html(icon_rel: str) -> str:
     return f'<div class="icon"><img src="{icon_rel}" alt="icon"></div>\n'
 
 
 def _images_html(images: list[tuple[str, str, str]]) -> str:
     if not images:
-        return ""
-    items = ""
+        return ''
+    items = ''
     for fname, title, desc in images:
-        caption = ""
+        caption = ''
         if title:
-            caption = f"<figcaption><strong>{_e(title)}</strong>"
+            caption = f'<figcaption><strong>{_e(title)}</strong>'
             if desc:
-                caption += f": {_e(desc)}"
-            caption += "</figcaption>"
+                caption += f': {_e(desc)}'
+            caption += '</figcaption>'
         items += f'<figure><a href="images/{fname}" target="_blank"><img src="images/{fname}" alt="{_e(title)}"></a>{caption}</figure>\n'
     return f'<div class="images">{items}</div>\n'
 
 
 # ── page shell ────────────────────────────────────────────────────────────────
 
-def _page(project: Project, config: dict, sites: list[str], per_site_html: dict[str, str], zip_name: str | None = None) -> str:
+
+def _page(
+    project: Project,
+    config: dict,
+    sites: list[str],
+    per_site_html: dict[str, str],
+    zip_name: str = None,
+) -> str:
     meta_table = _combined_metadata_table(project, config, sites)
 
-    tab_buttons = ""
-    tab_panes = ""
+    tab_buttons = ''
+    tab_panes = ''
     for i, s in enumerate(sites):
-        active_cls = " active" if i == 0 else ""
-        display = "block" if i == 0 else "none"
+        active_cls = ' active' if i == 0 else ''
+        display = 'block' if i == 0 else 'none'
         label = _SITE_LABEL.get(s, s)
         tab_buttons += f'<button class="tab-btn{active_cls}" onclick="showTab(\'{s}\')" id="btn-{s}">{label}</button>\n'
         tab_panes += f'<div class="tab-pane" id="pane-{s}" style="display:{display}">{per_site_html.get(s, "")}</div>\n'
 
-    zip_line = f'<p class="zip">Pack: <a href="{_e(zip_name)}">{_e(zip_name)}</a></p>\n' if zip_name else ""
+    zip_line = (
+        f'<p class="zip">Pack: <a href="{_e(zip_name)}">{_e(zip_name)}</a></p>\n'
+        if zip_name
+        else ''
+    )
     title = _e(project.name)
     return f"""<!DOCTYPE html>
 <html lang="en">

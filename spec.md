@@ -11,7 +11,7 @@
 
 ## **2. Core Identity & Naming**
 * **`pack` (Internal Slug):** Always lowercase. Derived from the directory name unless overridden.
-* **`name` (Display Name):** Preserves casing if uppercase letters exist (`NeonGlow`). Converts to Title Case if strictly lowercase (`clean` → `Clean`).
+* **`name` (Display Name):** Preserves casing if uppercase letters exist (`NeonGlow`). Converts to Title Case if strictly lowercase (`neon` → `Neon`).
 * **Single override:** If only `name:` is provided, `pack` is derived as `name.lower()`. If only `pack:` is provided, `name` is derived by the same casing rules. Both can be set explicitly.
 * **Auto-update:** Whenever a project is loaded for any action, if either `name` or `pack` was absent from `puppy.yaml`, the derived value is written back automatically.
 
@@ -49,6 +49,7 @@ Puppy can be invoked from:
   * **CurseForge:** Only the summary is imported — full HTML description not available via API.
   * **Planet Minecraft:** No description imported. Manually paste content into `puppy/planetminecraft/description.bbcode`.
 * **`init`:** Creates the `puppy/` directory structure in the target directory: `puppy.yaml`, `auth.yaml`, `.gitignore`, and a starter `description.md`. Derives `name` and `pack` from the directory name. Any file that already exists is left untouched with a warning.
+* **`clean`:** Resets the PackUploader worker without pushing.
 
 ### **4.2 Options & Flags**
 * **`-n/--dry-run`:** Executes the full pipeline without hitting APIs or running the worker. Writes a per-site preview to `{tempdir}/puppy/{pack}/index.html` — a tabbed HTML page showing rendered descriptions, project metadata, icon, and images for each site. Also prints the `file://` URL to open it directly.
@@ -62,6 +63,7 @@ Puppy can be invoked from:
   * **Planet Minecraft:** Compares version string against last version recorded in `puppy/.publish_state.yaml`.
 * **`-f/--force`:** With `-p`, bypasses skip logic and uploads unconditionally on all sites.
 * **`-y/--yes`:** Skip confirmation prompts. The `create` action prompts for confirmation unless this flag is set.
+* **`--worker [path]`:** PackUploader worker directory. Defaults to `~/PackUploader`.
 
 ## **5. Cascading Configuration & Discovery**
 
@@ -169,6 +171,7 @@ Certain properties are intrinsic to the pack and should not need to be repeated 
 | `license: CC-BY-4.0` (SPDX) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |
 | `resolution: 16` | `mainCategory: 16x` | full tier group (`16x: true`, others false) | `resolution: 16`, tags `16x` and `16x16` |
 | `progress: 100` | ignored | ignored | `progress: 100` |
+| `donation: {patreon: url, kofi: url, …}` | first entry as `{type: platform, value: url}` | full dict passed through | ignored |
 
 Per-site overrides in `curseforge:`, `modrinth:`, `planetminecraft:` blocks take precedence over neutral keys — explicit per-site values are never overwritten. Site-specific fields with no neutral equivalent (e.g. CF `additionalCategories`, PMC `modifies`, PMC `tags`) should list all options explicitly so intent is clear.
 
