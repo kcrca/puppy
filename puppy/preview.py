@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 
 import markdown
+import yaml
 
 from puppy.core import Project
 from puppy.creator import _expand_versions, _find_icon, _resolve_asset
@@ -54,7 +55,9 @@ def generate(
     per_site_html: dict[str, str] = {}
     for s in sites:
         ext = s.template_ext
-        desc_file = debug_dir / s.name / f'description{ext}'
+        site_dir = debug_dir / s.name
+        site_dir.mkdir(parents=True, exist_ok=True)
+        desc_file = site_dir / f'description{ext}'
         src_ext = source_exts.get(s.name, ext)
         body_html = (
             _to_html(desc_file.read_text(), src_ext, shield_tags)
@@ -66,6 +69,7 @@ def generate(
             + f'<div class="description">{body_html}</div>\n'
             + _images_html(image_entries)
         )
+        _write_metadata(site_dir, project, config, s)
 
     (debug_dir / 'index.html').write_text(
         _page(project, config, sites, per_site_html, zip_name=zip_name)
@@ -184,6 +188,25 @@ def _site_rows(site: Site, project: Project, config: dict) -> list[tuple[str, st
         rows.append((label, _e(value)))
 
     return rows
+
+
+def _write_metadata(site_dir: Path, project: Project, config: dict, site: Site) -> None:
+    # The submission contract: what Puppy will actually send to the platform.
+    # preview.html lets you validate visuals; metadata.yaml lets tests (and you)
+    # validate the contract — slugs, IDs, and site-specific fields — before upload.
+    meta = {'name': project.name, 'pack': project.pack}
+    if config.get('version'):
+        meta['version'] = str(config['version'])
+    sc = config.get(site.name, {})
+    if sc.get('id'):
+        meta['id'] = sc['id']
+    if sc.get('slug'):
+        meta['slug'] = sc['slug']
+    for label, value in site.preview_rows(sc):
+        meta[label.lower().replace(' ', '_')] = value
+    (site_dir / 'metadata.yaml').write_text(
+        yaml.dump(meta, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    )
 
 
 def _e(s: str) -> str:
