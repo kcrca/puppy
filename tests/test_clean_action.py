@@ -1,3 +1,4 @@
+import json
 import subprocess
 from pathlib import Path
 
@@ -14,7 +15,7 @@ def fake_worker(tmp_path):
     subprocess.run(['git', 'init', '-b', 'main'], cwd=d, check=True, capture_output=True)
     subprocess.run(['git', 'config', 'user.email', 'test@test.com'], cwd=d, check=True, capture_output=True)
     subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=d, check=True, capture_output=True)
-    (d / 'settings.json').write_text('{}')
+    (d / 'settings.json').write_text(json.dumps({}))
     (d / '.gitignore').write_text('node_modules/\n')
     (d / 'node_modules').mkdir()
     subprocess.run(['git', 'add', '.'], cwd=d, check=True, capture_output=True)
@@ -29,7 +30,7 @@ def test_clean_removes_untracked_file(fake_worker):
 
 
 def test_clean_resets_modified_file(fake_worker):
-    (fake_worker / 'settings.json').write_text('{"dirty": true}')
+    (fake_worker / 'settings.json').write_text(json.dumps({'dirty': True}))
     _worker_prep(fake_worker, verbosity=0)
     assert (fake_worker / 'settings.json').read_text() == '{}'
 

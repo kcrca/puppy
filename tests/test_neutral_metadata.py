@@ -1,4 +1,5 @@
 import tempfile
+import yaml
 from pathlib import Path
 
 from puppy.config import _apply_neutral_metadata
@@ -108,7 +109,7 @@ def test_license_per_site_override():
 
 
 def test_resolution_expands_to_all_sites(project_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text('resolution: 16\n')
+    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'resolution': 16}))
     run_puppy('push', '-n')
 
     index = (
@@ -119,7 +120,7 @@ def test_resolution_expands_to_all_sites(project_env, run_puppy):
 
 
 def test_progress_appears_in_pmc(project_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text('progress: 75\n')
+    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'progress': 75}))
     run_puppy('push', '-n')
 
     index = (
@@ -129,7 +130,7 @@ def test_progress_appears_in_pmc(project_env, run_puppy):
 
 
 def test_license_appears_on_cf_and_modrinth(project_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text('license: MIT\n')
+    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'license': 'MIT'}))
     run_puppy('push', '-n')
 
     index = (
