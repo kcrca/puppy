@@ -10,9 +10,9 @@
 * **Cross-Platform:** All paths and subprocesses must work on macOS, Linux, and Windows.
 
 ## **2. Core Identity & Naming**
-* **`pack` (Internal Slug):** Always lowercase. Derived from the directory name unless overridden.
-* **`name` (Display Name):** Preserves casing if uppercase letters exist (`NeonGlow`). Converts to Title Case if strictly lowercase (`neon` → `Neon`).
-* **Single override:** If only `name:` is provided, `pack` is derived as `name.lower()`. If only `pack:` is provided, `name` is derived by the same casing rules. Both can be set explicitly.
+* **`pack` (Internal Slug):** Lowercase alphanumeric only — spaces and special characters stripped. Derived from the directory name unless overridden. Example: `'Neon Glow!'` → `neonglow`.
+* **`name` (Display Name):** Preserves casing and special characters exactly (`'Neon Glow!'` stays `'Neon Glow!'`). If the source string is strictly lowercase ASCII, converts to Title Case (`neon` → `Neon`).
+* **Single override:** If only `name:` is provided, `pack` is derived by slugifying `name` (lowercase, strip non-alphanumerics). If only `pack:` is provided, `name` is derived by the same casing rules. Both can be set explicitly.
 * **Auto-update:** Whenever a project is loaded for any action, if either `name` or `pack` was absent from `puppy.yaml`, the derived value is written back automatically.
 
 ## **3. Directory Architecture**

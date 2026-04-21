@@ -1,6 +1,11 @@
+import re
 from pathlib import Path
 
 import yaml
+
+
+def _slugify(name: str) -> str:
+    return re.sub(r'[^a-z0-9]', '', name.lower())
 
 
 class Project:
@@ -18,7 +23,7 @@ class Project:
             self.pack = override_pack
         elif override_name:
             self.name = override_name
-            self.pack = override_name.lower()
+            self.pack = _slugify(override_name)
         elif override_pack:
             self.pack = override_pack
             self.name = (
@@ -27,7 +32,7 @@ class Project:
                 else override_pack.title()
             )
         else:
-            self.pack = dir_name.lower()
+            self.pack = _slugify(dir_name)
             self.name = dir_name if dir_name != dir_name.lower() else dir_name.title()
 
     @classmethod
