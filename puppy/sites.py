@@ -159,7 +159,7 @@ class ModrinthSite(Site):
     aliases = ['mr']
     label = 'Modrinth'
     template_ext = '.md'
-    desc_exts = ['.html', '.md']
+    desc_exts = ['.md', '.html']
 
     def apply_neutral(self, config: dict) -> None:
         resolution = config.get('resolution')

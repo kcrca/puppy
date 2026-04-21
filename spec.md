@@ -97,7 +97,7 @@ The description body is discovered by searching in order:
 2. Project General File (`{project_root}/puppy/description.{ext}`)
 3. Global General File (`{puppy_home}/description.{ext}`)
 
-**Extension Priority:** CurseForge/Modrinth (`.html` → `.md`); PMC (`.bbcode` → `.md`).
+**Extension Priority (native format wins):** CurseForge (`.html` → `.md`); Modrinth (`.md` → `.html`); PMC (`.bbcode` → `.md`).
 
 ### **5.3 Description Body vs. Template Wrapper**
 Each site has two distinct files:
