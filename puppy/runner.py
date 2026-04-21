@@ -117,6 +117,11 @@ def run(
 
     worker_dir = worker or WORKER_DIR
 
+    if action == 'clean':
+        check_preflight()
+        _worker_prep(worker_dir, verbosity)
+        return
+
     if site:
         site = ','.join(_ALIASES.get(s.strip(), s.strip()) for s in site.split(','))
     puppy_home, projects = _determine_roots(directory)
