@@ -6,6 +6,10 @@ from pathlib import Path
 import markdown
 import yaml
 
+from puppy.transformers import PMCTransformer
+
+_pmc = PMCTransformer()
+
 from puppy.core import Project
 from puppy.creator import _expand_versions, _find_icon, _resolve_asset
 from puppy.images import find_image, stage_image
@@ -94,27 +98,8 @@ def _to_html(text: str, ext: str, shield_tags: list[str] = None) -> str:
             result = result.replace(f'\x00/{tag}\x00', f'</{tag}>')
         return result
     if ext == '.bbcode':
-        return _bbcode_to_html(text)
+        return _pmc.bbcode_to_html(text)
     return f'<pre>{_html.escape(text)}</pre>'
-
-
-def _bbcode_to_html(text: str) -> str:
-    text = _html.escape(text)
-    for pat, rep in [
-        (r'\[b\](.*?)\[/b\]', r'<strong>\1</strong>'),
-        (r'\[i\](.*?)\[/i\]', r'<em>\1</em>'),
-        (r'\[u\](.*?)\[/u\]', r'<u>\1</u>'),
-        (r'\[s\](.*?)\[/s\]', r'<s>\1</s>'),
-        (r'\[h([1-6])\](.*?)\[/h\1\]', r'<h\1>\2</h\1>'),
-        (r'\[url=([^\]]+)\](.*?)\[/url\]', r'<a href="\1">\2</a>'),
-        (r'\[url\](.*?)\[/url\]', r'<a href="\1">\1</a>'),
-        (r'\[img\](.*?)\[/img\]', r'<img src="\1" style="max-width:100%">'),
-        (r'\[color=([^\]]+)\](.*?)\[/color\]', r'<span style="color:\1">\2</span>'),
-        (r'\[quote\](.*?)\[/quote\]', r'<blockquote>\1</blockquote>'),
-        (r'\[code\](.*?)\[/code\]', r'<pre><code>\1</code></pre>'),
-    ]:
-        text = re.sub(pat, rep, text, flags=re.DOTALL | re.IGNORECASE)
-    return '<p>' + re.sub(r'\n{2,}', '</p><p>', text).replace('\n', '<br>') + '</p>'
 
 
 # ── metadata table ────────────────────────────────────────────────────────────

@@ -99,6 +99,8 @@ The description body is discovered by searching in order:
 
 **Extension Priority (native format wins):** CurseForge (`.html` → `.md`); Modrinth (`.md` → `.html`); PMC (`.bbcode` → `.md`).
 
+**PMC description format:** When the source is Markdown, Puppy converts it to PMC's BBCode dialect before staging. When the source is already `.bbcode`, it is used as-is. See Appendix A for the full PMC BBCode dialect reference.
+
 ### **5.3 Description Body vs. Template Wrapper**
 Each site has two distinct files:
 * **Wrapper Template** (`{project_root}/puppy/[sitename]/description.{ext}`): Scaffolding with `{{ description }}`, `{{ images }}` etc. Staged for the worker as `templates/{site}.{ext}`. Created by `init`.
@@ -178,3 +180,105 @@ Per-site overrides in `curseforge:`, `modrinth:`, `planetminecraft:` blocks take
 ### **6.6 Translation & Shielding**
 * **Cross-Linking:** Puppy pre-scans all sibling projects in `puppy_home`, injecting a `projects` dict into the Jinja context. Each entry is keyed by `pack` slug and contains per-site `url` values (e.g. `{{ projects.other.modrinth.url }}`). URLs are built from `slug` if available, falling back to `id`. The Modrinth URL path segment defaults to `mod`; set `modrinth.type:` (e.g. `resourcepack`, `modpack`) to override.
 * **Shielding:** `md_html_tags` in `puppy.yaml` (default `['u']`) lists HTML tags to be protected from Markdown translation and mapped to target-site equivalents (e.g. `<u>` → `[u]` for PMC).
+
+---
+
+## Appendix A: Planet Minecraft BBCode Dialect
+
+Planet Minecraft uses a custom BBCode dialect that differs from standard forum BBCode. This appendix documents all supported tags, primarily as a reference for people authoring `.bbcode` description files by hand.
+
+### Headings
+
+```
+[h1]Page Title[/h1]
+[h2]Section[/h2]
+[h3]Subsection[/h3]
+```
+
+`[h1]` through `[h6]` are supported. PMC renders each as a styled heading with a horizontal rule beneath.
+
+### Inline Formatting
+
+| Tag | Output | Notes |
+|---|---|---|
+| `[b]text[/b]` | **bold** | |
+| `[i]text[/i]` | *italic* | |
+| `[u]text[/u]` | underline | |
+| `[s]text[/s]` | ~~strikethrough~~ | |
+| `[color=#rrggbb]text[/color]` | coloured text | Hex colour only |
+| `[size=Npx]text[/size]` | sized text | e.g. `24px` |
+| `[bgcolor=#rrggbb]text[/bgcolor]` | background highlight | Hex colour only |
+| `[style b color=#rrggbb]text[/style]` | composite style | Any combination of `b`, `i`, `u`, `color=` |
+
+### Links and Images
+
+```
+[url=https://example.com]Link text[/url]
+[img]https://example.com/image.png[/img]
+[img=Alt text]https://example.com/image.png[/img]
+```
+
+PMC wraps outbound links in an internal tracking path (`/account/manage/texture-packs/{id}/example.com`). Puppy strips this back to the bare URL when rendering preview HTML.
+
+### Block Elements
+
+```
+[quote]Quoted text[/quote]
+[code]preformatted text[/code]
+[hr]
+```
+
+`[hr]` is a void element (no closing tag required).
+
+### Lists
+
+PMC requires explicit `[/*]` terminators on each list item:
+
+```
+[list]
+[*]First item[/*]
+[*]Second item[/*]
+[/list]
+```
+
+Ordered lists are not supported.
+
+### Tables
+
+Column widths are set on `[td]` with a `width` attribute (percentage or pixels):
+
+```
+[table]
+[thead][tr][th]Header A[/th][th]Header B[/th][/tr][/thead]
+[tbody]
+[tr][td width=30%]Cell[/td][td]Cell[/td][/tr]
+[/tbody]
+[/table]
+```
+
+Supported table tags: `[table]`, `[thead]`, `[tbody]`, `[tr]`, `[th]`, `[td]`, `[td width=]`.
+
+### Spoilers
+
+```
+[spoiler=Label text]Hidden content[/spoiler]
+```
+
+Renders as a collapsible block. The label argument is required.
+
+### Markdown Conversion
+
+When a description is written in Markdown, Puppy converts it to PMC BBCode automatically. The mapping is:
+
+| Markdown | BBCode |
+|---|---|
+| `# Heading` | `[h1]Heading[/h1]` |
+| `**bold**` | `[b]bold[/b]` |
+| `*italic*` | `[i]italic[/i]` |
+| `` `code` `` | `[icode]code[/icode]` |
+| `![alt](url)` | `[img=alt]url[/img]` |
+| `[text](url)` | `[url=url]text[/url]` |
+| `* item` | `[list][*]item[/*][/list]` |
+| `> quote` | `[QUOTE]quote[/QUOTE]` | uppercase tag |
+| ` ```fenced``` ` | `[CODE]fenced[/CODE]` | uppercase tag |
+| Soft line break | space (not `\n`) | |

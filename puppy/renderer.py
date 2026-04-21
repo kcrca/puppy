@@ -1,10 +1,7 @@
-import re
-
 import markdown as _md
-import mistune
-from md2bbcode.main import convert_markdown_to_bbcode
-from md2bbcode.renderers.bbcode import BBCodeRenderer
 from jinja2 import Environment, Undefined
+
+from puppy.transformers import PMCTransformer
 
 
 class _WarnUndefined(Undefined):
@@ -22,21 +19,11 @@ def md_to_html(text: str) -> str:
     return _md.markdown(text, extensions=['extra'])
 
 
-class _PMCRenderer(BBCodeRenderer):
-    def image(self, text: str, url: str, title=None) -> str:
-        return f'[img]{url}[/img]'
-
-    def heading(self, text: str, level: int, **attrs) -> str:
-        return f'[h{level}]{text}[/h{level}]\n'
-
-
-_pmc_parser = mistune.create_markdown(renderer=_PMCRenderer(domain=''))
+_pmc = PMCTransformer()
 
 
 def md_to_bbcode(text: str) -> str:
-    # Normalize soft-wrapped lines (single newlines) to spaces before converting
-    text = re.sub(r'(?<!\n)\n(?!\n)', ' ', text)
-    return _pmc_parser(text)
+    return _pmc.md_to_bbcode(text)
 
 
 def render(text: str, config: dict, source: str = '<description>', *, site=None) -> str:
