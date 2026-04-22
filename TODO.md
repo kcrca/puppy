@@ -16,6 +16,5 @@
 
 ## Testing Gaps
 
-- Have tests use yaml package instead of writing out yaml in text
 - **Integration tests on live sites**: End-to-end `create`, `import`, and `push --pack` against real CurseForge, Modrinth, and PMC accounts.
 - **CLI-based staging tests**: `test_import_staging.py`, `test_create_staging.py`, `test_publisher_staging.py`, and `test_hygiene.py` call internal functions directly instead of going through `run_puppy`. Rewrite to use the CLI.
