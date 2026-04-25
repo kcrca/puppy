@@ -125,8 +125,8 @@ Puppy has the following actions:
 * **`-I/--images`:** Valid for `import`. Import the image gallery, updating yaml and images files in the project home.
 
 ### Arguments
-* **`pack`** (positional): Limits action to the named pack.
-  Example: `puppy push neon` will push only Neon in the multi-pack project.
+* **`pack`** (positional): Limits action to a specific pack, matched by pack slug.
+  Example: `puppy push neonglow` will push only NeonGlow in a multi-pack project.
 
 ## Known Sites
 
@@ -137,6 +137,9 @@ Modrinth: native language: Markdown (`.md`)
 Planet Minecraft: Abbreviation: "pmc", native language: variant of BBCode (`.bbcode`)
 
 ## Cascading Configuration & Discovery
+
+The four config layers are merged in priority order (lowest first). Dicts merge additively — keys present in a higher-priority layer are added or overwrite individual keys; the entire dict is not replaced. Scalar values (strings, numbers, booleans) overwrite.
+
 
 ### auth.yaml
 `auth.yaml` stores API credentials and must never be committed. Puppy exits with a fatal error if `auth.yaml` does not exist or is not listed in `puppy/.gitignore`.
@@ -521,3 +524,52 @@ When a description is written in Markdown, Puppy converts it to PMC BBCode autom
 | `> quote` | `[QUOTE]quote[/QUOTE]` | uppercase tag |
 | ` ```fenced``` ` | `[CODE]fenced[/CODE]` | uppercase tag |
 | Soft line break | space (not `\n`) | |
+
+---
+
+## Appendix C: How Puppy Uses PackUploader
+
+Puppy implements its actions by staging data into a [PackUploader](https://github.com/ewanhowell5195/PackUploader) worker directory and invoking its scripts. This appendix documents the interactions between the two tools.
+
+### Worker Directory Layout
+
+Before each run puppy resets the worker (`git reset --hard HEAD && git clean -fd`) and writes:
+
+```
+~/PackUploader/
+├── auth.json                       ← credentials, written from auth.yaml
+├── settings.json                   ← patched to set ewan: false
+├── data/
+│   ├── details.json                ← push: {id, images, live}
+│   ├── import.json                 ← import: per-site IDs and slugs
+│   └── create.json                 ← create: name, summary, icon path
+└── projects/
+    └── {pack}/
+        ├── project.json            ← full config + per-site IDs/slugs
+        ├── pack.png                ← icon (always PNG, square)
+        ├── thumbnail.png           ← optional hero image
+        ├── logo.png                ← optional logo
+        ├── images/                 ← gallery images (always PNG)
+        └── templates/
+            ├── modrinth.md         ← rendered description + {{ images }}
+            ├── curseforge.html
+            └── planetminecraft.bbcode
+```
+
+### Description Templates
+
+For each site, puppy writes `templates/{site}.{ext}` containing the rendered description body followed by `\n\n{{ images }}\n`. The worker substitutes `{{ images }}` with the formatted image gallery before uploading. If no description was found in the cascade, a minimal `{{ description }}\n\n{{ images }}\n` template is written instead.
+
+### Scripts Invoked
+
+| Action | Script |
+|---|---|
+| `push` | `scripts/details.js` |
+| `import` | `scripts/import.js` |
+| `create` | `scripts/create.js` |
+
+All scripts are run as `node --no-warnings scripts/{action}.js` from the worker directory.
+
+### Output
+
+After each script run, puppy reads `projects/{pack}/project.json` back from the worker directory to harvest updated IDs, slugs, and metadata.
