@@ -109,6 +109,8 @@ Each site has two distinct files:
 ### **5.4 Template Variable Substitution**
 Description body files are rendered as Jinja2 templates. All config keys from `puppy.yaml` are available as variables: `{{ version }}`, `{{ name }}`, `{{ modrinth.slug }}` etc. Full Jinja2 syntax is supported (`{% if %}`, `{% for %}`, filters, etc.). Unrecognised variables produce a warning and are left as-is.
 
+**Recursive config expansion:** Before the description template is rendered, string values in the config that contain `{{ }}` expressions are themselves expanded through Jinja — repeatedly until stable (up to 4 passes). This means a config key can reference other config keys or `projects.*` variables, and those references will be fully resolved before they appear in the description. For example, a `creamy_desc:` key in `puppy.yaml` containing `{{ projects.creamy.url }}` can be referenced as `{{ creamy_desc }}` in another config value or in the description body, and the URL will be substituted correctly.
+
 **Standard config fields passed to the worker:**
 * `summary:` — one-line project description shown in search results
 * `optifine: true/false` — whether the pack requires OptiFine (default false)
