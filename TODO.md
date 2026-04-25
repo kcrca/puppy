@@ -16,6 +16,10 @@
 - **Jinja conditional wrapping**: No clean syntax for wrapping text in tags conditionally. Options: macro+call block, repeated `{% if %}` tags, or a custom Jinja extension. Verbose in current form.
 - **Site abbreviations**: `cf`, `mr`, `pmc` added as aliases — reconsider whether this is a good idea.
 
+## Cleanup
+
+- **Remove "e.g." and "i.e." from spec and code comments**: Replace with plain English ("for example", "that is").
+
 ## UX
 
 - **Default verbosity**: Consider making `-v` the default since uploads take a while and silence is confusing. Currently requires explicit `-v` flag.
