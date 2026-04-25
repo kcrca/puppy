@@ -28,7 +28,7 @@ def generate(
 
     icon_rel = None
     try:
-        icon_src = _resolve_asset(config.get('icon'), puppy_dir, _find_icon)
+        icon_src = _resolve_asset(config.get('icon'), puppy_dir, _find_icon, config)
         stage_image(icon_src, debug_dir / 'icon.png')
         icon_rel = 'icon.png'
     except SystemExit:

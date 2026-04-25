@@ -7,6 +7,7 @@ from puppy.core import Project
 from puppy.creator import (
     _build_config,
     _find_icon,
+    _find_optional,
     _resolve_asset,
     _validate_square,
 )
@@ -34,7 +35,7 @@ def run_push(
     config['projects'] = build_projects_context(puppy_home)
 
     puppy_dir = project.root / 'puppy'
-    icon = _resolve_asset(config.get('icon'), puppy_dir, _find_icon)
+    icon = _resolve_asset(config.get('icon'), puppy_dir, _find_icon, config)
     _validate_square(icon)
 
     discovery = ContentDiscovery(puppy_home, project.root)
@@ -113,8 +114,8 @@ def _stage(
     copy_images(config, puppy_dir, project_dir / 'images')
 
     for optional in ('thumbnail.png', 'logo.png'):
-        src = puppy_dir / optional
-        if src.exists():
+        src = _find_optional(optional, puppy_dir, config)
+        if src:
             shutil.copy(src, project_dir / optional)
 
     _stage_templates(project_dir, puppy_dir, site, descriptions or {})

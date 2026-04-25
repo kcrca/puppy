@@ -27,8 +27,8 @@ def run_create(
             'use import to update, not create'
         )
     puppy_dir = project.puppy_dir
-    icon = _resolve_asset(config.get('icon'), puppy_dir, _find_icon)
-    zip_path = _resolve_asset(config.get('zip'), puppy_dir, _find_zip)
+    icon = _resolve_asset(config.get('icon'), puppy_dir, _find_icon, config)
+    zip_path = _resolve_asset(config.get('zip'), puppy_dir, _find_zip, config)
     _validate_square(icon)
     _stage(project, config, icon, zip_path, puppy_dir, worker_dir, site)
     _run_worker(worker_dir, verbosity)
@@ -46,8 +46,20 @@ def run_create(
         print(f'[{project.name}] create complete')
 
 
-def _resolve_asset(explicit: str | None, puppy_dir: Path, discover_fn) -> Path:
+def _find_optional(name: str, puppy_dir: Path, config: dict) -> Path | None:
+    """Return path to name from puppy_dir, falling back to puppy_home."""
+    for base in (puppy_dir, Path(config['puppy'])):
+        p = base / name
+        if p.exists():
+            return p
+    return None
+
+
+def _resolve_asset(explicit: str | None, puppy_dir: Path, discover_fn, config: dict = None) -> Path:
     if explicit:
+        if config and '{{' in explicit:
+            from puppy.renderer import _env
+            explicit = _env.from_string(explicit).render(config)
         p = (puppy_dir / explicit).resolve()
         if not p.exists():
             raise SystemExit(f'Asset not found: {p}')
@@ -147,8 +159,8 @@ def _stage(
     copy_images(config, puppy_dir, data_dir / 'images')
 
     for optional in ('thumbnail.png', 'logo.png'):
-        src = puppy_dir / optional
-        if src.exists():
+        src = _find_optional(optional, puppy_dir, config)
+        if src:
             shutil.copy(src, data_dir / optional)
 
     # Pre-stage projects/{pack}/ so existing IDs are preserved
@@ -172,8 +184,8 @@ def _stage(
     copy_images(config, puppy_dir, project_dir / 'images')
 
     for optional in ('thumbnail.png', 'logo.png'):
-        src = puppy_dir / optional
-        if src.exists():
+        src = _find_optional(optional, puppy_dir, config)
+        if src:
             shutil.copy(src, project_dir / optional)
 
 
