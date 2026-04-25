@@ -1,118 +1,95 @@
 import json
 import subprocess
 import zipfile
-from pathlib import Path
-
-from puppy.creator import _build_config
-
 import pytest
 import yaml
 from PIL import Image
 
 from puppy.core import Project
-from puppy.publisher import (
-    _patch_project_json,
-    _stage,
-)
-from puppy.sites import CURSEFORGE, MODRINTH, PMC
+from puppy.sites import PMC
+
+_PACK = 'neonglow'
+_VERSION = '1.0.0'
+
+
+@pytest.fixture(autouse=True)
+def _no_preflight(monkeypatch):
+    monkeypatch.setattr('puppy.runner.check_preflight', lambda: None)
+    monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.syncer._run_worker', lambda *a, **k: None)
 
 
 @pytest.fixture
-def project_setup(tmp_path):
-    project_root = tmp_path / 'MyPack'
-    puppy_dir = project_root / 'puppy'
-    puppy_dir.mkdir(parents=True)
-
-    zip_path = puppy_dir / 'mypack-1.0.zip'
-    with zipfile.ZipFile(zip_path, 'w') as z:
+def push_pack_env(project_env, worker_env, monkeypatch):
+    source = project_env['source']
+    Image.new('RGB', (64, 64), color='blue').save(source / 'icon.png')
+    with zipfile.ZipFile(source / f'{_PACK}-{_VERSION}.zip', 'w') as z:
         z.writestr('pack.mcmeta', '{}')
-
-    config = {
-        'name': 'MyPack',
-        'pack': 'mypack',
-        'minecraft': '1.20',
-        'curseforge': {'id': 111, 'slug': 'mypack'},
-        'modrinth': {'id': 'abc123', 'slug': 'mypack'},
-        'planetminecraft': {'id': 999, 'slug': 'mypack'},
-    }
-    project = Project(project_root, override_name='MyPack', override_pack='mypack')
-    return project, config, puppy_dir, zip_path
-
-
-@pytest.fixture
-def worker_dir(tmp_path):
-    d = tmp_path / 'worker'
-    d.mkdir()
-    # pre-stage a project.json as syncer would have done
-    project_dir = d / 'projects' / 'mypack'
-    project_dir.mkdir(parents=True)
-    cfg = {
-        'id': 'mypack',
-        'name': 'MyPack',
-        'summary': '',
-        'description': [],
-        'optifine': False,
-        'video': False,
-        'github': False,
-        'version': '1.0.0',
-        'versions': {},
-        'images': [],
-        'curseforge': {},
-        'modrinth': {},
-        'planetminecraft': {},
-    }
-    (project_dir / 'project.json').write_text(
-        json.dumps(
+    (source / 'puppy.yaml').write_text(
+        yaml.dump(
             {
-                'config': cfg,
-                'curseforge': {'id': 111, 'slug': 'mypack'},
-                'modrinth': {'id': 'abc123', 'slug': 'mypack'},
-                'planetminecraft': {'id': 999, 'slug': 'mypack'},
+                'name': 'NeonGlow',
+                'pack': _PACK,
+                'minecraft': '1.20',
+                'curseforge': {'id': 111, 'slug': _PACK},
+                'modrinth': {'id': 'abc123', 'slug': _PACK},
+                'planetminecraft': {'id': 999, 'slug': _PACK},
             }
         )
     )
-    return d
+    monkeypatch.setattr(
+        'puppy.publisher.subprocess.run',
+        lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0),
+    )
+    return {**project_env, 'worker': worker_env}
 
 
-def test_update_json_staged(project_setup, worker_dir):
-    project, config, puppy_dir, zip_path = project_setup
-    _stage(project, config, zip_path, worker_dir, version='1.0.0')
-
-    data = json.loads((worker_dir / 'data' / 'update' / 'update.json').read_text())
-    assert data['id'] == 'mypack'
-    assert data['version'] == '1.0.0'
-    assert (worker_dir / 'data' / 'update' / 'pack.zip').exists()
+def _run_push_pack(run_puppy, worker, site=None):
+    args = ['push', '--pack', '--force', '--version', _VERSION, '--worker', str(worker)]
+    if site:
+        args += ['--site', site]
+    run_puppy(*args)
 
 
-def test_patch_project_json_nulls_skipped_sites(project_setup, worker_dir):
-    project, config, puppy_dir, zip_path = project_setup
-    _patch_project_json(worker_dir, project, config, sites_to_upload=[MODRINTH])
+def test_update_json_staged(push_pack_env, run_puppy):
+    _run_push_pack(run_puppy, push_pack_env['worker'])
+    data = json.loads(
+        (push_pack_env['worker'] / 'data' / 'update' / 'update.json').read_text()
+    )
+    assert data['id'] == _PACK
+    assert data['version'] == _VERSION
+    assert (push_pack_env['worker'] / 'data' / 'update' / 'pack.zip').exists()
 
-    pj = json.loads((worker_dir / 'projects' / 'mypack' / 'project.json').read_text())
+
+def test_patch_project_json_nulls_skipped_sites(push_pack_env, run_puppy):
+    _run_push_pack(run_puppy, push_pack_env['worker'], site='modrinth')
+    pj = json.loads(
+        (push_pack_env['worker'] / 'projects' / _PACK / 'project.json').read_text()
+    )
     assert pj['modrinth']['id'] == 'abc123'
     assert pj['curseforge']['id'] is None
     assert pj['planetminecraft']['id'] is None
 
 
-def test_patch_project_json_all_sites(project_setup, worker_dir):
-    project, config, puppy_dir, zip_path = project_setup
-    _patch_project_json(
-        worker_dir,
-        project,
-        config,
-        sites_to_upload=[CURSEFORGE, MODRINTH, PMC],
+def test_patch_project_json_all_sites(push_pack_env, run_puppy):
+    _run_push_pack(run_puppy, push_pack_env['worker'])
+    pj = json.loads(
+        (push_pack_env['worker'] / 'projects' / _PACK / 'project.json').read_text()
     )
-
-    pj = json.loads((worker_dir / 'projects' / 'mypack' / 'project.json').read_text())
     assert pj['curseforge']['id'] == 111
     assert pj['modrinth']['id'] == 'abc123'
     assert pj['planetminecraft']['id'] == 999
 
 
-def test_save_and_check_pmc_version(project_setup):
-    project, config, puppy_dir, zip_path = project_setup
-    assert PMC.needs_upload(999, {}, zip_path, '1.0.0', project) is True
+def test_save_and_check_pmc_version(tmp_path):
+    puppy_dir = tmp_path / 'puppy'
+    puppy_dir.mkdir()
+    zip_path = puppy_dir / 'mypack-1.0.0.zip'
+    with zipfile.ZipFile(zip_path, 'w') as z:
+        z.writestr('pack.mcmeta', '{}')
+    project = Project(tmp_path, override_name='MyPack', override_pack='mypack')
 
+    assert PMC.needs_upload(999, {}, zip_path, '1.0.0', project) is True
     PMC.post_upload(puppy_dir, '1.0.0')
     assert PMC.needs_upload(999, {}, zip_path, '1.0.0', project) is False
     assert PMC.needs_upload(999, {}, zip_path, '1.0.1', project) is True

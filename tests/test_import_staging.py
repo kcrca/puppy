@@ -1,118 +1,111 @@
 import json
 import subprocess
-from pathlib import Path
-
 import pytest
 import yaml
 
-from puppy.core import Project
-from puppy.importer import _stage, _harvest_yaml, run_import
+_PACK = 'neonglow'
+_PROJECT_JSON = {
+    'config': {'name': 'NeonGlow', 'summary': 'A pack', 'version': '1.0.0'},
+    'curseforge': {'id': 111, 'slug': _PACK},
+    'modrinth': {'id': 'abc123', 'slug': _PACK},
+    'planetminecraft': {'id': 999, 'slug': _PACK},
+}
+
+
+def _write_project_json(worker_dir, data=None):
+    pd = worker_dir / 'projects' / _PACK
+    pd.mkdir(parents=True, exist_ok=True)
+    (pd / 'project.json').write_text(json.dumps(data or _PROJECT_JSON))
+
+
+@pytest.fixture(autouse=True)
+def _no_preflight(monkeypatch):
+    monkeypatch.setattr('puppy.runner.check_preflight', lambda: None)
+    monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
 
 
 @pytest.fixture
-def project_setup(tmp_path):
-    project_root = tmp_path / 'MyPack'
-    puppy_dir = project_root / 'puppy'
-    puppy_dir.mkdir(parents=True)
+def import_env(project_env, worker_env, monkeypatch):
+    (project_env['source'] / 'puppy.yaml').write_text(
+        yaml.dump(
+            {
+                'name': 'NeonGlow',
+                'pack': _PACK,
+                'curseforge': {'id': 111, 'slug': _PACK},
+                'modrinth': {'id': 'abc123', 'slug': _PACK},
+                'planetminecraft': {'id': 999, 'slug': _PACK},
+            }
+        )
+    )
 
-    config = {
-        'name': 'MyPack',
-        'pack': 'mypack',
-        'curseforge': {'id': 111, 'slug': 'mypack'},
-        'modrinth': {'id': 'abc123', 'slug': 'mypack'},
-        'planetminecraft': {'id': 999, 'slug': 'mypack'},
-    }
-    project = Project(project_root, override_name='MyPack', override_pack='mypack')
-    return project, config, puppy_dir
+    def fake_run(cmd, **kwargs):
+        _write_project_json(worker_env)
+        return subprocess.CompletedProcess(cmd, 0)
 
-
-@pytest.fixture
-def worker_dir(tmp_path):
-    d = tmp_path / 'worker'
-    d.mkdir()
-    return d
+    monkeypatch.setattr('puppy.worker.subprocess.run', fake_run)
+    return {**project_env, 'worker': worker_env}
 
 
-def test_import_json_staged(project_setup, worker_dir):
-    project, config, puppy_dir = project_setup
-    _stage(project, config, worker_dir, site=None)
-
-    data = json.loads((worker_dir / 'data' / 'import.json').read_text())
-    assert data['id'] == 'mypack'
+def test_import_json_staged(import_env, run_puppy):
+    run_puppy('import', '--worker', str(import_env['worker']))
+    data = json.loads((import_env['worker'] / 'data' / 'import.json').read_text())
+    assert data['id'] == _PACK
     assert data['curseforge']['id'] == 111
     assert data['modrinth']['id'] == 'abc123'
     assert data['planetminecraft']['id'] == 999
 
 
-def test_import_site_filter_nulls_others(project_setup, worker_dir):
-    project, config, puppy_dir = project_setup
-    _stage(project, config, worker_dir, site='modrinth')
+def test_import_site_filter_nulls_others(import_env, run_puppy, monkeypatch):
+    def fake_run_mr(cmd, **kwargs):
+        pd = import_env['worker'] / 'projects' / _PACK
+        pd.mkdir(parents=True, exist_ok=True)
+        (pd / 'project.json').write_text(
+            json.dumps({'config': {'name': 'NeonGlow'}, 'modrinth': {'id': 'abc123', 'slug': _PACK}})
+        )
+        return subprocess.CompletedProcess(cmd, 0)
 
-    data = json.loads((worker_dir / 'data' / 'import.json').read_text())
+    monkeypatch.setattr('puppy.worker.subprocess.run', fake_run_mr)
+    run_puppy('import', '--site', 'modrinth', '--worker', str(import_env['worker']))
+    data = json.loads((import_env['worker'] / 'data' / 'import.json').read_text())
     assert data['modrinth']['id'] == 'abc123'
     assert data['curseforge']['id'] is None
     assert data['planetminecraft']['id'] is None
 
 
-def test_harvest_yaml_writes_ids(project_setup):
-    project, config, puppy_dir = project_setup
-    result_data = {
-        'config': {'name': 'MyPack', 'summary': 'A great pack', 'version': '1.2.0'},
-        'curseforge': {'id': 111, 'slug': 'mypack'},
-        'modrinth': {'id': 'abc123', 'slug': 'mypack'},
-        'planetminecraft': {'id': 999, 'slug': 'mypack'},
-    }
-    _harvest_yaml(project, result_data, puppy_dir, site=None)
-
-    written = yaml.safe_load((puppy_dir / 'puppy.yaml').read_text())
+def test_harvest_yaml_writes_ids(import_env, run_puppy):
+    run_puppy('import', '--worker', str(import_env['worker']))
+    written = yaml.safe_load((import_env['source'] / 'puppy.yaml').read_text())
     assert written['curseforge']['id'] == 111
     assert written['modrinth']['id'] == 'abc123'
-    assert written['name'] == 'MyPack'
-    assert written['version'] == '1.2.0'
+    assert written['name'] == 'NeonGlow'
+    assert written['version'] == '1.0.0'
 
 
-def test_harvest_yaml_site_filter(project_setup):
-    project, config, puppy_dir = project_setup
-    result_data = {
-        'config': {'name': 'MyPack'},
-        'modrinth': {'id': 'abc123', 'slug': 'mypack'},
-    }
-    _harvest_yaml(project, result_data, puppy_dir, site='modrinth')
-
-    written = yaml.safe_load((puppy_dir / 'puppy.yaml').read_text())
-    assert written['modrinth']['id'] == 'abc123'
+def test_harvest_yaml_site_filter(project_env, worker_env, run_puppy, monkeypatch):
+    monkeypatch.setattr('puppy.worker.subprocess.run', lambda cmd, **kw: (
+        _write_project_json(
+            worker_env,
+            {'config': {'name': 'NeonGlow'}, 'modrinth': {'id': 'abc123', 'slug': _PACK}},
+        ) or subprocess.CompletedProcess(cmd, 0)
+    ))
+    (project_env['source'] / 'puppy.yaml').write_text(
+        yaml.dump({'name': 'NeonGlow', 'pack': _PACK, 'modrinth': {'id': 'abc123', 'slug': _PACK}})
+    )
+    run_puppy('import', '--site', 'modrinth', '--worker', str(worker_env))
+    written = yaml.safe_load((project_env['source'] / 'puppy.yaml').read_text())
+    assert written.get('modrinth', {}).get('id') == 'abc123'
     assert 'curseforge' not in written
     assert 'planetminecraft' not in written
 
 
-def test_run_import_calls_worker(project_setup, worker_dir, monkeypatch):
-    project, config, puppy_dir = project_setup
+def test_import_calls_worker(import_env, run_puppy, monkeypatch):
     calls = []
 
-    def fake_run(cmd, **kwargs):
+    def tracking_run(cmd, **kwargs):
         calls.append(cmd)
-        project_dir = worker_dir / 'projects' / 'mypack'
-        project_dir.mkdir(parents=True, exist_ok=True)
-        (project_dir / 'project.json').write_text(
-            json.dumps(
-                {
-                    'config': {'name': 'MyPack'},
-                    'curseforge': {'id': 111, 'slug': 'mypack'},
-                    'modrinth': {'id': 'abc123', 'slug': 'mypack'},
-                    'planetminecraft': {'id': 999, 'slug': 'mypack'},
-                }
-            )
-        )
+        _write_project_json(import_env['worker'])
         return subprocess.CompletedProcess(cmd, 0)
 
-    monkeypatch.setattr(subprocess, 'run', fake_run)
-
-    run_import(
-        project=project,
-        config=config,
-        auth={},
-        worker_dir=worker_dir,
-        site=None,
-        verbosity=0,
-    )
-    assert any('import.js' in ' '.join(c) for c in calls)
+    monkeypatch.setattr('puppy.worker.subprocess.run', tracking_run)
+    run_puppy('import', '--worker', str(import_env['worker']))
+    assert any('import.js' in str(c) for c in calls)

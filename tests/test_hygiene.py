@@ -1,52 +1,30 @@
 import json
-from pathlib import Path
-
 import pytest
+import yaml
 
-from puppy.runner import _patch_settings
+
+@pytest.fixture(autouse=True)
+def _no_worker(monkeypatch):
+    monkeypatch.setattr('puppy.runner.check_preflight', lambda: None)
+    monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.runner._dispatch', lambda *a, **k: None)
 
 
-@pytest.fixture
-def worker_settings(tmp_path):
-    worker_dir = tmp_path / 'PackUploader'
-    worker_dir.mkdir()
-    settings = worker_dir / 'settings.json'
-    settings.write_text(
-        json.dumps(
-            {
-                'ewan': True,
-                'modrinth': {
-                    'discord': 'https://discord.gg/someone',
-                    'donation': {'kofi': 'https://ko-fi.com/someone', 'paypal': None},
-                },
-                'curseforge': {
-                    'socials': {'discord': 'https://discord.gg/someone'},
-                    'donation': {'type': 'kofi', 'value': 'someone'},
-                },
-                'planetminecraft': {
-                    'website': {
-                        'link': 'https://someone.com/',
-                        'title': "Someone's site",
-                    }
-                },
-                'templateDefaults': {'discord': 'https://discord.gg/someone'},
-            }
-        )
+def test_worker_flag_cleared(project_env, worker_env, run_puppy):
+    (project_env['source'] / 'puppy.yaml').write_text(
+        yaml.dump({'name': 'NeonGlow', 'pack': 'neonglow'})
     )
-    yield settings, worker_dir
-
-
-def test_worker_flag_cleared(worker_settings):
-    settings, worker_dir = worker_settings
-    _patch_settings(worker_dir, {})
-    data = json.loads(settings.read_text())
+    run_puppy('push', '--worker', str(worker_env))
+    data = json.loads((worker_env / 'settings.json').read_text())
     assert data['ewan'] is False
 
 
-def test_personal_data_cleared(worker_settings):
-    settings, worker_dir = worker_settings
-    _patch_settings(worker_dir, {})
-    data = json.loads(settings.read_text())
+def test_personal_data_cleared(project_env, worker_env, run_puppy):
+    (project_env['source'] / 'puppy.yaml').write_text(
+        yaml.dump({'name': 'NeonGlow', 'pack': 'neonglow'})
+    )
+    run_puppy('push', '--worker', str(worker_env))
+    data = json.loads((worker_env / 'settings.json').read_text())
     assert data['modrinth']['discord'] is None
     assert data['modrinth']['donation']['kofi'] is None
     assert data['curseforge']['donation']['value'] is None
@@ -55,20 +33,25 @@ def test_personal_data_cleared(worker_settings):
     assert data['templateDefaults'] == {}
 
 
-def test_config_values_applied(worker_settings):
-    settings, worker_dir = worker_settings
-    config = {
-        'modrinth': {
-            'discord': 'https://discord.gg/myserver',
-            'donation': {'kofi': 'https://ko-fi.com/me'},
-        },
-        'curseforge': {'socials': {'discord': 'https://discord.gg/myserver'}},
-        'planetminecraft': {
-            'website': {'link': 'https://mysite.com', 'title': 'My Site'}
-        },
-    }
-    _patch_settings(worker_dir, config)
-    data = json.loads(settings.read_text())
+def test_config_values_applied(project_env, worker_env, run_puppy):
+    (project_env['source'] / 'puppy.yaml').write_text(
+        yaml.dump(
+            {
+                'name': 'NeonGlow',
+                'pack': 'neonglow',
+                'modrinth': {
+                    'discord': 'https://discord.gg/myserver',
+                    'donation': {'kofi': 'https://ko-fi.com/me'},
+                },
+                'curseforge': {'socials': {'discord': 'https://discord.gg/myserver'}},
+                'planetminecraft': {
+                    'website': {'link': 'https://mysite.com', 'title': 'My Site'}
+                },
+            }
+        )
+    )
+    run_puppy('push', '--worker', str(worker_env))
+    data = json.loads((worker_env / 'settings.json').read_text())
     assert data['modrinth']['discord'] == 'https://discord.gg/myserver'
     assert data['modrinth']['donation']['kofi'] == 'https://ko-fi.com/me'
     assert data['curseforge']['socials']['discord'] == 'https://discord.gg/myserver'

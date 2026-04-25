@@ -1,3 +1,4 @@
+import json
 import pytest
 import puppy.__main__
 import yaml
@@ -28,6 +29,36 @@ def project_env(tmp_path, monkeypatch):
     monkeypatch.chdir(project)
 
     return {'root': root, 'home': home, 'project': project, 'source': source}
+
+
+@pytest.fixture
+def worker_env(tmp_path):
+    """Fake PackUploader directory with rich settings.json for hygiene/staging tests."""
+    d = tmp_path / 'PackUploader'
+    d.mkdir()
+    (d / 'settings.json').write_text(
+        json.dumps(
+            {
+                'ewan': True,
+                'modrinth': {
+                    'discord': 'https://discord.gg/someone',
+                    'donation': {'kofi': 'https://ko-fi.com/someone', 'paypal': None},
+                },
+                'curseforge': {
+                    'socials': {'discord': 'https://discord.gg/someone'},
+                    'donation': {'type': 'kofi', 'value': 'someone'},
+                },
+                'planetminecraft': {
+                    'website': {
+                        'link': 'https://someone.com/',
+                        'title': "Someone's site",
+                    }
+                },
+                'templateDefaults': {'discord': 'https://discord.gg/someone'},
+            }
+        )
+    )
+    return d
 
 
 @pytest.fixture
