@@ -44,7 +44,8 @@ For the `neon` pack that lives in your home directory (`~/neon`), the puppy-rela
 * **Puppy Home:** `~/neon/puppy/`
 * **Auth & Gitignore:** `~/neon/puppy/auth.yaml`, `~/neon/puppy/.gitignore` that includes `auth.yaml`.
 * **Global Config:** `~/neon/puppy/puppy.yaml`
-* **Project Home:** `~/neon/puppy/neon/`, `~/neon/puppy/dark/`. Single pack repos can use a project home subdir, or use Puppy Home as its project home.
+* **Project Home:** For a single pack, Puppy Home (`~/neon/puppy/`) doubles as Project Home.
+  For multiple packs, each has its own subdirectory: `~/neon/puppy/neon/`, `~/neon/puppy/dark/`.
 * **Images:** `~/neon/puppy/images/` or `~/neon/puppy/images.yaml`
 * **Dry Run Output:** `{tempdir}/puppy/{pack}/` (used for `--dry-run`, wiped fresh each run)
 * **Worker Directory:** `~/PackUploader/` (the PackUploader repo — reset before each run; this can be overridden)
@@ -91,10 +92,10 @@ All relative paths named within yaml files are derived relative to that file's l
 ### Actions
 Puppy has the following actions:
 
-* **`init`:** Creates the `puppy/` directory structure in the target directory: `puppy.yaml`, `auth.yaml`, `.gitignore`, and a starter `description.md`.
+* **`init`:** Creates four files in `puppy/`: `auth.yaml`, `.gitignore`, `puppy.yaml`, and `description.md`.
   Derives `name` and `pack` from the directory name.
   Any file that already exists is left untouched with a warning.
-  The files are initially populated with skeleton properties.
+  `puppy.yaml` is pre-populated with skeleton site entries; `description.md` contains a short comment.
 * **`push`** (Default): Updates metadata, summaries, descriptions, images, and icons.
   With `-p/--pack`, also uploads the zip artifact.
   Requires `version` in `puppy.yaml` or `-V/--version` when using `-p`.
@@ -313,10 +314,23 @@ Examples:
 
 ## Appendix A: Pack Family Setup
 
+### Single-Pack Layout
+
+For a single pack, `puppy init` creates:
+
+```
+~/neon/
+└── puppy/                          ← Puppy Home = Project Home
+    ├── auth.yaml                   ← credentials (never committed)
+    ├── .gitignore
+    ├── puppy.yaml                  ← config for this pack
+    └── description.md              ← pack description
+```
+
+### Multi-Pack Layout
+
 A "pack family" is a group of related packs managed together under one puppy home in a single repo.
 They share auth, global config, and can cross-link to each other.
-
-### Directory Layout
 
 ```
 ~/neon/
