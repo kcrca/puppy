@@ -1,3 +1,6 @@
+import re
+from pathlib import Path
+
 import markdown as _md
 from jinja2 import Environment, Undefined, UndefinedError
 
@@ -54,6 +57,41 @@ def md_to_bbcode(text: str) -> str:
     return _pmc.md_to_bbcode(text)
 
 
+_SIMPLE_VAR = re.compile(r'\{\{\s*([a-zA-Z_]\w*)\s*\}\}')
+
+
+def _collect_undefined(texts: list[str], ctx: dict) -> set[str]:
+    names = set()
+    for t in texts:
+        if not isinstance(t, str):
+            continue
+        for m in _SIMPLE_VAR.finditer(t):
+            if m.group(1) not in ctx:
+                names.add(m.group(1))
+    return names
+
+
+def _pre_populate_files(text: str, ctx: dict, discovery) -> dict:
+    """Add file-cascade inclusions for any {{ name }} not yet in ctx."""
+    from puppy.searcher import ContentDiscovery  # avoid import cycle at module level
+    site = ctx.get('_site')
+    pending = {text}
+    while True:
+        names = _collect_undefined(list(pending) + list(ctx.values() if ctx else []), ctx)
+        if not names:
+            break
+        added = False
+        for name in names:
+            content, _ = discovery.find(name, site=site)
+            if content is not None:
+                ctx[name] = content
+                pending.add(content)
+                added = True
+        if not added:
+            break
+    return ctx
+
+
 def _resolve_config_strings(ctx: dict) -> dict:
     while True:
         resolved = {}
@@ -68,14 +106,19 @@ def _resolve_config_strings(ctx: dict) -> dict:
 
 
 def render(text: str, config: dict, source: str = '<description>', *, site=None) -> str:
+    from puppy.searcher import ContentDiscovery
     tags = config.get('md_html_tags', DEFAULT_SHIELD_TAGS)
-    ctx = config
+    ctx = dict(config)
     if site and 'projects' in config:
-        ctx = dict(config)
         ctx['projects'] = {
             pack: _SiteProxy(proj, site.name)
             for pack, proj in config['projects'].items()
         }
+    if ctx.get('puppy') and ctx.get('project'):
+        ctx['_site'] = site
+        discovery = ContentDiscovery(ctx['puppy'], ctx['project'])
+        ctx = _pre_populate_files(text, ctx, discovery)
+        del ctx['_site']
     ctx = _resolve_config_strings(ctx)
     result = _env.from_string(text).render(ctx)
     if site:
