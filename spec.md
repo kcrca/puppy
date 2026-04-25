@@ -138,7 +138,7 @@ Planet Minecraft: Abbreviation: "pmc", native language: variant of BBCode (`.bbc
 
 ## Cascading Configuration & Discovery
 
-The four config layers are merged in priority order (lowest first). Dicts merge additively — keys present in a higher-priority layer are added or overwrite individual keys; the entire dict is not replaced. Scalar values (strings, numbers, booleans) overwrite.
+The four config layers are merged in priority order (lowest first). Dicts merge additively — keys present in a higher-priority layer are added or overwrite individual keys; the entire dict is not replaced. Everything else (strings, numbers, booleans, lists) overwrites.
 
 
 ### auth.yaml
