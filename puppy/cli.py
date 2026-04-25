@@ -84,15 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
         '--force',
         action='store_true',
         dest='force',
-        help='With -p, bypass per-site skip checks and upload unconditionally.',
-    )
-
-    parser.add_argument(
-        '-y',
-        '--yes',
-        action='store_true',
-        dest='yes',
-        help='Skip confirmation prompts (for scripting).',
+        help='With push -p, bypass per-site skip checks. With create, skip confirmation prompt.',
     )
 
     parser.add_argument(
@@ -111,7 +103,7 @@ def main(argv: list[str] = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if args.action == 'create' and not args.yes:
+    if args.action == 'create' and not args.force:
         answer = input('Create new projects on sites? This cannot be undone. [y/N] ')
         if not answer.strip().lower().startswith('y'):
             raise SystemExit('Aborted.')

@@ -292,6 +292,7 @@ def _dispatch(
         run_create(
             project=project,
             config=config,
+            auth=auth,
             worker_dir=worker_dir,
             site=site,
             verbosity=verbosity,

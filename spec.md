@@ -6,7 +6,7 @@
 * **Implicit Discovery:** Asset discovery (icons, zips) is preferred over manual path mapping.
 * **Integrated Versioning:** All data and harvested IDs reside in the project source directory.
 * **Markdown-First:** Content is written in Markdown. Site-specific native files (`.html`, `.bbcode`) act as overrides.
-* **Non-Interactive (Fail-Fast):** No prompts. Errors (missing IDs, mismatched versions, security flaws) result in an immediate exit.
+* **Fail-Fast:** Errors (missing IDs, mismatched versions, security flaws) result in an immediate exit. `create` prompts once for confirmation (suppressible with `-f/--force`); all other actions are non-interactive.
 * **Cross-Platform:** All paths and subprocesses must work on macOS, Linux, and Windows.
 
 ## **2. Core Identity & Naming**
@@ -43,11 +43,11 @@ Puppy can be invoked from:
 
 ### **4.1 Actions**
 * **`push` (Default):** Updates metadata, summaries, descriptions, and icons. With `-p/--pack`, also uploads the zip artifact. Requires `version:` in `puppy.yaml` or `-V/--version` when using `-p`.
-* **`create`:** Registers projects on sites with missing IDs. **Requires `--create` flag.**
-* **`import`:** Pulls live site data and reverse-migrates to local files. Writes to `puppy.yaml` and `puppy/images/images.yaml`. Does **not** create description templates (those are created by `init`). **Description body text import varies by platform:**
+* **`import`:** Pulls live site data and reverse-migrates to local files. Writes to `puppy.yaml` and `puppy/images/images.yaml`. Does **not** create description templates (those are created by `init`). Requires `id:` in each site's config block; for PMC, also requires `slug:` since there is no API to look it up from the ID. Per-site errors do not abort the other sites. **Description body text import varies by platform:**
   * **Modrinth:** Full description body imported via API.
   * **CurseForge:** Only the summary is imported — full HTML description not available via API.
   * **Planet Minecraft:** No description imported. Manually paste content into `puppy/planetminecraft/description.bbcode`.
+* **`create`:** Creates the pack project on each site, then automatically runs `import` to harvest the site-assigned ID, slug, and any defaults back into `puppy.yaml`. Prompts for confirmation unless `-f/--force` is given. Per-site errors do not abort the other sites.
 * **`init`:** Creates the `puppy/` directory structure in the target directory: `puppy.yaml`, `auth.yaml`, `.gitignore`, and a starter `description.md`. Derives `name` and `pack` from the directory name. Any file that already exists is left untouched with a warning.
 * **`clean`:** Resets the PackUploader worker without pushing.
 
@@ -61,8 +61,7 @@ Puppy can be invoked from:
   * **Modrinth:** Compares SHA-512 hash of local zip against the hash stored in the latest version's file listing.
   * **CurseForge:** Compares both version string and file size (bytes) against the most recent uploaded file; uploads if either differs.
   * **Planet Minecraft:** Compares version string against last version recorded in `puppy/.publish_state.yaml`.
-* **`-f/--force`:** With `-p`, bypasses skip logic and uploads unconditionally on all sites.
-* **`-y/--yes`:** Skip confirmation prompts. The `create` action prompts for confirmation unless this flag is set.
+* **`-f/--force`:** With `push -p`, bypasses skip logic and uploads unconditionally on all sites. With `create`, skips the confirmation prompt.
 * **`--worker [path]`:** PackUploader worker directory. Defaults to `~/PackUploader`.
 
 ## **5. Cascading Configuration & Discovery**
@@ -162,7 +161,7 @@ Both formats support an optional top-level `source:` key pointing to a directory
 Batch mode iterates projects listed under `projects:` in the global `puppy.yaml` sequentially. If only `pack:` or `name:` is present (flat single-project mode), the parent of the Puppy Home is used as the sole project.
 
 ### **6.4 State Harvesting**
-After `import` or `create`, platform IDs, slugs, and full metadata are written back to the project's `puppy.yaml`. Images and their metadata are written to `{project_root}/puppy/images/` and `{project_root}/puppy/images/images.yaml` respectively. Leading and trailing underscores are stripped from image filenames on harvest.
+After `import` (and after the implicit import that follows `create`), platform IDs, slugs, and full metadata are written back to the project's `puppy.yaml`. Images and their metadata are written to `{project_root}/puppy/images/` and `{project_root}/puppy/images/images.yaml` respectively. Leading and trailing underscores are stripped from image filenames on harvest.
 
 ### **6.5 Artifact Match**
 Version must be the last component before `.zip`, separated by `-`, `_`, or `.` (e.g. `mypack-1.2.zip`, `pack-1.2.zip`). The filename need not start with the project slug. Strict boundary check ensures `1.2` does not match `1.2.4`.

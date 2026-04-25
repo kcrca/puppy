@@ -7,6 +7,7 @@ from PIL import Image
 
 from puppy.core import Project
 from puppy.images import copy_images, stage_image
+from puppy.importer import run_import
 from puppy.sites import SITES, SiteVisitor
 from puppy.worker import read_output, run_worker
 
@@ -15,18 +16,27 @@ def run_create(
     *,
     project: Project,
     config: dict,
+    auth: dict,
     worker_dir: Path,
     site: str | None,
     verbosity: int,
 ) -> None:
-    puppy_dir = project.root / 'puppy'
+    puppy_dir = project.puppy_dir
     icon = _resolve_asset(config.get('icon'), puppy_dir, _find_icon)
     zip_path = _resolve_asset(config.get('zip'), puppy_dir, _find_zip)
     _validate_square(icon)
     _stage(project, config, icon, zip_path, puppy_dir, worker_dir, site)
     _run_worker(worker_dir, verbosity)
     result_data = read_output(project, worker_dir)
-    _harvest(project, result_data, site)
+    updated_config = _harvest(project, result_data, site)
+    run_import(
+        project=project,
+        config=updated_config,
+        auth=auth,
+        worker_dir=worker_dir,
+        site=site,
+        verbosity=verbosity,
+    )
     if verbosity >= 1:
         print(f'[{project.name}] create complete')
 
@@ -166,8 +176,8 @@ def _run_worker(worker_dir: Path, verbosity: int) -> None:
     run_worker('scripts/create.js', worker_dir, verbosity)
 
 
-def _harvest(project: Project, result_data: dict, site: str | None) -> None:
-    puppy_yaml = project.root / 'puppy' / 'puppy.yaml'
+def _harvest(project: Project, result_data: dict, site: str | None) -> dict:
+    puppy_yaml = project.puppy_dir / 'puppy.yaml'
     config: dict = {}
     if puppy_yaml.exists():
         config = yaml.safe_load(puppy_yaml.read_text()) or {}
@@ -184,3 +194,4 @@ def _harvest(project: Project, result_data: dict, site: str | None) -> None:
         yaml.dump(
             config, f, default_flow_style=False, allow_unicode=True, sort_keys=False
         )
+    return config

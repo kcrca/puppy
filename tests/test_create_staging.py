@@ -12,6 +12,7 @@ _PACK = 'neonglow'
 def _no_preflight(monkeypatch):
     monkeypatch.setattr('puppy.runner.check_preflight', lambda: None)
     monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.creator.run_import', lambda **k: None)
 
 
 @pytest.fixture
@@ -41,7 +42,7 @@ def create_env(project_env, worker_env, monkeypatch):
 
 
 def test_create_json_fields(create_env, run_puppy):
-    run_puppy('create', '--yes', '--worker', str(create_env['worker']))
+    run_puppy('create', '--force', '--worker', str(create_env['worker']))
     data = json.loads(
         (create_env['worker'] / 'data' / 'create' / 'create.json').read_text()
     )
@@ -51,13 +52,13 @@ def test_create_json_fields(create_env, run_puppy):
 
 
 def test_create_icon_and_zip_staged(create_env, run_puppy):
-    run_puppy('create', '--yes', '--worker', str(create_env['worker']))
+    run_puppy('create', '--force', '--worker', str(create_env['worker']))
     assert (create_env['worker'] / 'data' / 'create' / 'pack.png').exists()
     assert (create_env['worker'] / 'data' / 'create' / 'pack.zip').exists()
 
 
 def test_create_project_json_staged(create_env, run_puppy):
-    run_puppy('create', '--yes', '--worker', str(create_env['worker']))
+    run_puppy('create', '--force', '--worker', str(create_env['worker']))
     pj = json.loads(
         (create_env['worker'] / 'projects' / _PACK / 'project.json').read_text()
     )
@@ -67,7 +68,7 @@ def test_create_project_json_staged(create_env, run_puppy):
 
 
 def test_create_site_filter_nulls_others(create_env, run_puppy):
-    run_puppy('create', '--yes', '--site', 'modrinth', '--worker', str(create_env['worker']))
+    run_puppy('create', '--force', '--site', 'modrinth', '--worker', str(create_env['worker']))
     pj = json.loads(
         (create_env['worker'] / 'projects' / _PACK / 'project.json').read_text()
     )
@@ -83,7 +84,7 @@ def test_create_webp_icon_converted(create_env, run_puppy):
     config['icon'] = 'icon.webp'
     (source / 'puppy.yaml').write_text(yaml.dump(config))
 
-    run_puppy('create', '--yes', '--worker', str(create_env['worker']))
+    run_puppy('create', '--force', '--worker', str(create_env['worker']))
     staged = create_env['worker'] / 'data' / 'create' / 'pack.png'
     assert staged.exists()
     with Image.open(staged) as img:
@@ -98,5 +99,5 @@ def test_create_calls_worker(create_env, run_puppy, monkeypatch):
         return subprocess.CompletedProcess(cmd, 0)
 
     monkeypatch.setattr('puppy.worker.subprocess.run', tracking_run)
-    run_puppy('create', '--yes', '--worker', str(create_env['worker']))
+    run_puppy('create', '--force', '--worker', str(create_env['worker']))
     assert any('create.js' in str(c) for c in calls)
