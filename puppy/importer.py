@@ -1,11 +1,12 @@
 import json
 import shutil
+import urllib.request
 from pathlib import Path
 
 import yaml
 
 from puppy.core import Project
-from puppy.sites import SITES, SiteVisitor
+from puppy.sites import MODRINTH, SITES, SiteVisitor
 from puppy.worker import read_output, run_worker
 
 
@@ -16,6 +17,7 @@ def run_import(
     auth: dict,
     worker_dir: Path,
     site: str | None,
+    images: bool,
     verbosity: int,
 ) -> None:
     config = _resolve_ids(config, auth, site, verbosity)
@@ -23,7 +25,7 @@ def run_import(
     _clean_existing(project, worker_dir)
     _run_worker(worker_dir, verbosity)
     result_data = read_output(project, worker_dir)
-    _harvest(project, result_data, worker_dir, site)
+    _harvest(project, result_data, worker_dir, site, auth, images)
     if verbosity >= 1:
         print(f'[{project.name}] import complete')
 
@@ -59,17 +61,21 @@ def _run_worker(worker_dir: Path, verbosity: int) -> None:
 
 
 def _harvest(
-    project: Project, result_data: dict, worker_dir: Path, site: str | None
+    project: Project, result_data: dict, worker_dir: Path, site: str | None,
+    auth: dict, images: bool,
 ) -> None:
     puppy_dir = project.puppy_dir
     project_worker_dir = worker_dir / 'projects' / project.pack
 
-    _harvest_yaml(project, result_data, puppy_dir, site)
-    _harvest_images(project_worker_dir, puppy_dir)
+    _harvest_yaml(project, result_data, puppy_dir, site, images)
+    if images:
+        _harvest_images(project_worker_dir, puppy_dir)
+    _harvest_description(project, result_data, site, auth)
 
 
 def _harvest_yaml(
-    project: Project, result_data: dict, puppy_dir: Path, site: str | None
+    project: Project, result_data: dict, puppy_dir: Path, site: str | None,
+    images: bool,
 ) -> None:
     puppy_yaml = puppy_dir / 'puppy.yaml'
     config = {}
@@ -84,8 +90,8 @@ def _harvest_yaml(
         if imported.get(key) not in (None, '', [], False):
             config[key] = imported[key]
 
-    if imported.get('images'):
-        images = [
+    if images and imported.get('images'):
+        image_list = [
             {**img, 'file': img['file'].strip('_')} if 'file' in img else img
             for img in imported['images']
         ]
@@ -96,7 +102,7 @@ def _harvest_yaml(
             images_yaml.parent.mkdir(parents=True, exist_ok=True)
         with images_yaml.open('w') as f:
             yaml.dump(
-                images, f, default_flow_style=False, allow_unicode=True, sort_keys=False
+                image_list, f, default_flow_style=False, allow_unicode=True, sort_keys=False
             )
         config.pop('images', None)
 
@@ -114,6 +120,27 @@ def _harvest_yaml(
         yaml.dump(
             config, f, default_flow_style=False, allow_unicode=True, sort_keys=False
         )
+
+
+def _harvest_description(
+    project: Project, result_data: dict, site: str | None, auth: dict
+) -> None:
+    visitor = SiteVisitor(site)
+    if not any(s is MODRINTH for s in visitor):
+        return
+    modrinth_id = result_data.get('modrinth', {}).get('id')
+    token = auth.get('modrinth')
+    if not modrinth_id or not token:
+        return
+    req = urllib.request.Request(
+        f'https://api.modrinth.com/v2/project/{modrinth_id}',
+        headers={'Authorization': token},
+    )
+    with urllib.request.urlopen(req) as resp:
+        data = json.loads(resp.read())
+    site_dir = project.puppy_dir / 'modrinth'
+    site_dir.mkdir(parents=True, exist_ok=True)
+    (site_dir / 'description.md').write_text(data['body'])
 
 
 def _harvest_images(project_worker_dir: Path, puppy_dir: Path) -> None:

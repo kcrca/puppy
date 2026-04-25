@@ -96,6 +96,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        '-I',
+        '--images',
+        action='store_true',
+        dest='images',
+        help='Import image gallery (valid for import).',
+    )
+
+    parser.add_argument(
         '--worker',
         type=Path,
         dest='worker',
@@ -128,5 +136,6 @@ def main(argv: list[str] = None) -> None:
         pack=args.pack,
         pack_filter=args.pack_name,
         force=args.force,
+        images=args.images,
         worker=args.worker,
     )

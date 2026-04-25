@@ -1,3 +1,4 @@
+import io
 import json
 import subprocess
 import pytest
@@ -18,10 +19,28 @@ def _write_project_json(worker_dir, data=None):
     (pd / 'project.json').write_text(json.dumps(data or _PROJECT_JSON))
 
 
+_FAKE_BODY = '# NeonGlow\nFake imported description.'
+
+
+class _FakeResponse:
+    def __init__(self):
+        self._data = json.dumps({'body': _FAKE_BODY}).encode()
+
+    def read(self):
+        return self._data
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        pass
+
+
 @pytest.fixture(autouse=True)
 def _no_preflight(monkeypatch):
     monkeypatch.setattr('puppy.runner.check_preflight', lambda: None)
     monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.importer.urllib.request.urlopen', lambda req: _FakeResponse())
 
 
 @pytest.fixture

@@ -111,6 +111,7 @@ def run(
     pack: bool = False,
     pack_filter: str | None = None,
     force: bool = False,
+    images: bool = False,
     worker: Path = None,
 ) -> None:
     if action == 'init':
@@ -182,6 +183,7 @@ def run(
                 site,
                 pack,
                 force,
+                images,
                 verbosity,
                 worker_dir,
             )
@@ -287,7 +289,7 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack
 
 
 def _dispatch(
-    action, project, config, version, auth, puppy_home, site, pack, force, verbosity, worker_dir
+    action, project, config, version, auth, puppy_home, site, pack, force, images, verbosity, worker_dir
 ):
     if action == 'import':
         run_import(
@@ -296,6 +298,7 @@ def _dispatch(
             auth=auth,
             worker_dir=worker_dir,
             site=site,
+            images=images,
             verbosity=verbosity,
         )
     elif action == 'create':
