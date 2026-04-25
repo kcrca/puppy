@@ -8,6 +8,17 @@ def _slugify(name: str) -> str:
     return re.sub(r'[^a-z0-9]', '', name.lower())
 
 
+def project_source(project_root: Path) -> Path:
+    """Return the puppy source dir for a project root.
+
+    Supports both layouts:
+      - {root}/puppy/   (traditional, assets live alongside puppy/)
+      - {root}/         (flat, no puppy/ subdir needed)
+    """
+    sub = project_root / 'puppy'
+    return sub if sub.is_dir() else project_root
+
+
 class Project:
     def __init__(
             self,
@@ -48,7 +59,7 @@ class Project:
 
         if not had_name or not had_pack:
             _update_yaml(
-                project_root / 'puppy' / 'puppy.yaml',
+                project_source(project_root) / 'puppy.yaml',
                 {
                     'name': project.name,
                     'pack': project.pack,
@@ -59,7 +70,7 @@ class Project:
 
     @property
     def puppy_dir(self) -> Path:
-        return self.root / 'puppy'
+        return project_source(self.root)
 
 
 def _update_yaml(path: Path, updates: dict) -> None:

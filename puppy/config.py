@@ -3,6 +3,7 @@ from typing import Any
 
 import yaml
 
+from puppy.core import project_source
 from puppy.sites import SITES
 
 
@@ -31,7 +32,7 @@ class ConfigSynthesizer:
         self.site = str(site) if site is not None else None
 
     def get_running_config(self) -> dict[str, Any]:
-        project_puppy = self.project_root / 'puppy'
+        project_puppy = project_source(self.project_root)
 
         layers: list[Path] = [self.puppy_home / 'puppy.yaml']
         if self.site:
@@ -79,22 +80,27 @@ def _apply_neutral_metadata(config: dict) -> dict:
     return config
 
 
+def _inject_urls(cfg: dict) -> dict:
+    for site in SITES:
+        url = site.url_for(cfg.get(site.name, {}))
+        if url:
+            cfg.setdefault(site.name, {})['url'] = url
+    return cfg
+
+
 def build_projects_context(puppy_home: Path) -> dict:
     """Scan sibling projects and return a {pack: {site: {url: ...}}} dict."""
+    global_cfg = _load_yaml(puppy_home / 'puppy.yaml')
     projects: dict = {}
     for candidate in puppy_home.iterdir():
         if not candidate.is_dir():
             continue
-        yaml_path = candidate / 'puppy' / 'puppy.yaml'
+        yaml_path = project_source(candidate) / 'puppy.yaml'
         if not yaml_path.exists():
             continue
-        cfg = _load_yaml(yaml_path)
+        cfg = _deep_merge(global_cfg, _load_yaml(yaml_path))
         pack = cfg.get('pack') or candidate.name.lower()
-        site_urls: dict = {}
-        for site in SITES:
-            url = site.url_for(cfg.get(site.name, {}))
-            if url:
-                site_urls[site.name] = {'url': url}
-        if site_urls:
-            projects[pack] = site_urls
+        projects[pack] = _inject_urls(cfg)
+    for pack, cfg in global_cfg.get('linked_projects', {}).items():
+        projects[pack] = _inject_urls(dict(cfg))
     return projects

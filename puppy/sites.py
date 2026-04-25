@@ -297,7 +297,7 @@ class PlanetMinecraftSite(Site):
         return rows
 
     def needs_upload(self, site_id, auth: dict, zip_path: Path, version: str, project) -> bool:
-        state_path = project.root / 'puppy' / '.publish_state.yaml'
+        state_path = project.puppy_dir / '.publish_state.yaml'
         if not state_path.exists():
             return True
         state = yaml.safe_load(state_path.read_text()) or {}
