@@ -19,6 +19,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        'pack_name',
+        nargs='?',
+        default=None,
+        metavar='PACK',
+        help='Limit action to a specific pack (by pack slug).',
+    )
+
+    parser.add_argument(
         '-n',
         '--dry-run',
         action='store_true',
@@ -118,6 +126,7 @@ def main(argv: list[str] = None) -> None:
         site=args.site,
         version=args.version,
         pack=args.pack,
+        pack_filter=args.pack_name,
         force=args.force,
         worker=args.worker,
     )

@@ -108,6 +108,7 @@ def run(
     site: str | None,
     version: str | None,
     pack: bool = False,
+    pack_filter: str | None = None,
     force: bool = False,
     worker: Path = None,
 ) -> None:
@@ -128,11 +129,16 @@ def run(
     auth = check_auth(puppy_home, site)
 
     dry_run_projects: list = []
+    ran_any = False
     for project_root in projects:
         config = ConfigSynthesizer(
             puppy_home, project_root, site=site
         ).get_running_config()
         project = Project.from_config(project_root, config)
+
+        if pack_filter and project.pack != pack_filter:
+            continue
+        ran_any = True
 
         resolved_version = version or config.get('version')
         if action == 'push' and pack and not resolved_version:
@@ -179,6 +185,9 @@ def run(
                 worker_dir,
             )
 
+
+    if pack_filter and not ran_any:
+        raise SystemExit(f'No project with pack slug {pack_filter!r} found in {puppy_home}')
 
     if len(dry_run_projects) > 1:
         _write_batch_index(dry_run_projects)
