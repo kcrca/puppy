@@ -57,7 +57,10 @@ class ConfigSynthesizer:
         images_yaml = (
             top_level if top_level.exists() else in_dir if in_dir.exists() else None
         )
+        if images_yaml is None and (self.puppy_home / 'images.yaml').exists():
+            images_yaml = self.puppy_home / 'images.yaml'
         if images_yaml:
+            images_base = images_yaml.parent
             raw = yaml.safe_load(images_yaml.read_text()) or []
             if isinstance(raw, list):
                 images, images_source = raw, None
@@ -67,7 +70,10 @@ class ConfigSynthesizer:
             if images:
                 config['images'] = images
             if images_source:
-                config['images_source'] = str((project_puppy / images_source).resolve())
+                config['images_source'] = str((images_base / images_source).resolve())
+
+        config['puppy'] = str(self.puppy_home)
+        config['top'] = str(self.puppy_home.parent)
 
         return _apply_neutral_metadata(config)
 
