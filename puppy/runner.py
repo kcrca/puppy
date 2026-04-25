@@ -53,9 +53,9 @@ def _determine_roots(directory: Path) -> tuple[Path, list[Path]]:
         puppy_home = directory / 'puppy'
         return puppy_home, _resolve_projects(puppy_home)
 
-    # Walk up to find auth.yaml
+    # Walk up to find the puppy home
     for candidate in [directory, *directory.parents]:
-        if (candidate / 'auth.yaml').exists():
+        if (candidate / 'auth.yaml').exists() and (candidate / 'puppy.yaml').exists():
             puppy_home = candidate
             if directory == puppy_home:
                 return puppy_home, _resolve_projects(puppy_home)
