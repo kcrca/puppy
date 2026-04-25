@@ -253,7 +253,7 @@ class ModrinthSite(Site):
 class PlanetMinecraftSite(Site):
     name = 'planetminecraft'
     aliases = ['pmc']
-    label = 'Planet Minecraft'
+    label = 'PlanetMinecraft'
     template_ext = '.bbcode'
     desc_exts = ['.bbcode', '.md']
 

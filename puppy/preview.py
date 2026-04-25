@@ -1,6 +1,5 @@
 import html as _html
 import re
-import shutil
 from pathlib import Path
 
 import markdown
@@ -18,12 +17,12 @@ from puppy.sites import Site
 
 
 def generate(
-    project: Project,
-    config: dict,
-    debug_dir: Path,
-    sites: list[str],
-    source_exts: dict[str, str],
-    zip_name: str = None,
+        project: Project,
+        config: dict,
+        debug_dir: Path,
+        sites: list[str],
+        source_exts: dict[str, str],
+        zip_name: str = None,
 ) -> None:
     puppy_dir = project.root / 'puppy'
 
@@ -69,9 +68,9 @@ def generate(
             else '<em>(no description)</em>'
         )
         per_site_html[s.name] = (
-            (_icon_html(icon_rel) if icon_rel else '')
-            + f'<div class="description">{body_html}</div>\n'
-            + _images_html(image_entries)
+                (_icon_html(icon_rel) if icon_rel else '')
+                + f'<div class="description">{body_html}</div>\n'
+                + _images_html(image_entries)
         )
         _write_metadata(site_dir, project, config, s)
 
@@ -98,7 +97,26 @@ def _to_html(text: str, ext: str, shield_tags: list[str] = None) -> str:
             result = result.replace(f'\x00/{tag}\x00', f'</{tag}>')
         return result
     if ext == '.bbcode':
-        return _pmc.bbcode_to_html(text)
+        html = _pmc.bbcode_to_html(text)
+        # bbcode_to_html uses <br /><br /> for paragraph breaks; convert to <p> tags
+        parts = re.split(r'(?:<br\s*/?>\s*){2,}', html)
+        out = []
+        for part in parts:
+            part = re.sub(r'^(?:<br\s*/?>)+|(?:<br\s*/?>)+$', '', part)
+            if not part.strip():
+                continue
+            # A heading followed by text lands in one part — split them
+            m = re.match(r'(<h\d>.*?</h\d>)(.*)', part, re.DOTALL)
+            if m:
+                out.append(m.group(1))
+                rest = re.sub(r'^(?:<br\s*/?>)+', '', m.group(2))
+                if rest.strip():
+                    out.append(f'<p>{rest}</p>')
+            elif re.match(r'<h\d>', part):
+                out.append(part)
+            else:
+                out.append(f'<p>{part}</p>')
+        return ''.join(out)
     return f'<pre>{_html.escape(text)}</pre>'
 
 
@@ -219,11 +237,11 @@ def _images_html(images: list[tuple[str, str, str]]) -> str:
 
 
 def _page(
-    project: Project,
-    config: dict,
-    sites: list[str],
-    per_site_html: dict[str, str],
-    zip_name: str = None,
+        project: Project,
+        config: dict,
+        sites: list[str],
+        per_site_html: dict[str, str],
+        zip_name: str = None,
 ) -> str:
     meta_table = _combined_metadata_table(project, config, sites)
 
@@ -252,11 +270,11 @@ def _page(
   h1 {{ margin-bottom: 1rem; }}
   table.meta {{ border-collapse: collapse; margin-bottom: 1.5rem; width: 100%; font-size: 0.9rem; }}
   table.meta th, table.meta td {{ padding: 0.35rem 0.6rem; border: 1px solid #ddd; text-align: left; vertical-align: top; }}
-  table.meta th {{ background: #f8f8f8; font-weight: 600; }}
+  table.meta th {{ background: #000; color: #fff; font-weight: 600; }}
   table.meta thead th {{ text-align: center; }}
   table.meta tbody th {{ width: 10rem; }}
   .gloss {{ color: #888; font-size: 0.85em; }}
-  td.na {{ color: #999; text-align: center; background: #f8f8f8; }}
+  td.na {{ color: #999; text-align: center; background: #ddd; font-weight: 600; }}
   .tabs {{ display: flex; gap: 0.5rem; margin: 1.5rem 0 1rem; }}
   .tab-btn {{ padding: 0.4rem 1.1rem; border: 1px solid #bbb; border-radius: 4px; background: #f5f5f5; cursor: pointer; font-size: 0.95rem; }}
   .tab-btn.active {{ background: #222; color: #fff; border-color: #222; }}
