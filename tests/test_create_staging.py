@@ -24,9 +24,9 @@ def create_env(project_env, worker_env, monkeypatch):
                 'name': 'NeonGlow',
                 'pack': _PACK,
                 'summary': 'A test pack',
-                'curseforge': {'id': 111, 'slug': _PACK},
-                'modrinth': {'id': 'abc123', 'slug': _PACK},
-                'planetminecraft': {'id': 999, 'slug': _PACK},
+                'curseforge': {'slug': _PACK},
+                'modrinth': {'slug': _PACK},
+                'planetminecraft': {'slug': _PACK},
             }
         )
     )
@@ -62,18 +62,18 @@ def test_create_project_json_staged(create_env, run_puppy):
     pj = json.loads(
         (create_env['worker'] / 'projects' / _PACK / 'project.json').read_text()
     )
-    assert pj['curseforge']['id'] == 111
-    assert pj['modrinth']['id'] == 'abc123'
-    assert pj['planetminecraft']['id'] == 999
+    assert pj['curseforge']['id'] is None
+    assert pj['modrinth']['id'] is None
+    assert pj['planetminecraft']['id'] is None
 
 
-def test_create_site_filter_nulls_others(create_env, run_puppy):
+def test_create_site_filter_stages_project_json(create_env, run_puppy):
     run_puppy('create', '--force', '--site', 'modrinth', '--worker', str(create_env['worker']))
     pj = json.loads(
         (create_env['worker'] / 'projects' / _PACK / 'project.json').read_text()
     )
-    assert pj['modrinth']['id'] == 'abc123'
-    assert pj['curseforge']['id'] is None
+    assert pj['modrinth']['id'] is None   # active site, no pre-existing ID
+    assert pj['curseforge']['id'] is None  # inactive site, skipped
     assert pj['planetminecraft']['id'] is None
 
 
@@ -101,3 +101,13 @@ def test_create_calls_worker(create_env, run_puppy, monkeypatch):
     monkeypatch.setattr('puppy.worker.subprocess.run', tracking_run)
     run_puppy('create', '--force', '--worker', str(create_env['worker']))
     assert any('create.js' in str(c) for c in calls)
+
+
+def test_create_errors_if_id_already_set(create_env, run_puppy):
+    source = create_env['source']
+    config = yaml.safe_load((source / 'puppy.yaml').read_text())
+    config['modrinth']['id'] = 'existing-id'
+    (source / 'puppy.yaml').write_text(yaml.dump(config))
+
+    result = run_puppy('create', '--force', '--worker', str(create_env['worker']))
+    assert 'already has IDs' in str(result)

@@ -21,6 +21,11 @@ def run_create(
     site: str | None,
     verbosity: int,
 ) -> None:
+    if existing_ids := [s.name for s in SiteVisitor(site) if config.get(s.name, {}).get('id')]:
+        raise SystemExit(
+            f'[{project.name}] already has IDs for: {", ".join(existing_ids)} — '
+            'use import to update, not create'
+        )
     puppy_dir = project.puppy_dir
     icon = _resolve_asset(config.get('icon'), puppy_dir, _find_icon)
     zip_path = _resolve_asset(config.get('zip'), puppy_dir, _find_zip)
