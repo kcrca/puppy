@@ -18,16 +18,19 @@ class ContentDiscovery:
         project_puppy = project_source(self.project_root)
         exts = site.desc_exts if site else _DEFAULT_EXTS
 
-        if site:
-            for ext in exts:
-                candidate = project_puppy / site.name / f'{name}{ext}'
-                if candidate.exists():
-                    return candidate.read_text(), candidate
+        site_dir = (project_puppy / site.name) if site else None
+        dirs = ([site_dir] if site_dir else []) + [project_puppy, self.puppy_home]
 
-        for directory in (project_puppy, self.puppy_home):
+        for directory in dirs:
             for ext in exts:
                 candidate = directory / f'{name}{ext}'
                 if candidate.exists():
+                    if directory == site_dir:
+                        for shadowed_ext in exts:
+                            if shadowed_ext != ext:
+                                shadowed = directory / f'{name}{shadowed_ext}'
+                                if shadowed.exists():
+                                    print(f'WARNING: {shadowed} is shadowed by {candidate} and will never be used')
                     return candidate.read_text(), candidate
 
         return None, None
