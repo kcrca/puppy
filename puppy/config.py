@@ -25,6 +25,19 @@ def _load_yaml(path: Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
+_PATH_KEYS = {'icon', 'zip'}
+
+
+def _resolve_layer_paths(config: dict, base: Path) -> dict:
+    """Resolve relative path values to absolute, anchored to the containing YAML file."""
+    result = dict(config)
+    for key in _PATH_KEYS:
+        val = result.get(key)
+        if val and isinstance(val, str) and '{{' not in val and not Path(val).is_absolute():
+            result[key] = str((base / val).resolve())
+    return result
+
+
 class ConfigSynthesizer:
     def __init__(self, puppy_home: Path, project_root: Path, site=None):
         self.puppy_home = Path(puppy_home)
@@ -43,7 +56,7 @@ class ConfigSynthesizer:
 
         config: dict = {}
         for layer in layers:
-            config = _deep_merge(config, _load_yaml(layer))
+            config = _deep_merge(config, _resolve_layer_paths(_load_yaml(layer), layer.parent))
 
         images_path = project_puppy / 'images'
         if images_path.exists() and not images_path.is_dir():
