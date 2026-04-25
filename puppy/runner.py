@@ -44,27 +44,28 @@ def _resolve_projects(puppy_home: Path) -> list[Path]:
 def _determine_roots(directory: Path) -> tuple[Path, list[Path]]:
     """Return (puppy_home, [project_roots]).
 
-    Three valid starting points:
-      Global Root  (~/neon)               — has puppy/auth.yaml
-      Puppy Home   (~/neon/puppy)         — has auth.yaml directly
-      Project Root (~/neon/puppy/NeonGlow) — has puppy/ subdir, no auth.yaml
+    Finds the puppy home by locating auth.yaml: either one level down
+    (global root) or by walking up from the current directory.
+    Works from the global root, the puppy home, or anywhere beneath it.
     """
-    # Global Root: auth.yaml lives inside the puppy/ subdir
+    # Global root: auth.yaml is inside a puppy/ subdir
     if (directory / 'puppy' / 'auth.yaml').exists():
         puppy_home = directory / 'puppy'
         return puppy_home, _resolve_projects(puppy_home)
 
-    # Puppy Home itself
-    if (directory / 'auth.yaml').exists():
-        return directory, _resolve_projects(directory)
-
-    # Project Home: parent directory has a puppy.yaml
-    if (directory.parent / 'puppy.yaml').exists():
-        return directory.parent, [directory]
+    # Walk up to find auth.yaml
+    for candidate in [directory, *directory.parents]:
+        if (candidate / 'auth.yaml').exists():
+            puppy_home = candidate
+            if directory == puppy_home:
+                return puppy_home, _resolve_projects(puppy_home)
+            rel = directory.relative_to(puppy_home)
+            project_root = puppy_home / rel.parts[0]
+            return puppy_home, [project_root]
 
     raise SystemExit(
         f'Cannot determine project structure from {directory}\n'
-        'Run from the global root, puppy home, or a project root.'
+        'Run from the global root, puppy home, or anywhere beneath it.'
     )
 
 
