@@ -14,7 +14,8 @@ It handles a whole bunch of things automatically and nicely, but it has some dow
   For example, you can't just put in a link, you have put the url in a JSON file, and express it as a link in the three different languages.
   Only text and a few font styles are portable.
 
-Puppy is designed to address these problems. It also simplifies some other things along the way.
+Puppy is designed to address these problems.
+It also simplifies some other things along the way.
 
 ## Terminology
 
@@ -69,7 +70,8 @@ So if a single run of puppy talks to three sites about two packs, there will be 
 * **`name`** (display name): Preserves casing and special characters exactly (`'Neon Glow!'` stays `'Neon Glow!'`).
   If the source string is strictly lowercase ASCII, converts to title case (`neon` → `Neon`).
 * **Single override:** If only `name` is provided, `pack` is derived by slugifying `name` (lowercase, strip non-alphanumerics).
-  If only `pack` is provided, `name` is derived by the same casing rules. Both can be set explicitly.
+  If only `pack` is provided, `name` is derived by the same casing rules.
+  Both can be set explicitly.
 * **Auto-update:** Whenever a project is loaded for any action, if either `name` or `pack` was absent from `puppy.yaml`, the derived value is written back automatically.
 
 Puppy is a thin management layer for `PackUploader`.
@@ -111,16 +113,26 @@ Puppy has the following actions:
 * **`clean`:** Resets the PackUploader worker without pushing.
 
 ### Options & Flags
-* **`-n/--dry-run`:** Valid for `push`. Executes the full pipeline without hitting APIs or running the worker. Writes a per-site preview to `{tempdir}/puppy/{pack}/index.html` — a tabbed HTML page showing rendered descriptions, project metadata, icon, and images for each site. Also prints the `file://` URL to open it directly.
+* **`-n/--dry-run`:** Valid for `push`.
+  Executes the full pipeline without hitting APIs or running the worker.
+  Writes a per-site preview to `{tempdir}/puppy/{pack}/index.html` — a tabbed HTML page showing rendered descriptions, project metadata, icon, and images for each site.
+  Also prints the `file://` URL to open it directly.
 * **`-v` / `-vv`:** High-level progress (`-v`) or raw worker stdout/stderr (`-vv`).
 * **`-d/--dir [path]`:** Sets working directory. Defaults to CWD.
 * **`-s/--site [sitename]`:** Limits action to a specific site (e.g. `modrinth`, `curseforge`, `planetminecraft`).
-* **`-V/--version [string]`:** Version string override. Falls back to `version` in `puppy.yaml`. Artifact matched via any `.zip` in `puppy/` whose filename ends with `[-_.]version.zip`.
-* **`-p/--pack`:** Valid for `push`. Include zip artifact upload in `push`. Requires `minecraft` or `versions` in `puppy.yaml`. Upload is skipped per-site if the artifact is already current:
+* **`-V/--version [string]`:** Version string override.
+  Falls back to `version` in `puppy.yaml`.
+  Artifact matched via any `.zip` in `puppy/` whose filename ends with `[-_.]version.zip`.
+* **`-p/--pack`:** Valid for `push`.
+  Include zip artifact upload in `push`.
+  Requires `minecraft` or `versions` in `puppy.yaml`.
+  Upload is skipped per-site if the artifact is already current:
   * **Modrinth:** Compares SHA-512 hash of local zip against the hash stored in the latest version's file listing.
   * **CurseForge:** Compares both version string and file size (bytes) against the most recent uploaded file; uploads if either differs.
   * **Planet Minecraft:** Compares version string against last version recorded in `puppy/.publish_state.yaml`.
-* **`-f/--force`:** Valid for `push` and `create`. With `push -p`, bypasses skip logic and uploads unconditionally on all sites. With `create`, skips the confirmation prompt.
+* **`-f/--force`:** Valid for `push` and `create`.
+  With `push -p`, bypasses skip logic and uploads unconditionally on all sites.
+  With `create`, skips the confirmation prompt.
 * **`--worker [path]`:** PackUploader worker directory. Defaults to `~/PackUploader`.
 * **`-I/--images`:** Valid for `import`. Import the image gallery, updating yaml and images files in the project home.
 
@@ -138,11 +150,14 @@ Planet Minecraft: Abbreviation: "pmc", native language: variant of BBCode (`.bbc
 
 ## Cascading Configuration & Discovery
 
-The four config layers are merged in priority order (lowest first). Dicts merge additively — keys present in a higher-priority layer are added or overwrite individual keys; the entire dict is not replaced. Everything else (strings, numbers, booleans, lists) overwrites.
+The four config layers are merged in priority order (lowest first).
+Dicts merge additively — keys present in a higher-priority layer are added or overwrite individual keys; the entire dict is not replaced.
+Everything else (strings, numbers, booleans, lists) overwrites.
 
 
 ### auth.yaml
-`auth.yaml` stores API credentials and must never be committed. Puppy exits with a fatal error if `auth.yaml` does not exist or is not listed in `puppy/.gitignore`.
+`auth.yaml` stores API credentials and must never be committed.
+Puppy exits with a fatal error if `auth.yaml` does not exist or is not listed in `puppy/.gitignore`.
 
 Structure mirrors PackUploader's `auth.json`:
 ```yaml
@@ -169,13 +184,14 @@ The description for a site is provided in a `description` file found in this way
 Description files and YAML string values are rendered as [Jinja2](https://jinja.palletsprojects.com/) templates.
 All config keys from `puppy.yaml` are available as variables: `{{ version }}`, `{{ name }}`, `{{ modrinth.slug }}` etc.
 If `{{ foo }}` isn't a yaml property, then it is searched for as a file in the same way as `description.{ext}` is searched for, and if found, the file's contents are the value.
-This allows large reusable blocks (e.g. `{{ credits }}` → `credits.md`).
+This allows large reusable blocks (for example `{{ credits }}` → `credits.md`).
 
 Full Jinja2 syntax is supported (`{% if %}`, `{% for %}`, filters, etc.).
 Unrecognised variables in `{{ }}` expressions raise an error; they are treated as falsy in `{% if %}` tests.
 This process is repeated until no more Jinja2 directives remain.
 
-Expansion uses a re-entrancy counter, incremented when any value expansion begins, decremented when it ends. If it exceeds 100, that is an error; this prevents infinite recursion.
+Expansion uses a re-entrancy counter, incremented when any value expansion begins, decremented when it ends.
+If it exceeds 100, that is an error; this prevents infinite recursion.
 
 Two path variables are automatically injected into every Jinja context:
 * `{{ top }}` — absolute path to the parent of puppy's home (`~/neon`)
@@ -219,7 +235,8 @@ Image metadata (the list of images with names, descriptions, and file references
 
 The image directory is found searching in the standard order.
 
-Both formats support an optional top-level `source` key pointing to a directory (resolved relative to the containing file) where image files are found. If `source` is absent, images are loaded from `puppy/images/`.
+Both formats support an optional top-level `source` key pointing to a directory (resolved relative to the containing file) where image files are found.
+If `source` is absent, images are loaded from `puppy/images/`.
 
 **Image format handling:** The `file` field may include or omit a file extension.
 If omitted, and there is a .png file, it is used.
@@ -288,7 +305,8 @@ Examples:
         slug: restworld-123    # PMC uses a different slug
   ```
 * **Site-Neutral Shorthand:** On any object in the Jinja context whose keys are site names (`curseforge`, `modrinth`, `planetminecraft`), omitting the site name resolves to the value for the site currently being rendered.
-  For example, `{{ projects.other.url }}` in a description rendered for Modrinth resolves to `{{ projects.other.modrinth.url }}`. This generalises to any site-keyed attribute, not just `url`.
+  For example, `{{ projects.other.url }}` in a description rendered for Modrinth resolves to `{{ projects.other.modrinth.url }}`.
+  This generalises to any site-keyed attribute, not just `url`.
 * **Shielding:** `md_html_tags` in `puppy.yaml` (default `['u']`) lists HTML tags to be protected from Markdown translation and mapped to target-site equivalents (e.g. `<u>` → `[u]` for PMC).
 
 ---
@@ -392,7 +410,8 @@ Use `{{ projects.neonglow.url }}` in a shared `description.md` to link to the cu
 The dark-mode companion to [NeonGlow]({{ projects.neonglow.url }}).
 ```
 
-That single link renders as the correct URL for whichever site the description is being staged for. To hard-code a specific site:
+That single link renders as the correct URL for whichever site the description is being staged for.
+To hard-code a specific site:
 
 ```markdown
 Also available on [CurseForge]({{ projects.neonglow.curseforge.url }}).
@@ -437,7 +456,8 @@ This appendix documents all supported tags, primarily as a reference for people 
 [h3]Subsection[/h3]
 ```
 
-`[h1]` through `[h6]` are supported. PMC renders each as a styled heading with a horizontal rule beneath.
+`[h1]` through `[h6]` are supported.
+PMC renders each as a styled heading with a horizontal rule beneath.
 
 ### Inline Formatting
 
@@ -460,7 +480,8 @@ This appendix documents all supported tags, primarily as a reference for people 
 [img=Alt text]https://example.com/image.png[/img]
 ```
 
-PMC wraps outbound links in an internal tracking path (`/account/manage/texture-packs/{id}/example.com`). Puppy strips this back to the bare URL when rendering preview HTML.
+PMC wraps outbound links in an internal tracking path (`/account/manage/texture-packs/{id}/example.com`).
+Puppy strips this back to the bare URL when rendering preview HTML.
 
 ### Block Elements
 
@@ -506,11 +527,13 @@ Supported table tags: `[table]`, `[thead]`, `[tbody]`, `[tr]`, `[th]`, `[td]`, `
 [spoiler=Label text]Hidden content[/spoiler]
 ```
 
-Renders as a collapsible block. The label argument is required.
+Renders as a collapsible block.
+The label argument is required.
 
 ### Markdown Conversion
 
-When a description is written in Markdown, Puppy converts it to PMC BBCode automatically. The mapping is:
+When a description is written in Markdown, Puppy converts it to PMC BBCode automatically.
+The mapping is:
 
 | Markdown | BBCode |
 |---|---|
@@ -529,7 +552,8 @@ When a description is written in Markdown, Puppy converts it to PMC BBCode autom
 
 ## Appendix C: How Puppy Uses PackUploader
 
-Puppy implements its actions by staging data into a [PackUploader](https://github.com/ewanhowell5195/PackUploader) worker directory and invoking its scripts. This appendix documents the interactions between the two tools.
+Puppy implements its actions by staging data into a [PackUploader](https://github.com/ewanhowell5195/PackUploader) worker directory and invoking its scripts.
+This appendix documents the interface between the two tools.
 
 ### Worker Directory Layout
 
@@ -558,7 +582,9 @@ Before each run puppy resets the worker (`git reset --hard HEAD && git clean -fd
 
 ### Description Templates
 
-For each site, puppy writes `templates/{site}.{ext}` containing the rendered description body followed by `\n\n{{ images }}\n`. The worker substitutes `{{ images }}` with the formatted image gallery before uploading. If no description was found in the cascade, a minimal `{{ description }}\n\n{{ images }}\n` template is written instead.
+For each site, puppy writes `templates/{site}.{ext}` containing the rendered description body followed by `\n\n{{ images }}\n`.
+The worker substitutes `{{ images }}` with the formatted image gallery before uploading.
+If no description was found in the cascade, a minimal `{{ description }}\n\n{{ images }}\n` template is written instead.
 
 ### Scripts Invoked
 
