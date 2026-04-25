@@ -187,7 +187,7 @@ def run(
 def _write_batch_index(projects: list) -> None:
     base = Path(tempfile.gettempdir()) / 'puppy'
     tabs = ''.join(
-        f'<button class="tab" onclick="show(\'{p.pack}\')">{p.name}</button>'
+        f'<button class="tab" onclick="show(\'{p.pack}\', this)">{p.name}</button>'
         for p in projects
     )
     frames = ''.join(
@@ -216,13 +216,13 @@ def _write_batch_index(projects: list) -> None:
 <div id="tabs"><span id="tabs-label">Projects:</span>{tabs}</div>
 {frames}
 <script>
-  function show(id) {{
+  function show(id, btn) {{
     document.querySelectorAll('iframe').forEach(f => f.style.display = 'none');
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.getElementById(id).style.display = 'block';
-    event.target.classList.add('active');
+    if (btn) btn.classList.add('active');
   }}
-  show('{first}'); document.querySelector('.tab').classList.add('active');
+  show('{first}', document.querySelector('.tab'));
 </script>
 </body>
 </html>"""
