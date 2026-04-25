@@ -10,7 +10,7 @@ def test_variables_do_not_leak_between_projects(project_env, run_puppy):
 
     alpha = project_env['home'] / 'Alpha'
     (alpha / 'puppy').mkdir(parents=True)
-    (alpha / 'puppy' / 'puppy.yaml').write_text(yaml.dump({'name': 'Alpha'}))
+    (alpha / 'puppy' / 'puppy.yaml').write_text(yaml.dump({'name': 'Alpha', 'secret_val': 'alpha'}))
     (alpha / 'puppy' / 'description.md').write_text('Val: {{ secret_val }}')
 
     (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Alpha']}))
@@ -19,4 +19,4 @@ def test_variables_do_not_leak_between_projects(project_env, run_puppy):
 
     temp_root = Path(tempfile.gettempdir()) / 'puppy'
     assert 'Val: neon' in (temp_root / 'neonglow' / 'modrinth' / 'description.md').read_text()
-    assert '{{ secret_val }}' in (temp_root / 'alpha' / 'modrinth' / 'description.md').read_text()
+    assert 'Val: alpha' in (temp_root / 'alpha' / 'modrinth' / 'description.md').read_text()

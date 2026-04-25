@@ -1,16 +1,19 @@
 import markdown as _md
-from jinja2 import Environment, Undefined
+from jinja2 import Environment, Undefined, UndefinedError
 
 from puppy.transformers import PMCTransformer
 
 
-class _WarnUndefined(Undefined):
+class _ErrorUndefined(Undefined):
+    """Raises on string rendering; stays falsy for {% if %} tests."""
     def __str__(self) -> str:
-        print(f"WARNING: unknown variable '{{{{ {self._undefined_name} }}}}'")
-        return f'{{{{ {self._undefined_name} }}}}'
+        raise UndefinedError(f"unknown variable '{self._undefined_name}'")
+
+    def __iter__(self):
+        raise UndefinedError(f"unknown variable '{self._undefined_name}'")
 
 
-_env = Environment(undefined=_WarnUndefined)
+_env = Environment(undefined=_ErrorUndefined)
 
 DEFAULT_SHIELD_TAGS = ['u']
 
@@ -51,6 +54,19 @@ def md_to_bbcode(text: str) -> str:
     return _pmc.md_to_bbcode(text)
 
 
+def _resolve_config_strings(ctx: dict) -> dict:
+    while True:
+        resolved = {}
+        for k, v in ctx.items():
+            if isinstance(v, str) and '{{' in v:
+                resolved[k] = _env.from_string(v).render(ctx)
+            else:
+                resolved[k] = v
+        if resolved == ctx:
+            return ctx
+        ctx = resolved
+
+
 def render(text: str, config: dict, source: str = '<description>', *, site=None) -> str:
     tags = config.get('md_html_tags', DEFAULT_SHIELD_TAGS)
     ctx = config
@@ -60,6 +76,7 @@ def render(text: str, config: dict, source: str = '<description>', *, site=None)
             pack: _SiteProxy(proj, site.name)
             for pack, proj in config['projects'].items()
         }
+    ctx = _resolve_config_strings(ctx)
     result = _env.from_string(text).render(ctx)
     if site:
         open_map, close_map = site.shield_tags(tags)
