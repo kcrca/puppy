@@ -2,6 +2,9 @@
 
 ## Unimplemented Features
 
+- **Duplicate check on create (CF and PMC)**: Before creating, warn the user that duplicates are possible on sites without unique name enforcement. For CF, search by name (filtered to texture packs) and show matches, asking if theirs is one of them or a new project — if an existing ID is chosen, run import instead. For PMC there is no API, so only a manual reminder is possible. `--force` should skip any interactive check. Modrinth is not a concern — its API rejects duplicate slugs cleanly. **Open question:** do we only care about conflicts with the user's own existing projects, or also with other people's projects with the same name?
+
+
 - **Non-pack project types**: Set up for at least some kinds of non-pack projects, like worlds.
 
 
