@@ -87,6 +87,7 @@ class ConfigSynthesizer:
 
         config['puppy'] = str(self.puppy_home)
         config['top'] = str(self.puppy_home.parent)
+        config['project'] = str(project_puppy)
 
         return _apply_neutral_metadata(config)
 
