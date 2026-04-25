@@ -11,12 +11,12 @@ def project_env(tmp_path, monkeypatch):
     root = tmp_path / 'neon'
     home = root / 'puppy'
     project = home / 'NeonGlow'
-    source = project / 'puppy'
 
-    for d in [home, project, source]:
+    for d in [home, project]:
         d.mkdir(parents=True)
 
     (home / '.gitignore').write_text('auth.yaml\n')
+    (home / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow']}))
     (home / 'auth.yaml').write_text(
         yaml.dump(
             {
@@ -28,7 +28,7 @@ def project_env(tmp_path, monkeypatch):
 
     monkeypatch.chdir(project)
 
-    return {'root': root, 'home': home, 'project': project, 'source': source}
+    return {'root': root, 'home': home, 'project': project}
 
 
 @pytest.fixture

@@ -8,10 +8,10 @@ def test_icon_conversion_logic(project_env, run_puppy):
     """Puppy should open a non-PNG image and save it as a PNG in staging."""
     # Create a valid 1x1 WebP image in memory
     img = Image.new('RGB', (100, 100), color='red')
-    icon_path = project_env['source'] / 'icon.webp'
+    icon_path = project_env['project'] / 'icon.webp'
     img.save(icon_path, format='WEBP')
 
-    (project_env['source'] / 'puppy.yaml').write_text("icon: 'icon.webp'")
+    (project_env['project'] / 'puppy.yaml').write_text("icon: 'icon.webp'")
 
     # Run the push
     run_puppy('push', '-n')

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from puppy.core import project_source
 from puppy.sites import Site
 
 _DEFAULT_EXTS = ['.md']
@@ -19,7 +20,7 @@ class ContentDiscovery:
           2. Project general description ({project}/puppy/description.{ext})
           3. Global general description  ({puppy_home}/description.{ext})
         """
-        project_puppy = self.project_root / 'puppy'
+        project_puppy = project_source(self.project_root)
         exts = site.desc_exts if site else _DEFAULT_EXTS
 
         if site:

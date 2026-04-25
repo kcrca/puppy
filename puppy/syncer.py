@@ -34,7 +34,7 @@ def run_push(
     config = dict(config)
     config['projects'] = build_projects_context(puppy_home)
 
-    puppy_dir = project.root / 'puppy'
+    puppy_dir = project.puppy_dir
     icon = _resolve_asset(config.get('icon'), puppy_dir, _find_icon, config)
     _validate_square(icon)
 

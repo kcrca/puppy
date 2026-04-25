@@ -9,14 +9,7 @@ def _slugify(name: str) -> str:
 
 
 def project_source(project_root: Path) -> Path:
-    """Return the puppy source dir for a project root.
-
-    Supports both layouts:
-      - {root}/puppy/   (traditional, assets live alongside puppy/)
-      - {root}/         (flat, no puppy/ subdir needed)
-    """
-    sub = project_root / 'puppy'
-    return sub if sub.is_dir() else project_root
+    return Path(project_root)
 
 
 class Project:

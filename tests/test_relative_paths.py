@@ -7,7 +7,7 @@ def test_relative_path_resolution(project_env, run_puppy):
     ext_dir.mkdir()
     (ext_dir / 'icon.png').write_text('external_icon')
 
-    (project_env['source'] / 'puppy.yaml').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(
         yaml.dump({'icon': '../external_assets/icon.png'})
     )
 

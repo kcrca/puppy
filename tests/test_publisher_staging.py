@@ -21,7 +21,7 @@ def _no_preflight(monkeypatch):
 
 @pytest.fixture
 def push_pack_env(project_env, worker_env, monkeypatch):
-    source = project_env['source']
+    source = project_env['project']
     Image.new('RGB', (64, 64), color='blue').save(source / 'icon.png')
     with zipfile.ZipFile(source / f'{_PACK}-{_VERSION}.zip', 'w') as z:
         z.writestr('pack.mcmeta', '{}')
@@ -82,8 +82,7 @@ def test_patch_project_json_all_sites(push_pack_env, run_puppy):
 
 
 def test_save_and_check_pmc_version(tmp_path):
-    puppy_dir = tmp_path / 'puppy'
-    puppy_dir.mkdir()
+    puppy_dir = tmp_path
     zip_path = puppy_dir / 'mypack-1.0.0.zip'
     with zipfile.ZipFile(zip_path, 'w') as z:
         z.writestr('pack.mcmeta', '{}')

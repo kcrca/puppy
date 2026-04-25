@@ -6,7 +6,7 @@ def test_modrinth_prefers_md_over_html(project_env, run_puppy):
     Verifies that Modrinth prioritizes .md over .html, 
     matching its native format (Native Winner principle).
     """
-    mr_dir = project_env["source"] / "modrinth"
+    mr_dir = project_env["project"] / "modrinth"
     mr_dir.mkdir()
     
     (mr_dir / "description.md").write_text("Native Markdown Content")

@@ -109,7 +109,7 @@ def test_license_per_site_override():
 
 
 def test_resolution_expands_to_all_sites(project_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'resolution': 16}))
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'resolution': 16}))
     run_puppy('push', '-n')
 
     index = (
@@ -120,7 +120,7 @@ def test_resolution_expands_to_all_sites(project_env, run_puppy):
 
 
 def test_progress_appears_in_pmc(project_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'progress': 75}))
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'progress': 75}))
     run_puppy('push', '-n')
 
     index = (
@@ -130,7 +130,7 @@ def test_progress_appears_in_pmc(project_env, run_puppy):
 
 
 def test_license_appears_on_cf_and_modrinth(project_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'license': 'MIT'}))
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'license': 'MIT'}))
     run_puppy('push', '-n')
 
     index = (

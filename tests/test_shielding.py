@@ -4,7 +4,7 @@ from pathlib import Path
 
 def test_tag_shielding(project_env, run_puppy):
     """<u> tags should be protected from markdown and converted for PMC."""
-    (project_env['source'] / 'description.md').write_text('Underline <u>this</u> text.')
+    (project_env['project'] / 'description.md').write_text('Underline <u>this</u> text.')
 
     run_puppy('push', '-n', '-s', 'planetminecraft')
 

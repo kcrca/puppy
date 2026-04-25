@@ -4,8 +4,8 @@ from pathlib import Path
 
 
 def test_cf_description_is_html(project_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
+    (project_env['project'] / 'description.md').write_text(
         '# Hello\n\nA **bold** word.\n'
     )
     run_puppy('push', '-n')
@@ -23,8 +23,8 @@ def test_cf_description_is_html(project_env, run_puppy):
 
 
 def test_pmc_description_is_bbcode(project_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
+    (project_env['project'] / 'description.md').write_text(
         '# Hello\n\nA **bold** word.\n'
     )
     run_puppy('push', '-n')
@@ -42,8 +42,8 @@ def test_pmc_description_is_bbcode(project_env, run_puppy):
 
 
 def test_modrinth_description_stays_md(project_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
+    (project_env['project'] / 'description.md').write_text(
         '# Hello\n\nA **bold** word.\n'
     )
     run_puppy('push', '-n')
@@ -60,8 +60,8 @@ def test_modrinth_description_stays_md(project_env, run_puppy):
 
 
 def test_pmc_soft_wraps_preserved(project_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
+    (project_env['project'] / 'description.md').write_text(
         'Word one\nword two on next line.\n'
     )
     run_puppy('push', '-n')
@@ -78,8 +78,8 @@ def test_pmc_soft_wraps_preserved(project_env, run_puppy):
 
 
 def test_pmc_bbcode_renders_in_preview(project_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
+    (project_env['project'] / 'description.md').write_text(
         '# Big Heading\n\nSome text.\n'
     )
     run_puppy('push', '-n')
@@ -92,11 +92,11 @@ def test_pmc_bbcode_renders_in_preview(project_env, run_puppy):
 
 
 def test_site_specific_yaml_var_in_rendering(project_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
-    pmc_dir = project_env['source'] / 'planetminecraft'
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
+    pmc_dir = project_env['project'] / 'planetminecraft'
     pmc_dir.mkdir()
     (pmc_dir / 'puppy.yaml').write_text(yaml.dump({'pmc_extra': 'pmc-only-value'}))
-    (project_env['source'] / 'description.md').write_text('Value: {{ pmc_extra }}\n')
+    (project_env['project'] / 'description.md').write_text('Value: {{ pmc_extra }}\n')
     run_puppy('push', '-n', '-s', 'planetminecraft')
 
     content = (
@@ -110,11 +110,11 @@ def test_site_specific_yaml_var_in_rendering(project_env, run_puppy):
 
 
 def test_site_alias_loads_correct_yaml(project_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
-    pmc_dir = project_env['source'] / 'planetminecraft'
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'version': '1.0'}))
+    pmc_dir = project_env['project'] / 'planetminecraft'
     pmc_dir.mkdir()
     (pmc_dir / 'puppy.yaml').write_text(yaml.dump({'pmc_extra': 'alias-test-value'}))
-    (project_env['source'] / 'description.md').write_text('Value: {{ pmc_extra }}\n')
+    (project_env['project'] / 'description.md').write_text('Value: {{ pmc_extra }}\n')
     run_puppy('push', '-n', '-s', 'pmc')
 
     content = (

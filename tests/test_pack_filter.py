@@ -12,8 +12,8 @@ def test_pack_filter_runs_only_named_pack(project_env, run_puppy):
             shutil.rmtree(temp_root / name)
 
     alpha_root = project_env['home'] / 'Alpha'
-    (alpha_root / 'puppy').mkdir(parents=True)
-    (alpha_root / 'puppy' / 'puppy.yaml').write_text(yaml.dump({'name': 'Alpha', 'pack': 'filteronly'}))
+    alpha_root.mkdir(parents=True)
+    (alpha_root / 'puppy.yaml').write_text(yaml.dump({'name': 'Alpha', 'pack': 'filteronly'}))
 
     (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Alpha']}))
 

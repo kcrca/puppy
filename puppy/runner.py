@@ -58,8 +58,8 @@ def _determine_roots(directory: Path) -> tuple[Path, list[Path]]:
     if (directory / 'auth.yaml').exists():
         return directory, _resolve_projects(directory)
 
-    # Project Root: has a puppy/ subdir (the project source)
-    if (directory / 'puppy').is_dir():
+    # Project Home: parent directory has a puppy.yaml
+    if (directory.parent / 'puppy.yaml').exists():
         return directory.parent, [directory]
 
     raise SystemExit(

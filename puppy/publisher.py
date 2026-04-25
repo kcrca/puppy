@@ -23,7 +23,7 @@ def upload_pack(
         raise SystemExit(
             f"[{project.name}] push --pack requires 'minecraft:' or 'versions:' in puppy.yaml"
         )
-    puppy_dir = project.root / 'puppy'
+    puppy_dir = project.puppy_dir
     zip_path = _resolve_zip(config, puppy_dir, version, project)
     auth = _read_auth(puppy_dir)
 

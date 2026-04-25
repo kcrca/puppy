@@ -17,7 +17,7 @@ def _no_preflight(monkeypatch):
 
 @pytest.fixture
 def create_env(project_env, worker_env, monkeypatch):
-    source = project_env['source']
+    source = project_env['project']
     (source / 'puppy.yaml').write_text(
         yaml.dump(
             {
@@ -78,7 +78,7 @@ def test_create_site_filter_stages_project_json(create_env, run_puppy):
 
 
 def test_create_webp_icon_converted(create_env, run_puppy):
-    source = create_env['source']
+    source = create_env['project']
     Image.new('RGB', (64, 64), color='red').save(source / 'icon.webp')
     config = yaml.safe_load((source / 'puppy.yaml').read_text())
     config['icon'] = 'icon.webp'
@@ -104,7 +104,7 @@ def test_create_calls_worker(create_env, run_puppy, monkeypatch):
 
 
 def test_create_errors_if_id_already_set(create_env, run_puppy):
-    source = create_env['source']
+    source = create_env['project']
     config = yaml.safe_load((source / 'puppy.yaml').read_text())
     config['modrinth']['id'] = 'existing-id'
     (source / 'puppy.yaml').write_text(yaml.dump(config))

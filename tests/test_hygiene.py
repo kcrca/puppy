@@ -11,7 +11,7 @@ def _no_worker(monkeypatch):
 
 
 def test_worker_flag_cleared(project_env, worker_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(
         yaml.dump({'name': 'NeonGlow', 'pack': 'neonglow'})
     )
     run_puppy('push', '--worker', str(worker_env))
@@ -20,7 +20,7 @@ def test_worker_flag_cleared(project_env, worker_env, run_puppy):
 
 
 def test_personal_data_cleared(project_env, worker_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(
         yaml.dump({'name': 'NeonGlow', 'pack': 'neonglow'})
     )
     run_puppy('push', '--worker', str(worker_env))
@@ -34,7 +34,7 @@ def test_personal_data_cleared(project_env, worker_env, run_puppy):
 
 
 def test_config_values_applied(project_env, worker_env, run_puppy):
-    (project_env['source'] / 'puppy.yaml').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(
         yaml.dump(
             {
                 'name': 'NeonGlow',

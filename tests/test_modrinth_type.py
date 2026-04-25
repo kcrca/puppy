@@ -5,10 +5,10 @@ from pathlib import Path
 
 def test_modrinth_url_type_override(project_env, run_puppy):
     """Setting modrinth.type should change the URL structure from /mod/ to /modpack/."""
-    (project_env['source'] / 'puppy.yaml').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(
         yaml.dump({'modrinth': {'slug': 'my-pack', 'type': 'modpack'}})
     )
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'description.md').write_text(
         'URL: {{ projects.neonglow.modrinth.url }}'
     )
 

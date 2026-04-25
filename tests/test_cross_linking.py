@@ -7,8 +7,7 @@ def test_site_neutral_url_shorthand(project_env, run_puppy):
     """{{ projects.other.url }} resolves to the current site's URL."""
     other_proj = project_env['home'] / 'OtherMod'
     other_proj.mkdir()
-    (other_proj / 'puppy').mkdir()
-    (other_proj / 'puppy' / 'puppy.yaml').write_text(
+    (other_proj / 'puppy.yaml').write_text(
         yaml.dump({
             'pack': 'other',
             'modrinth': {'id': 'abc'},
@@ -16,10 +15,10 @@ def test_site_neutral_url_shorthand(project_env, run_puppy):
         })
     )
 
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'description.md').write_text(
         'Link: {{ projects.other.url }}'
     )
-    (project_env['source'] / 'puppy.yaml').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(
         yaml.dump({'name': 'NeonGlow', 'pack': 'neonglow'})
     )
 
@@ -40,15 +39,14 @@ def test_site_neutral_missing_returns_empty(project_env, run_puppy):
     """{{ projects.other.url }} is empty string when the site has no entry."""
     other_proj = project_env['home'] / 'OtherMod'
     other_proj.mkdir()
-    (other_proj / 'puppy').mkdir()
-    (other_proj / 'puppy' / 'puppy.yaml').write_text(
+    (other_proj / 'puppy.yaml').write_text(
         yaml.dump({'pack': 'other', 'modrinth': {'id': 'abc'}})
     )
 
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'description.md').write_text(
         '[{{ projects.other.url }}]'
     )
-    (project_env['source'] / 'puppy.yaml').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(
         yaml.dump({'name': 'NeonGlow', 'pack': 'neonglow'})
     )
 
@@ -63,12 +61,11 @@ def test_cross_project_url_resolution(project_env, run_puppy):
     """Test {{ projects.[other].url }} resolution."""
     other_proj = project_env['home'] / 'OtherMod'
     other_proj.mkdir()
-    (other_proj / 'puppy').mkdir()
-    (other_proj / 'puppy' / 'puppy.yaml').write_text(
+    (other_proj / 'puppy.yaml').write_text(
         yaml.dump({'pack': 'other', 'modrinth': {'id': 'abc'}})
     )
 
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'description.md').write_text(
         'Link: {{ projects.other.modrinth.url }}'
     )
 
@@ -89,7 +86,7 @@ def test_linked_projects_top_level_slug(project_env, run_puppy):
             }
         })
     )
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'description.md').write_text(
         'MR: {{ projects.external.modrinth.url }} CF: {{ projects.external.curseforge.url }}'
     )
 
@@ -111,7 +108,7 @@ def test_linked_projects_site_slug_overrides_default(project_env, run_puppy):
             }
         })
     )
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'description.md').write_text(
         'MR: {{ projects.external.modrinth.url }} CF: {{ projects.external.curseforge.url }}'
     )
 

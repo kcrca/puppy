@@ -11,8 +11,8 @@ from puppy.sites import MODRINTH
 
 def test_all_yaml_vars_available_to_jinja(project_env, run_puppy):
     config = {'minecraft': '1.20.1', 'custom': {'val': 'hello'}}
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump(config))
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump(config))
+    (project_env['project'] / 'description.md').write_text(
         'MC: {{ minecraft }}, Val: {{ custom.val }}'
     )
 

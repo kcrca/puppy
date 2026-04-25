@@ -24,7 +24,7 @@ def generate(
         source_exts: dict[str, str],
         zip_name: str = None,
 ) -> None:
-    puppy_dir = project.root / 'puppy'
+    puppy_dir = project.puppy_dir
 
     icon_rel = None
     try:

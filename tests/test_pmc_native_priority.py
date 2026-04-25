@@ -6,7 +6,7 @@ def test_pmc_prefers_bbcode_over_md(project_env, run_puppy):
     Spec 5.2: For PMC, extension priority is (.bbcode -> .md).
     Verifies that native BBCode overrides generic Markdown.
     """
-    pmc_dir = project_env["source"] / "planetminecraft"
+    pmc_dir = project_env["project"] / "planetminecraft"
     pmc_dir.mkdir()
     
     (pmc_dir / "description.md").write_text("Markdown Fallback")

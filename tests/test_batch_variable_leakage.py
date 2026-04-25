@@ -5,13 +5,13 @@ from pathlib import Path
 
 def test_variables_do_not_leak_between_projects(project_env, run_puppy):
     """Variables defined in Project A's puppy.yaml should not be visible to Project B."""
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'secret_val': 'neon'}))
-    (project_env['source'] / 'description.md').write_text('Val: {{ secret_val }}')
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'secret_val': 'neon'}))
+    (project_env['project'] / 'description.md').write_text('Val: {{ secret_val }}')
 
     alpha = project_env['home'] / 'Alpha'
-    (alpha / 'puppy').mkdir(parents=True)
-    (alpha / 'puppy' / 'puppy.yaml').write_text(yaml.dump({'name': 'Alpha', 'secret_val': 'alpha'}))
-    (alpha / 'puppy' / 'description.md').write_text('Val: {{ secret_val }}')
+    alpha.mkdir(parents=True)
+    (alpha / 'puppy.yaml').write_text(yaml.dump({'name': 'Alpha', 'secret_val': 'alpha'}))
+    (alpha / 'description.md').write_text('Val: {{ secret_val }}')
 
     (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Alpha']}))
 

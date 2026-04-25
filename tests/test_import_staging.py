@@ -26,7 +26,7 @@ def _no_preflight(monkeypatch):
 
 @pytest.fixture
 def import_env(project_env, worker_env, monkeypatch):
-    (project_env['source'] / 'puppy.yaml').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(
         yaml.dump(
             {
                 'name': 'NeonGlow',
@@ -74,7 +74,7 @@ def test_import_site_filter_nulls_others(import_env, run_puppy, monkeypatch):
 
 def test_harvest_yaml_writes_ids(import_env, run_puppy):
     run_puppy('import', '--worker', str(import_env['worker']))
-    written = yaml.safe_load((import_env['source'] / 'puppy.yaml').read_text())
+    written = yaml.safe_load((import_env['project'] / 'puppy.yaml').read_text())
     assert written['curseforge']['id'] == 111
     assert written['modrinth']['id'] == 'abc123'
     assert written['name'] == 'NeonGlow'
@@ -88,11 +88,11 @@ def test_harvest_yaml_site_filter(project_env, worker_env, run_puppy, monkeypatc
             {'config': {'name': 'NeonGlow'}, 'modrinth': {'id': 'abc123', 'slug': _PACK}},
         ) or subprocess.CompletedProcess(cmd, 0)
     ))
-    (project_env['source'] / 'puppy.yaml').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(
         yaml.dump({'name': 'NeonGlow', 'pack': _PACK, 'modrinth': {'id': 'abc123', 'slug': _PACK}})
     )
     run_puppy('import', '--site', 'modrinth', '--worker', str(worker_env))
-    written = yaml.safe_load((project_env['source'] / 'puppy.yaml').read_text())
+    written = yaml.safe_load((project_env['project'] / 'puppy.yaml').read_text())
     assert written.get('modrinth', {}).get('id') == 'abc123'
     assert 'curseforge' not in written
     assert 'planetminecraft' not in written

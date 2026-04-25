@@ -12,7 +12,7 @@ def test_global_site_override(project_env, run_puppy):
     mr_home.mkdir()
     (mr_home / 'puppy.yaml').write_text(yaml.dump({'site_var': 'overridden'}))
 
-    (project_env['source'] / 'description.md').write_text('{{ common_var }} {{ site_var }}')
+    (project_env['project'] / 'description.md').write_text('{{ common_var }} {{ site_var }}')
     run_puppy('push', '-n', '-s', 'modrinth')
 
     debug_file = (

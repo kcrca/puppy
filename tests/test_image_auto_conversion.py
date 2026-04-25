@@ -7,7 +7,7 @@ from PIL import Image
 
 def test_jpg_to_png_conversion_for_worker(project_env, run_puppy):
     """The worker always expects PNG. Puppy should convert JPG gallery images automatically."""
-    img_dir = project_env['source'] / 'images'
+    img_dir = project_env['project'] / 'images'
     img_dir.mkdir()
 
     img = Image.new('RGB', (100, 100), color='blue')

@@ -5,7 +5,7 @@ from pathlib import Path
 
 def test_slug_sanitization_rules(project_env, run_puppy):
     """Ensures that 'Neon Glow!' generates a clean slug for folders."""
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'name': 'Neon Glow!'}))
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'name': 'Neon Glow!'}))
 
     run_puppy('push', '-n', '-s', 'modrinth')
 

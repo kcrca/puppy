@@ -5,17 +5,17 @@ from pathlib import Path
 
 def test_batch_index_shows_correct_zip_per_project(project_env, run_puppy):
     """In batch mode with --pack, each project's index.html should link to its own zip."""
-    (project_env['source'] / 'neonglow-1.0.zip').write_text('neon_data')
-    (project_env['source'] / 'puppy.yaml').write_text(
+    (project_env['project'] / 'neonglow-1.0.zip').write_text('neon_data')
+    (project_env['project'] / 'puppy.yaml').write_text(
         yaml.dump({'version': '1.0', 'minecraft': '1.20'})
     )
 
     alpha = project_env['home'] / 'Alpha'
-    (alpha / 'puppy').mkdir(parents=True)
-    (alpha / 'puppy' / 'puppy.yaml').write_text(
+    alpha.mkdir(parents=True)
+    (alpha / 'puppy.yaml').write_text(
         yaml.dump({'name': 'Alpha', 'version': '1.0', 'minecraft': '1.20'})
     )
-    (alpha / 'puppy' / 'alpha-1.0.zip').write_text('alpha_data')
+    (alpha / 'alpha-1.0.zip').write_text('alpha_data')
 
     (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Alpha']}))
 

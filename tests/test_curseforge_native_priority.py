@@ -5,7 +5,7 @@ def test_curseforge_prefers_html_over_md(project_env, run_puppy):
     """
     Verifies that CurseForge still prioritizes .html over .md for its native format.
     """
-    cf_dir = project_env["source"] / "curseforge"
+    cf_dir = project_env["project"] / "curseforge"
     cf_dir.mkdir()
     
     (cf_dir / "description.md").write_text("Markdown Content")

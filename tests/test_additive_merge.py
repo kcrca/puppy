@@ -9,7 +9,7 @@ def test_additive_dict_merge(project_env, run_puppy):
     mr_global_dir.mkdir()
     (mr_global_dir / 'puppy.yaml').write_text(yaml.dump({'modrinth': {'tags': {'tag1': True}}}))
 
-    mr_proj_dir = project_env['source'] / 'modrinth'
+    mr_proj_dir = project_env['project'] / 'modrinth'
     mr_proj_dir.mkdir()
     (mr_proj_dir / 'puppy.yaml').write_text(yaml.dump({'modrinth': {'tags': {'tag2': True}}}))
 

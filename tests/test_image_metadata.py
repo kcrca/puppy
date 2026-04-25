@@ -5,7 +5,7 @@ from pathlib import Path
 
 def test_image_metadata_discovery(project_env, run_puppy):
     """Test that puppy/images/images.yaml is correctly identified."""
-    img_dir = project_env['source'] / 'images'
+    img_dir = project_env['project'] / 'images'
     img_dir.mkdir()
     (img_dir / 'images.yaml').write_text(yaml.dump({'images': [{'file': 'screenshot1.png'}]}))
     (img_dir / 'screenshot1.png').write_text('data')

@@ -5,8 +5,8 @@ from pathlib import Path
 
 def test_html_tag_translation_pmc(project_env, run_puppy):
     """HTML tags like <u> should be protected and translated to BBCode for PMC."""
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'md_html_tags': ['u', 'b']}))
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'md_html_tags': ['u', 'b']}))
+    (project_env['project'] / 'description.md').write_text(
         'This is <u>underlined</u> and <b>bold</b>.'
     )
 

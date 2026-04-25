@@ -9,7 +9,7 @@ def _debug(pack, site, ext):
 
 def _setup_sibling(home, name, pack, cf_slug=None, mr_slug=None, pmc_slug=None):
     root = home / name
-    (root / 'puppy').mkdir(parents=True)
+    root.mkdir(parents=True)
     cfg = {'pack': pack}
     if cf_slug:
         cfg['curseforge'] = {'slug': cf_slug, 'id': 1}
@@ -17,12 +17,12 @@ def _setup_sibling(home, name, pack, cf_slug=None, mr_slug=None, pmc_slug=None):
         cfg['modrinth'] = {'slug': mr_slug}
     if pmc_slug:
         cfg['planetminecraft'] = {'slug': pmc_slug, 'id': 1}
-    (root / 'puppy' / 'puppy.yaml').write_text(yaml.dump(cfg))
+    (root / 'puppy.yaml').write_text(yaml.dump(cfg))
 
 
 def test_sibling_cf_url(project_env, run_puppy):
     _setup_sibling(project_env['home'], 'Other', 'other', cf_slug='other-cf')
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'description.md').write_text(
         'CF: {{ projects.other.curseforge.url }}'
     )
     run_puppy('push', '-n', '-s', 'modrinth')
@@ -32,7 +32,7 @@ def test_sibling_cf_url(project_env, run_puppy):
 
 def test_sibling_pmc_url(project_env, run_puppy):
     _setup_sibling(project_env['home'], 'Other', 'other', pmc_slug='other-pmc')
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'description.md').write_text(
         'PMC: {{ projects.other.planetminecraft.url }}'
     )
     run_puppy('push', '-n', '-s', 'modrinth')
@@ -49,7 +49,7 @@ def test_sibling_all_sites_urls(project_env, run_puppy):
         mr_slug='other-mr',
         pmc_slug='other-pmc',
     )
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'description.md').write_text(
         'CF={{ projects.other.curseforge.url }} MR={{ projects.other.modrinth.url }} PMC={{ projects.other.planetminecraft.url }}'
     )
     run_puppy('push', '-n', '-s', 'modrinth')
@@ -62,7 +62,7 @@ def test_sibling_all_sites_urls(project_env, run_puppy):
 def test_multiple_siblings_each_site(project_env, run_puppy):
     _setup_sibling(project_env['home'], 'Alpha', 'alpha', mr_slug='alpha-mr')
     _setup_sibling(project_env['home'], 'Beta', 'beta', mr_slug='beta-mr')
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'description.md').write_text(
         'A={{ projects.alpha.modrinth.url }} B={{ projects.beta.modrinth.url }}'
     )
     run_puppy('push', '-n', '-s', 'modrinth')
@@ -73,12 +73,12 @@ def test_multiple_siblings_each_site(project_env, run_puppy):
 
 def test_site_specific_var_with_sibling(project_env, run_puppy):
     _setup_sibling(project_env['home'], 'Other', 'other', mr_slug='other-mr')
-    pmc_dir = project_env['source'] / 'planetminecraft'
+    pmc_dir = project_env['project'] / 'planetminecraft'
     pmc_dir.mkdir()
     (pmc_dir / 'puppy.yaml').write_text(
         yaml.dump({'pmc_link': 'https://pmc.example.com'})
     )
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'description.md').write_text(
         'Sibling={{ projects.other.modrinth.url }} Extra={{ pmc_link }}'
     )
     run_puppy('push', '-n', '-s', 'planetminecraft')
@@ -89,10 +89,10 @@ def test_site_specific_var_with_sibling(project_env, run_puppy):
 
 def test_pmc_site_var_isolated_from_modrinth(project_env, run_puppy):
     # planetminecraft/puppy.yaml vars must NOT appear in modrinth's rendering.
-    pmc_dir = project_env['source'] / 'planetminecraft'
+    pmc_dir = project_env['project'] / 'planetminecraft'
     pmc_dir.mkdir()
     (pmc_dir / 'puppy.yaml').write_text(yaml.dump({'pmc_only': 'secret'}))
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'description.md').write_text(
         '{% if pmc_only %}{{ pmc_only }}{% endif %}'
     )
     run_puppy('push', '-n')

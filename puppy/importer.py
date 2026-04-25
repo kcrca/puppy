@@ -61,7 +61,7 @@ def _run_worker(worker_dir: Path, verbosity: int) -> None:
 def _harvest(
     project: Project, result_data: dict, worker_dir: Path, site: str | None
 ) -> None:
-    puppy_dir = project.root / 'puppy'
+    puppy_dir = project.puppy_dir
     project_worker_dir = worker_dir / 'projects' / project.pack
 
     _harvest_yaml(project, result_data, puppy_dir, site)

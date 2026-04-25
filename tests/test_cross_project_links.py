@@ -6,8 +6,8 @@ from pathlib import Path
 def test_sibling_project_url_injection(project_env, run_puppy):
     """Verify that sibling projects are scanned and their URLs injected into Jinja."""
     emerald_root = project_env['home'] / 'Emerald'
-    (emerald_root / 'puppy').mkdir(parents=True)
-    (emerald_root / 'puppy' / 'puppy.yaml').write_text(
+    emerald_root.mkdir(parents=True)
+    (emerald_root / 'puppy.yaml').write_text(
         yaml.dump({'pack': 'emerald', 'modrinth': {'slug': 'emerald-pack', 'type': 'resourcepack'}})
     )
 
@@ -15,7 +15,7 @@ def test_sibling_project_url_injection(project_env, run_puppy):
         yaml.dump({'projects': ['NeonGlow', 'Emerald']})
     )
 
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'description.md').write_text(
         'Check out {{ projects.emerald.modrinth.url }}'
     )
 

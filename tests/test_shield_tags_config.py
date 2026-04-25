@@ -5,8 +5,8 @@ from pathlib import Path
 
 def test_custom_md_html_tags_replaces_defaults(project_env, run_puppy):
     """md_html_tags in puppy.yaml should replace the default ['u'] list."""
-    (project_env['source'] / 'puppy.yaml').write_text(yaml.dump({'md_html_tags': ['b']}))
-    (project_env['source'] / 'description.md').write_text(
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'md_html_tags': ['b']}))
+    (project_env['project'] / 'description.md').write_text(
         'Text <u>underline</u> and <b>bold</b> words.'
     )
 

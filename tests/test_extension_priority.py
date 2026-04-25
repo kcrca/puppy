@@ -3,7 +3,7 @@ from pathlib import Path
 
 def test_site_extension_priority_native_wins(project_env, run_puppy):
     """For Modrinth, .md is preferred over .html when both exist — native format wins."""
-    mr_dir = project_env["source"] / "modrinth"
+    mr_dir = project_env["project"] / "modrinth"
     mr_dir.mkdir()
 
     (mr_dir / "description.md").write_text("Markdown Version")
