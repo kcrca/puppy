@@ -181,6 +181,14 @@ Per-site overrides in `curseforge:`, `modrinth:`, `planetminecraft:` blocks take
 
 ### **6.6 Translation & Shielding**
 * **Cross-Linking:** Puppy pre-scans all sibling projects in `puppy_home`, injecting a `projects` dict into the Jinja context. Each entry is keyed by `pack` slug and contains per-site sub-objects (e.g. `{{ projects.other.modrinth.url }}`). URLs are built from `slug` if available, falling back to `id`. The Modrinth URL path segment defaults to `mod`; set `modrinth.type:` (e.g. `resourcepack`, `modpack`) to override.
+* **External Projects (`linked_projects`):** Projects outside the current Puppy Home can be added to the `projects` context via `linked_projects:` in the global `puppy.yaml`. Each entry follows the same per-site structure as a normal project. A top-level `slug:` key serves as the default slug for all sites, overridden by any per-site `slug:`. Example:
+  ```yaml
+  linked_projects:
+    restworld:
+      slug: restworld          # default for all sites
+      planetminecraft:
+        slug: restworld-123    # PMC uses a different slug
+  ```
 * **Site-Neutral Shorthand:** On any object in the Jinja context whose keys are site names (`curseforge`, `modrinth`, `planetminecraft`), omitting the site name resolves to the value for the site currently being rendered, or the empty string if that site has no value. For example, `{{ projects.other.url }}` in a description rendered for Modrinth resolves to `{{ projects.other.modrinth.url }}`. This generalises to any site-keyed attribute — not just `url`.
 * **Shielding:** `md_html_tags` in `puppy.yaml` (default `['u']`) lists HTML tags to be protected from Markdown translation and mapped to target-site equivalents (e.g. `<u>` → `[u]` for PMC).
 
