@@ -127,6 +127,7 @@ def run(
     puppy_home, projects = _determine_roots(directory)
     auth = check_auth(puppy_home, site)
 
+    dry_run_projects: list = []
     for project_root in projects:
         config = ConfigSynthesizer(
             puppy_home, project_root, site=site
@@ -156,7 +157,9 @@ def run(
                 puppy_home,
                 site,
                 pack=pack,
+                print_url=len(projects) == 1,
             )
+            dry_run_projects.append(project)
         else:
             check_preflight()
             _worker_prep(worker_dir, verbosity)
@@ -177,7 +180,58 @@ def run(
             )
 
 
-def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack=False):
+    if len(dry_run_projects) > 1:
+        _write_batch_index(dry_run_projects)
+
+
+def _write_batch_index(projects: list) -> None:
+    base = Path(tempfile.gettempdir()) / 'puppy'
+    tabs = ''.join(
+        f'<button class="tab" onclick="show(\'{p.pack}\')">{p.name}</button>'
+        for p in projects
+    )
+    frames = ''.join(
+        f'<iframe id="{p.pack}" src="{p.pack}/index.html" style="display:none"></iframe>'
+        for p in projects
+    )
+    first = projects[0].pack
+    html = f"""<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Puppy Preview</title>
+<style>
+  body {{ margin: 0; font-family: sans-serif; }}
+  #tabs {{ display: flex; align-items: center; gap: 6px; padding: 10px 12px; background: #111; border-bottom: 3px solid #0af; }}
+  #tabs-label {{ color: #0af; font-size: 13px; font-weight: bold;
+                 letter-spacing: 1px; margin-right: 8px; white-space: nowrap; }}
+  .tab {{ padding: 10px 28px; border: 2px solid #555; border-radius: 6px; cursor: pointer;
+          background: #333; color: #aaa; font-size: 16px; font-weight: bold; }}
+  .tab:hover {{ background: #444; color: #fff; border-color: #888; }}
+  .tab.active {{ background: #0af; color: #000; border-color: #0af; }}
+  iframe {{ display: block; width: 100%; height: calc(100vh - 61px); border: none; }}
+</style>
+</head>
+<body>
+<div id="tabs"><span id="tabs-label">Projects:</span>{tabs}</div>
+{frames}
+<script>
+  function show(id) {{
+    document.querySelectorAll('iframe').forEach(f => f.style.display = 'none');
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(id).style.display = 'block';
+    event.target.classList.add('active');
+  }}
+  show('{first}'); document.querySelector('.tab').classList.add('active');
+</script>
+</body>
+</html>"""
+    index = base / 'index.html'
+    index.write_text(html)
+    print(f'file://{index}')
+
+
+def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack=False, print_url=True):
     debug_dir = Path(tempfile.gettempdir()) / 'puppy' / project.pack
     if debug_dir.exists():
         shutil.rmtree(debug_dir)
@@ -209,8 +263,7 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack
                 source_exts[s.name] = staged_ext
 
         if pack:
-            puppy_dir = project.root / 'puppy'
-            zip_src = _resolve_zip(config, puppy_dir, version, project)
+            zip_src = _resolve_zip(config, project.puppy_dir, version, project)
             shutil.copy(zip_src, debug_dir / zip_src.name)
             zip_name = zip_src.name
 
@@ -219,7 +272,8 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack
         )
 
     preview_path = debug_dir / 'index.html'
-    print(f'file://{preview_path}')
+    if print_url:
+        print(f'file://{preview_path}')
 
 
 def _dispatch(
