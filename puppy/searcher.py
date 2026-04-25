@@ -24,7 +24,7 @@ class ContentDiscovery:
 
         if site:
             for ext in exts:
-                candidate = project_puppy / site.name / f'body{ext}'
+                candidate = project_puppy / site.name / f'description{ext}'
                 if candidate.exists():
                     return candidate.read_text(), candidate
 

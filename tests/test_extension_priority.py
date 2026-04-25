@@ -6,8 +6,8 @@ def test_site_extension_priority_native_wins(project_env, run_puppy):
     mr_dir = project_env["source"] / "modrinth"
     mr_dir.mkdir()
 
-    (mr_dir / "body.md").write_text("Markdown Version")
-    (mr_dir / "body.html").write_text("<h1>HTML Version</h1>")
+    (mr_dir / "description.md").write_text("Markdown Version")
+    (mr_dir / "description.html").write_text("<h1>HTML Version</h1>")
 
     run_puppy("push", "-n", "-s", "modrinth")
 

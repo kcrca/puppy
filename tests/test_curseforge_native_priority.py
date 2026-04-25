@@ -8,8 +8,8 @@ def test_curseforge_prefers_html_over_md(project_env, run_puppy):
     cf_dir = project_env["source"] / "curseforge"
     cf_dir.mkdir()
     
-    (cf_dir / "body.md").write_text("Markdown Content")
-    (cf_dir / "body.html").write_text("<h1>Native HTML Content</h1>")
+    (cf_dir / "description.md").write_text("Markdown Content")
+    (cf_dir / "description.html").write_text("<h1>Native HTML Content</h1>")
     
     run_puppy("push", "-n", "-s", "curseforge")
     

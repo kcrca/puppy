@@ -9,8 +9,8 @@ def test_modrinth_prefers_md_over_html(project_env, run_puppy):
     mr_dir = project_env["source"] / "modrinth"
     mr_dir.mkdir()
     
-    (mr_dir / "body.md").write_text("Native Markdown Content")
-    (mr_dir / "body.html").write_text("<h1>Secondary HTML Content</h1>")
+    (mr_dir / "description.md").write_text("Native Markdown Content")
+    (mr_dir / "description.html").write_text("<h1>Secondary HTML Content</h1>")
     
     # Run for Modrinth
     run_puppy("push", "-n", "-s", "modrinth")

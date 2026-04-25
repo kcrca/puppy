@@ -9,8 +9,8 @@ def test_pmc_prefers_bbcode_over_md(project_env, run_puppy):
     pmc_dir = project_env["source"] / "planetminecraft"
     pmc_dir.mkdir()
     
-    (pmc_dir / "body.md").write_text("Markdown Fallback")
-    (pmc_dir / "body.bbcode").write_text("[b]Native PMC BBCode[/b]")
+    (pmc_dir / "description.md").write_text("Markdown Fallback")
+    (pmc_dir / "description.bbcode").write_text("[b]Native PMC BBCode[/b]")
     
     run_puppy("push", "-n", "-s", "planetminecraft")
     

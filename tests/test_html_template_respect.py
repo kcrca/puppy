@@ -6,7 +6,7 @@ def test_site_specific_body_override(project_env, run_puppy):
     """modrinth/description.md overrides generic description.md for Modrinth."""
     mr_dir = project_env['source'] / 'modrinth'
     mr_dir.mkdir()
-    (mr_dir / 'body.md').write_text(
+    (mr_dir / 'description.md').write_text(
         "Modrinth-specific body with <span id='test'>content</span>."
     )
     (project_env['source'] / 'description.md').write_text(
