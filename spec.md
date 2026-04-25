@@ -1,27 +1,27 @@
 # Puppy Design Specification
 
 If you have a texture or resource pack, keeping it nicely published on the major platforms is a significant job.
-Currently there are three major sites for packs: CurseForge, Modrinth, and Planet Minecraft.
+Currently there are three major sites for packs: [CurseForge](https://www.curseforge.com/), [Modrinth](https://modrinth.com/), and [Planet Minecraft](https://www.planetminecraft.com/).
 Keeping descriptions, images, captions, and the pack itself up to date in three places with three different languages (html, markdown, and bbcode) and structures... not so much fun.
 
-Currently there is one tool that manages this for you, PackUploader.
+Currently there is one tool that manages this for you, [PackUploader](https://github.com/ewanhowell5195/PackUploader).
 PackUploader uses APIs when they exist, and web protocols where they don't.
 It handles a whole bunch of things automatically and nicely, but it has some downsides that are non-trivial to me.
 
-* Your project's publishing information is not stored with your pack, but inside PackUpdater's own source, intermixing its own implementation and your project data.
+* Your project's publishing information is not stored with your pack, but inside PackUploader's own source, intermixing its own implementation and your project data.
 * Because of this, your information is not version controlled along with your pack (I'm assuming your pack is in git or some other VCS system).
-* Each site has its own source langauge, so to avoid duplication, your description has to be in variables or other files and included via templates into the three different langugges.
+* Each site has its own source language, so to avoid duplication, your description has to be in variables or other files and included via templates into the three different languages.
   For example, you can't just put in a link, you have put the url in a JSON file, and express it as a link in the three different languages.
   Only text and a few font styles are portable.
 
 Puppy is designed to address these problems. It also simplifies some other things along the way.
 
-## Terminolgoy
+## Terminology
 
 Currently puppy supports only packs, though projects of other types may be supported later.
 Each pack is a project that is supported across multiple sites.
-Typically this doc uses the term "project" except where talking about a pack in relation to its uplaoding and management, but not strictly.
-Currently the sites supported are CurseForge (also called "cf", Modrinth, and Planet Minecraft (also called "pmc").
+Typically this doc uses the term "project" except where talking about a pack in relation to its uploading and management, but not strictly.
+Currently the sites supported are CurseForge (also called "cf"), Modrinth, and Planet Minecraft (also called "pmc").
 
 For the examples in this document, we will use a pack named "Neon".
 Where examples require multiple packs (puppy allows multiple packs in the same repo), the second example pack will be named "Dark".
@@ -43,11 +43,24 @@ For the `neon` pack that lives in your home directory (`~/neon`), the puppy-rela
 * **Puppy Home:** `~/neon/puppy/`
 * **Auth & Gitignore:** `~/neon/puppy/auth.yaml`, `~/neon/puppy/.gitignore` that includes `auth.yaml`.
 * **Global Config:** `~/neon/puppy/puppy.yaml`
-* **Project Home:** For multi-pack repos, each project has its own home, such as`~/neon/puppy/neon/`, `~/neon/puppy/dark/`.
-  Single pack repos can us a project home subdir, or use Puppy Home as its project home.
+* **Project Home:** `~/neon/puppy/neon/`, `~/neon/puppy/dark/`. Single pack repos can use a project home subdir, or use Puppy Home as its project home.
 * **Images:** `~/neon/puppy/images/` or `~/neon/puppy/images.yaml`
 * **Dry Run Output:** `{tempdir}/puppy/{pack}/` (used for `--dry-run`, wiped fresh each run)
 * **Worker Directory:** `~/PackUploader/` (the PackUploader repo — reset before each run; this can be overridden)
+
+Site-specific data is global if it is in the global home, or project specific if it is in the project home.
+
+## Information priority
+
+Each project and site is handled individually within a run of puppy.
+The information for a run has a priority order where it is found.
+
+1. The project's site home (such as `~/neon/puppy/neon/pmc/puppy.yaml)
+1. The project's home (such as `~/neon/puppy/neon/puppy.yaml)
+1. Puppy's site home (such as `~/neon/puppy/pmc/puppy.yaml)
+1. Puppy's home (such as `~/neon/puppy/puppy.yaml)
+
+So if a single run of puppy talks to three sites about two packs, there will be six sets of information, built independently for each site interaction.
 
 ## Core Identity & Naming
 * **`pack`** (internal slug): Lowercase alphanumeric only, spaces and special characters stripped.
@@ -55,8 +68,8 @@ For the `neon` pack that lives in your home directory (`~/neon`), the puppy-rela
   Example: `'Neon Glow!'` → `neonglow`.
 * **`name`** (display name): Preserves casing and special characters exactly (`'Neon Glow!'` stays `'Neon Glow!'`).
   If the source string is strictly lowercase ASCII, converts to title case (`neon` → `Neon`).
-* **Single override:** If only `name:` is provided, `pack` is derived by slugifying `name` (lowercase, strip non-alphanumerics). I
-  f only `pack:` is provided, `name` is derived by the same casing rules. Both can be set explicitly.
+* **Single override:** If only `name` is provided, `pack` is derived by slugifying `name` (lowercase, strip non-alphanumerics).
+  If only `pack` is provided, `name` is derived by the same casing rules. Both can be set explicitly.
 * **Auto-update:** Whenever a project is loaded for any action, if either `name` or `pack` was absent from `puppy.yaml`, the derived value is written back automatically.
 
 Puppy is a thin management layer for `PackUploader`.
@@ -66,13 +79,12 @@ It then copies out any updates required into the puppy tree.
 ### Running Location
 For simplicity, puppy can be invoked from:
 * **Global Home** (`~/neon/`) — detected by presence of `puppy/auth.yaml`
-* **Puppy Home** (`~/neon/puppy/`) — detected by presence of `auth.yaml`
-* **Project Home** (`~/neon/puppy/neon/`) — detected by presence of `../puppy.yaml`
+* **Puppy Home** (`~/neon/puppy/`) or anywhere underneath it — detected by presence of `auth.yaml`
 
 All relative paths named within yaml files are derived relative to that file's location, not the running location.
 
 ## CLI & Actions
-puppy [options] [action] [pack ...]`
+`puppy [options] [action] [pack ...]`
 
 ### Actions
 Puppy has the following actions:
@@ -81,39 +93,48 @@ Puppy has the following actions:
   Derives `name` and `pack` from the directory name.
   Any file that already exists is left untouched with a warning.
   The files are initially populated with skeleton properties.
-* **`push`** (Default): Updates metadata, summaries, descriptions, mages, and icons.
+* **`push`** (Default): Updates metadata, summaries, descriptions, images, and icons.
   With `-p/--pack`, also uploads the zip artifact.
-  Requires `version:` in `puppy.yaml` or `-V/--version` when using `-p`.
+  Requires `version` in `puppy.yaml` or `-V/--version` when using `-p`.
 * **`import`:** Pulls live site data.
-  Writes to `puppy.yaml`, ``images/``, and ``images/images.py``. If there is a project home within the puppy home
+  Update yaml in puppy home and the project home (if different).
   Does **not** create description templates (those are created by `init`).
-  Requires `id:` in each site's config block; for PMC, also requires `slug:` since there is no API to look it up from the ID.
+  Requires `id` in each site's config block; for PMC, also requires `slug` since there is no API to look it up from the ID.
   Per-site errors do not abort the other sites.
-  **Description body text import varies by platform:**
-  * **Modrinth:** Full description body imported via API.
-  * **CurseForge:** Only the summary is imported — full HTML description not available via API.
-  * **Planet Minecraft:** No description imported. Manually paste content into `puppy/planetminecraft/description.bbcode`.
+  Description body text import varies by platform:
+  * *Modrinth:* Full description body imported via API. This md file is put in the site home.
+  * *CurseForge:* Only the summary is imported — full HTML description not available via API.
+  * *Planet Minecraft:* No description imported. Manually paste content into `puppy/planetminecraft/description.bbcode`.
 * **`create`:** Creates the pack project on each site, then automatically runs `import` to harvest the site-assigned ID, slug, and any defaults back into `puppy.yaml`.
   Prompts for confirmation unless `-f/--force` is given.
   Per-site errors do not abort the other sites.
 * **`clean`:** Resets the PackUploader worker without pushing.
 
 ### Options & Flags
-* **`-n/--dry-run`:** Executes the full pipeline without hitting APIs or running the worker. Writes a per-site preview to `{tempdir}/puppy/{pack}/index.html` — a tabbed HTML page showing rendered descriptions, project metadata, icon, and images for each site. Also prints the `file://` URL to open it directly.
+* **`-n/--dry-run`:** Valid for `push`. Executes the full pipeline without hitting APIs or running the worker. Writes a per-site preview to `{tempdir}/puppy/{pack}/index.html` — a tabbed HTML page showing rendered descriptions, project metadata, icon, and images for each site. Also prints the `file://` URL to open it directly.
 * **`-v` / `-vv`:** High-level progress (`-v`) or raw worker stdout/stderr (`-vv`).
 * **`-d/--dir [path]`:** Sets working directory. Defaults to CWD.
 * **`-s/--site [sitename]`:** Limits action to a specific site (e.g. `modrinth`, `curseforge`, `planetminecraft`).
-* **`-V/--version [string]`:** Version string override. Falls back to `version:` in `puppy.yaml`. Artifact matched via any `.zip` in `puppy/` whose filename ends with `[-_.]version.zip`.
-* **`-p/--pack`:** Include zip artifact upload in `push`. Requires `minecraft:` or `versions:` in `puppy.yaml`. Upload is skipped per-site if the artifact is already current:
+* **`-V/--version [string]`:** Version string override. Falls back to `version` in `puppy.yaml`. Artifact matched via any `.zip` in `puppy/` whose filename ends with `[-_.]version.zip`.
+* **`-p/--pack`:** Valid for `push`. Include zip artifact upload in `push`. Requires `minecraft` or `versions` in `puppy.yaml`. Upload is skipped per-site if the artifact is already current:
   * **Modrinth:** Compares SHA-512 hash of local zip against the hash stored in the latest version's file listing.
   * **CurseForge:** Compares both version string and file size (bytes) against the most recent uploaded file; uploads if either differs.
   * **Planet Minecraft:** Compares version string against last version recorded in `puppy/.publish_state.yaml`.
-* **`-f/--force`:** With `push -p`, bypasses skip logic and uploads unconditionally on all sites. With `create`, skips the confirmation prompt.
+* **`-f/--force`:** Valid for `push` and `create`. With `push -p`, bypasses skip logic and uploads unconditionally on all sites. With `create`, skips the confirmation prompt.
 * **`--worker [path]`:** PackUploader worker directory. Defaults to `~/PackUploader`.
+* **`-I/--images`:** Valid for `import`. Import the image gallery, updating yaml and images files in the project home.
 
 ### Arguments
 * **`pack`** (positional): Limits action to the named pack.
-  Example: `puppy push neon`.
+  Example: `puppy push neon` will push only Neon in the multi-pack project.
+
+## Known Sites
+
+Currently there are three known sites:
+
+CurseForge: Abbreviation: "cf", native language: HTML (`.html`)
+Modrinth: native language: Markdown (`.md`)
+Planet Minecraft: Abbreviation: "pmc", native language: variant of BBCode (`.bbcode`)
 
 ## Cascading Configuration & Discovery
 
@@ -130,61 +151,46 @@ planetminecraft: pmc_autologin=<cookie>
 ```
 
 ### minecraft: shorthand
-`minecraft:` sets the Minecraft game version for artifact uploads across all sites. A string value is treated as an exact version (`minecraft: '26.1'` → `type: exact, version: '26.1'`). A dict value is used as-is (`minecraft: {type: latest}`). Per-site overrides via `versions:` take precedence. Required when using `push --pack` unless `versions:` is fully specified.
+In puppy.yaml, `minecraft` sets the Minecraft game version for artifact uploads across all sites.
+A string value is treated as an exact version (`minecraft: '26.1'` → `type: exact, version: '26.1'`).
+A dict value is used as-is (`minecraft: {type: latest}`).
+Required when using `push --pack` unless `versions` is fully specified.
 
-### Config Merge (Additive Synthesis)
-Layers applied in order (later layers win for scalars; dicts merge additively):
-1. Global Defaults (`{puppy_home}/puppy.yaml`)
-2. Global Site Overrides (`{puppy_home}/[sitename]/puppy.yaml`)
-3. Project Source (`{project_root}/puppy/puppy.yaml`)
-4. Project Site Overrides (`{project_root}/puppy/[sitename]/puppy.yaml`)
+## Template Expansion
 
-**Batch mode:** Projects listed explicitly under `projects:` in the global `puppy.yaml`. Subdirectories are not auto-scanned.
+Puppy resolves files by searching in the information priority order given above.
+Within that, for a given site during template expansion, a file in the site's preferred language takes precedence over a markdown file.
+In a site directory within a separate project directory (such as `~/neon/puppy/neon/pmc`) has both a language-specific variant (`foo.bbcode`) and a markdown variant (`foo.md`), a warning is given because the markdown will never be used.
 
-### The File Cascade
-Puppy resolves files by searching three locations in order, stopping at the first match:
-1. Project Site (`{project_root}/puppy/[sitename]/`)
-2. Project General (`{project_root}/puppy/`)
-3. Global (`{puppy_home}/`)
-
-**Extension Priority:** For a given site, the native format is preferred over `.md`: CurseForge (`.html` → `.md`); Modrinth (`.md` → `.html`); PMC (`.bbcode` → `.md`).
-
-**PMC description format:** When the source is Markdown, Puppy converts it to PMC's BBCode dialect before staging. When the source is already `.bbcode`, it is used as-is. See Appendix B for the full PMC BBCode dialect reference.
-
-### Description Body vs. Template Wrapper
-Each site has two distinct files:
-* **Wrapper Template** (`{project_root}/puppy/[sitename]/description.{ext}`): Scaffolding with `{{ description }}`, `{{ images }}` etc. Staged for the worker as `templates/{site}.{ext}`. Created by `init`.
-* **Description Body**: The actual content substituted for `{{ description }}` in the wrapper. Discovered via the cascade (section 5.2) for `description.{ext}`, starting at level 2 (project general) — the site-specific level is reserved for the wrapper.
-
-### Template Expansion
-Description body files and YAML string values are rendered as Jinja2 templates.
+The description for a site is provided in a `description` file found in this way.
+Description files and YAML string values are rendered as [Jinja2](https://jinja.palletsprojects.com/) templates.
 All config keys from `puppy.yaml` are available as variables: `{{ version }}`, `{{ name }}`, `{{ modrinth.slug }}` etc.
 If `{{ foo }}` isn't a yaml property, then it is searched for as a file in the same way as `description.{ext}` is searched for, and if found, the file's contents are the value.
 This allows large reusable blocks (e.g. `{{ credits }}` → `credits.md`).
-If no such property or file is found, that is a fatal error.
 
 Full Jinja2 syntax is supported (`{% if %}`, `{% for %}`, filters, etc.).
 Unrecognised variables in `{{ }}` expressions raise an error; they are treated as falsy in `{% if %}` tests.
 This process is repeated until no more Jinja2 directives remain.
 
-Expansion uses a re-entrancy counter: incremented when any value expansion begins, decremented when it ends. If it exceeds 100, that is an error; this prevents infinite recursion.
+Expansion uses a re-entrancy counter, incremented when any value expansion begins, decremented when it ends. If it exceeds 100, that is an error; this prevents infinite recursion.
 
+Two path variables are automatically injected into every Jinja context:
+* `{{ top }}` — absolute path to the parent of puppy's home (`~/neon`)
+* `{{ puppy }}` — absolute path to puppy's home (`~/neon/puppy`)
+* `{{ project }}` — absolute path to the current project's home (`~/neon/puppy/NeonGlow`)
 
-**Built-in path variables:** Two path variables are automatically injected into every Jinja context:
-* `{{ puppy }}` — absolute path to `puppy_home` (e.g. `~/neon/puppy`)
-* `{{ top }}` — absolute path to the parent of `puppy_home` (e.g. `~/neon`)
+These can be used in `puppy.yaml` values as well as description templates — for example `icon: {{top}}/neon/pack.png`.
 
-These can be used in `puppy.yaml` values as well as description templates — for example `icon: {{top}}/neon/pack.png`. Because they are resolved at runtime from the actual directory structure, they remain correct regardless of where the repo is checked out.
-
-**Recursive config expansion:** String values in the config that contain `{{ }}` expressions are themselves expanded through Jinja — repeatedly until stable. This means a config key can reference other config keys, `projects.*` variables, or file-inclusion variables, and those references will be fully resolved before they appear in the description.
+**Recursive config expansion:** String values in the config that contain `{{ }}` expressions are themselves expanded through Jinja — repeatedly until stable.
+This means a config key can reference other config keys, projects variables, or file-inclusion variables, and those references will be fully resolved before they appear in the description.
 
 **Standard config fields passed to the worker:**
-* `summary:` — one-line project description shown in search results
-* `optifine: true/false` — whether the pack requires OptiFine (default false)
-* `video: true/false` — whether a video is associated (default false)
-* `github: true/false` — whether a GitHub repo is associated (default false)
+* `summary` — one-line project description shown in search results
+* `optifine: true/false` — whether the pack requires [OptiFine](https://optifine.net/) (default false)
+* `video: <youtube-id>` — a youtube ID for an associated video (default none)
+* `github: <url>` — URL to a repo (default none)
 
-**Special image files** (placed in `{project_root}/puppy/`):
+**Special image files** (placed in `{{project}}`):
 * `thumbnail.png` — hero/banner image; staged and uploaded separately from gallery images
 * `logo.png` — project logo; displayed at fixed aspect ratio (1280×256)
 
@@ -195,28 +201,33 @@ These can be used in `puppy.yaml` values as well as description templates — fo
 ### Path Resolution Rules
 * **Internal Files:** Follow the file cascade (section 5.2).
 * **External Files:** Paths outside `puppy/` are treated as literal — no extension guessing or hierarchy search.
-* **Relative Paths:** All relative paths in any YAML file are resolved relative to the project's `puppy/` directory, regardless of which subdirectory the YAML file lives in. So `../site` in `puppy/images/images.yaml` and `../site` in `puppy/puppy.yaml` both resolve to the same directory.
+* **Relative Paths:** All relative paths in any YAML file are resolved relative to the containing file. (This is where `{{top}}`, `{{puppy}}`, and `{{project}}` come in handy.)
 
 ### Asset Discovery
 For `create` and `push`, the icon and zip artifact are resolved as follows:
-* **Explicit paths** (`icon:` and `zip:` in `puppy.yaml`): resolved relative to the project's `puppy/` directory.
-* **Implicit discovery** (fallback): a single `.png` in `puppy/` (excluding `thumbnail.png` and `logo.png`) is the icon; a single `.zip` in `puppy/` is the artifact. Multiple files of either type is a fatal error.
+* **Explicit paths** `icon` and `zip` in `puppy.yaml`
+* **Implicit discovery** (fallback): a single `.png` in the project's home (excluding `thumbnail.png` and `logo.png`) is the icon; a single `.zip` is the artifact. Multiple files of either type is a fatal error.
 * **Icon validation:** The icon must be a square PNG.
 
 ### Image Metadata
 Image metadata (the list of images with names, descriptions, and file references) lives in one of two locations — both are valid, but not both simultaneously:
-* **`puppy/images.yaml`** — used when images live outside the puppy directory (referenced via `source:`).
-* **`puppy/images/images.yaml`** — used when image files are stored inside `puppy/images/`.
+* **`images.yaml`** — used when images live outside the puppy directory (referenced via `source`).
+* **`images/images.yaml`** — used when image files are stored inside `puppy/images/`.
 
-Both formats support an optional top-level `source:` key pointing to a directory (resolved relative to `puppy/`) where image files are found. If `source:` is absent, images are loaded from `puppy/images/`.
+The image directory is found searching in the standard order.
 
-**Image format handling:** The `file` field may include or omit a file extension. If omitted, Puppy searches for any file with a recognised image extension (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, etc.). Any non-PNG source is converted to PNG using Pillow before staging, since the worker always reads `{file}.png`. If the file cannot be found or converted, Puppy exits with an error.
+Both formats support an optional top-level `source` key pointing to a directory (resolved relative to the containing file) where image files are found. If `source` is absent, images are loaded from `puppy/images/`.
+
+**Image format handling:** The `file` field may include or omit a file extension.
+If omitted, and there is a .png file, it is used.
+Otherwise, puppy searches for any file with a recognised image extension (`.jpg`, `.jpeg`, `.webp`, `.gif`, etc.), and converts it to PNG while staging, since that is always accepted.
+If the file cannot be found or converted, Puppy exits with an error.
 
 ## Operational Logic
 
 ### Security & Auth Protocol
-* Puppy reads `{puppy_home}/auth.yaml` and writes it to `~/PackUploader/auth.json` before each worker run.
-* **Hard Block:** If `auth.yaml` does not exist or is not listed in `{puppy_home}/.gitignore`, Puppy exits immediately.
+* Puppy reads `{{puppy}}/auth.yaml` and writes it to `~/PackUploader/auth.json` before each worker run.
+* **Hard Block:** If `auth.yaml` does not exist or is not listed in `{{puppy}}/.gitignore`, Puppy exits immediately.
 
 ### Pre-Flight & Worker Hygiene
 * **Dependency Check:** Verifies `git`, `node`, and `npm` are in PATH.
@@ -226,29 +237,46 @@ Both formats support an optional top-level `source:` key pointing to a directory
 * **Worker invocation:** `node --no-warnings scripts/{action}.js` run from `~/PackUploader/`.
 
 ### Multi-Project Iteration
-Batch mode iterates projects listed under `projects:` in the global `puppy.yaml` sequentially. If only `pack:` or `name:` is present (flat single-project mode), the parent of the Puppy Home is used as the sole project.
+If there is a `projects` field in {{puppy}}/puppy.yaml, puppy iterates through these sequentially, unless specific projects are given on the command line.
 
 ### State Harvesting
-After `import` (and after the implicit import that follows `create`), platform IDs, slugs, and full metadata are written back to the project's `puppy.yaml`. Images and their metadata are written to `{project_root}/puppy/images/` and `{project_root}/puppy/images/images.yaml` respectively. Leading and trailing underscores are stripped from image filenames on harvest.
+After `import` (and after the implicit import that follows `create`), platform IDs, slugs, and full metadata are written back to the project's `puppy.yaml`.
+If imported, images and their metadata are written to `{{project}}/images/` and `{{project}}/images/images.yaml` respectively.
+Leading and trailing underscores are stripped from image filenames on harvest.
 
 ### Artifact Match
-Version must be the last component before `.zip`, separated by `-`, `_`, or `.` (e.g. `mypack-1.2.zip`, `pack-1.2.zip`). The filename need not start with the project slug. Strict boundary check ensures `1.2` does not match `1.2.4`.
+In the name of the pack file, version must be the last component before `.zip`, separated by `-`, `_`, or `.` (e.g. `mypack-1.2.zip`, `pack-1.2.zip`).
+The filename need not start with the project slug.
+Strict boundary check ensures `1.2` does not match `1.2.4`.
 
 ### Neutral Pack Metadata
-Certain properties are intrinsic to the pack and should not need to be repeated under each site's config block. Puppy translates top-level neutral keys to each site's native representation when staging. A neutral key sets the *entire group* of related per-site fields — for example, `resolution: 16` sets all Modrinth resolution tier tags (only `16x` true, all others false), sets CF `mainCategory: 16x`, sets PMC `resolution: 16`, and adds `16x` and `16x16` to PMC tags. There is no need to specify these in the site blocks unless overriding.
+Certain properties are intrinsic to the pack and should not need to be repeated under each site's config block.
+Puppy translates top-level neutral keys to each site's native representation when staging.
+A neutral key sets the *entire group* of related per-site fields:
+For example, `resolution: 16` sets the Modrinth resolution tier tags `16x` to true, all others false, sets CF `mainCategory: 16x`, sets PMC `resolution: 16`, and adds `16x` and `16x16` to PMC tags.
+There is no need to specify these in the site blocks unless overriding.
+Per-site overrides in `curseforge`, `modrinth`, `planetminecraft` blocks overwrite values set from neutral keys — explicit per-site values are never overwritten.
+Site-specific fields with no neutral equivalent (e.g. CF `additionalCategories`, PMC `modifies`, PMC `tags`) should list all options explicitly so intent is clear.
+
+Examples:
 
 | Neutral key | CurseForge | Modrinth | PMC |
 |---|---|---|---|
-| `license: CC-BY-4.0` (SPDX) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |
+| `license: CC-BY-4.0` ([SPDX](https://spdx.org/licenses/)) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |
 | `resolution: 16` | `mainCategory: 16x` | full tier group (`16x: true`, others false) | `resolution: 16`, tags `16x` and `16x16` |
 | `progress: 100` | ignored | ignored | `progress: 100` |
 | `donation: {patreon: url, kofi: url, …}` | first entry as `{type: platform, value: url}` | full dict passed through | ignored |
 
-Per-site overrides in `curseforge:`, `modrinth:`, `planetminecraft:` blocks take precedence over neutral keys — explicit per-site values are never overwritten. Site-specific fields with no neutral equivalent (e.g. CF `additionalCategories`, PMC `modifies`, PMC `tags`) should list all options explicitly so intent is clear.
 
 ### Translation & Shielding
-* **Cross-Linking:** Puppy pre-scans all sibling projects in `puppy_home`, injecting a `projects` dict into the Jinja context. Each entry is keyed by `pack` slug and contains per-site sub-objects (e.g. `{{ projects.other.modrinth.url }}`). URLs are built from `slug` if available, falling back to `id`. The Modrinth URL path segment defaults to `mod`; set `modrinth.type:` (e.g. `resourcepack`, `modpack`) to override.
-* **External Projects (`linked_projects`):** Projects outside the current Puppy Home can be added to the `projects` context via `linked_projects:` in the global `puppy.yaml`. Each entry follows the same per-site structure as a normal project. A top-level `slug:` key serves as the default slug for all sites, overridden by any per-site `slug:`. Example:
+* **Cross-Linking:** Puppy pre-scans all sibling projects in `puppy_home`, injecting a `projects` dict into the Jinja context.
+  Each entry is keyed by `pack` slug and contains per-site sub-objects (e.g. `{{ projects.other.modrinth.url }}`).
+  URLs are built from `slug` if available, falling back to `id`.
+  The Modrinth URL path segment defaults to `mod`; set `modrinth.type` (e.g. `resourcepack`, `modpack`) to override.
+* **External Projects (`linked_projects`):** Projects outside the current Puppy Home can be added to the `projects` context via `linked_projects` in the global `puppy.yaml`.
+  Each entry follows the same per-site structure as a normal project.
+  A top-level `slug` key serves as the default slug for all sites, overridden by any per-site `slug`.
+  Example:
   ```yaml
   linked_projects:
     restworld:
@@ -256,14 +284,16 @@ Per-site overrides in `curseforge:`, `modrinth:`, `planetminecraft:` blocks take
       planetminecraft:
         slug: restworld-123    # PMC uses a different slug
   ```
-* **Site-Neutral Shorthand:** On any object in the Jinja context whose keys are site names (`curseforge`, `modrinth`, `planetminecraft`), omitting the site name resolves to the value for the site currently being rendered, or the empty string if that site has no value. For example, `{{ projects.other.url }}` in a description rendered for Modrinth resolves to `{{ projects.other.modrinth.url }}`. This generalises to any site-keyed attribute — not just `url`.
+* **Site-Neutral Shorthand:** On any object in the Jinja context whose keys are site names (`curseforge`, `modrinth`, `planetminecraft`), omitting the site name resolves to the value for the site currently being rendered.
+  For example, `{{ projects.other.url }}` in a description rendered for Modrinth resolves to `{{ projects.other.modrinth.url }}`. This generalises to any site-keyed attribute, not just `url`.
 * **Shielding:** `md_html_tags` in `puppy.yaml` (default `['u']`) lists HTML tags to be protected from Markdown translation and mapped to target-site equivalents (e.g. `<u>` → `[u]` for PMC).
 
 ---
 
 ## Appendix A: Pack Family Setup
 
-A "pack family" is a group of related packs managed together under one Puppy Home. They share auth, global config, and can cross-link to each other.
+A "pack family" is a group of related packs managed together under one puppy home in a single repo.
+They share auth, global config, and can cross-link to each other.
 
 ### Directory Layout
 
@@ -276,25 +306,23 @@ A "pack family" is a group of related packs managed together under one Puppy Hom
     ├── modrinth/
     │   └── puppy.yaml              ← shared Modrinth overrides (discord link etc.)
     ├── NeonGlow/                   ← Project Home: main pack
-    │   └── puppy/
-    │       ├── puppy.yaml
-    │       ├── description.md
-    │       ├── icon.png
-    │       ├── thumbnail.png
-    │       ├── neonglow-2.1.zip
-    │       └── images/
-    │           ├── images.yaml
-    │           └── screenshot1.png
+    │   ├── puppy.yaml
+    │   ├── description.md
+    │   ├── icon.png
+    │   ├── thumbnail.png
+    │   ├── neonglow-2.1.zip
+    │   └── images/
+    │       ├── images.yaml
+    │       └── screenshot1.png
     └── DarkNeon/                   ← Project Home: dark variant
-        ├── screenshots/            ← images outside puppy/, referenced via source:
+        ├── screenshots/            ← images outside project home, referenced via source:
         │   └── screenshot1.png
-        └── puppy/
-            ├── puppy.yaml
-            ├── description.md
-            ├── icon.png
-            ├── thumbnail.png
-            ├── darkneon-2.1.zip
-            └── images.yaml         ← flat format; source: ../screenshots
+        ├── puppy.yaml
+        ├── description.md
+        ├── icon.png
+        ├── thumbnail.png
+        ├── darkneon-2.1.zip
+        └── images.yaml             ← flat format; source: ../screenshots
 ```
 
 ### Global `puppy.yaml`
@@ -317,7 +345,7 @@ modrinth:
 Each project sets its own name, IDs, and any values that differ from the family defaults:
 
 ```yaml
-# NeonGlow/puppy/puppy.yaml
+# NeonGlow/puppy.yaml
 name: NeonGlow
 version: '2.1'
 
@@ -334,7 +362,7 @@ planetminecraft:
 ```
 
 ```yaml
-# DarkNeon/puppy/puppy.yaml
+# DarkNeon/puppy.yaml
 name: DarkNeon
 version: '2.1'
 
@@ -352,7 +380,8 @@ planetminecraft:
 
 ### Cross-Linking Between Family Members
 
-Because all projects share the same Puppy Home, their URLs are available as Jinja variables in every description. Use `{{ projects.neonglow.url }}` in a shared `description.md` to link to the current site's URL automatically, or spell out the site explicitly when you need a specific one:
+Because all projects share the same Puppy Home, their URLs are available as Jinja variables in every description.
+Use `{{ projects.neonglow.url }}` in a shared `description.md` to link to the current site's URL automatically, or spell out the site explicitly when you need a specific one:
 
 ```markdown
 # DarkNeon
@@ -380,7 +409,7 @@ A `description.md` at the Puppy Home level acts as a fallback for any project th
 ~/neon/puppy/description.md   ← used by any project with no description.md of its own
 ```
 
-Project-level descriptions take priority (see section 5.2 cascade).
+Project-level descriptions take priority (see the cascade in the Template Expansion section).
 
 ### Running the Family
 
@@ -394,7 +423,8 @@ puppy push -s modrinth  # publish both, Modrinth only
 
 ## Appendix B: Planet Minecraft BBCode Dialect
 
-Planet Minecraft uses a custom BBCode dialect that differs from standard forum BBCode. This appendix documents all supported tags, primarily as a reference for people authoring `.bbcode` description files by hand.
+Planet Minecraft uses a custom BBCode dialect that differs from standard forum BBCode.
+This appendix documents all supported tags, primarily as a reference for people authoring `.bbcode` description files by hand.
 
 ### Headings
 
