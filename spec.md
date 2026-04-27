@@ -135,7 +135,8 @@ Puppy has the following actions:
   With `push -p`, bypasses skip logic and uploads unconditionally on all sites.
   With `create`, skips the confirmation prompt.
 * **`--worker [path]`:** PackUploader worker directory. Defaults to `~/PackUploader`.
-* **`-I/--images`:** Valid for `import`. Import the image gallery, updating yaml and images files in the project home.
+* **`-I/--images`:** Valid for `import`. Forces image gallery download even if image info already exists.
+  Without this flag, images are downloaded automatically only on first import (when no `images.yaml` is present); subsequent imports leave existing image info untouched.
 
 ### Arguments
 * **`pack`** (positional): Limits action to a specific pack, matched by pack slug.

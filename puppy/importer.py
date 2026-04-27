@@ -60,6 +60,14 @@ def _run_worker(worker_dir: Path, verbosity: int) -> None:
     run_worker('scripts/import.js', worker_dir, verbosity)
 
 
+def _has_image_info(puppy_dir: Path, site: str | None) -> bool:
+    dirs = [puppy_dir] + [puppy_dir / s.name for s in SiteVisitor(site)]
+    return any(
+        (d / 'images.yaml').exists() or (d / 'images' / 'images.yaml').exists()
+        for d in dirs
+    )
+
+
 def _harvest(
     project: Project, result_data: dict, worker_dir: Path, site: str | None,
     auth: dict, images: bool,
@@ -67,8 +75,9 @@ def _harvest(
     puppy_dir = project.puppy_dir
     project_worker_dir = worker_dir / 'projects' / project.pack
 
-    _harvest_yaml(project, result_data, puppy_dir, site, images)
-    if images:
+    do_images = images or not _has_image_info(puppy_dir, site)
+    _harvest_yaml(project, result_data, puppy_dir, site, do_images)
+    if do_images:
         _harvest_images(project_worker_dir, puppy_dir)
     _harvest_description(project, result_data, site, auth)
 
