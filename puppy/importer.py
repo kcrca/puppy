@@ -104,11 +104,9 @@ def _harvest_yaml(
             {**img, 'file': img['file'].strip('_')} if 'file' in img else img
             for img in imported['images']
         ]
-        if (puppy_dir / 'images.yaml').exists():
-            images_yaml = puppy_dir / 'images.yaml'
-        else:
-            images_yaml = puppy_dir / 'images' / 'images.yaml'
-            images_yaml.parent.mkdir(parents=True, exist_ok=True)
+        images_yaml = puppy_dir / 'images' / 'images.yaml'
+        images_yaml.parent.mkdir(parents=True, exist_ok=True)
+        (puppy_dir / 'images.yaml').unlink(missing_ok=True)
         with images_yaml.open('w') as f:
             yaml.dump(
                 image_list, f, default_flow_style=False, allow_unicode=True, sort_keys=False

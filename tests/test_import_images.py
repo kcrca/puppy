@@ -7,7 +7,10 @@ from puppy.importer import _has_image_info
 
 _PACK = 'neonglow'
 _PROJECT_JSON = {
-    'config': {'name': 'NeonGlow', 'summary': 'A pack', 'version': '1.0.0'},
+    'config': {
+        'name': 'NeonGlow', 'summary': 'A pack', 'version': '1.0.0',
+        'images': [{'file': 'shot1.png', 'name': 'Shot 1'}, {'file': 'shot2.png', 'name': 'Shot 2'}],
+    },
     'curseforge': {'id': 111, 'slug': _PACK},
     'modrinth': {'id': 'abc123', 'slug': _PACK},
     'planetminecraft': {'id': 999, 'slug': _PACK},
@@ -120,3 +123,16 @@ def test_images_downloaded_when_info_exists_with_flag(import_env, run_puppy):
     run_puppy('import', '--images', '--worker', str(import_env['worker']))
     assert (import_env['project'] / 'images').exists()
     assert any((import_env['project'] / 'images').iterdir())
+
+
+def test_yaml_written_to_images_subdir(import_env, run_puppy):
+    run_puppy('import', '--worker', str(import_env['worker']))
+    assert (import_env['project'] / 'images' / 'images.yaml').exists()
+    assert not (import_env['project'] / 'images.yaml').exists()
+
+
+def test_top_level_images_yaml_removed_when_images_downloaded(import_env, run_puppy):
+    (import_env['project'] / 'images.yaml').write_text('[]')
+    run_puppy('import', '--images', '--worker', str(import_env['worker']))
+    assert (import_env['project'] / 'images' / 'images.yaml').exists()
+    assert not (import_env['project'] / 'images.yaml').exists()

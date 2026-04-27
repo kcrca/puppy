@@ -136,7 +136,8 @@ Puppy has the following actions:
   With `create`, skips the confirmation prompt.
 * **`--worker [path]`:** PackUploader worker directory. Defaults to `~/PackUploader`.
 * **`-I/--images`:** Valid for `import`. Forces image gallery download even if image info already exists.
-  Without this flag, images are downloaded automatically only on first import (when no `images.yaml` is present); subsequent imports leave existing image info untouched.
+  Without this flag, images are downloaded automatically only on first import (when no image info is present); subsequent imports leave existing image info untouched.
+  When images are downloaded, files go to `images/` and metadata to `images/images.yaml`; any top-level `images.yaml` is removed.
 
 ### Arguments
 * **`pack`** (positional): Limits action to a specific pack, matched by pack slug.
