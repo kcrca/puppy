@@ -13,6 +13,12 @@
 
 ## Design Questions
 
+- **PMC title override**: PMC uses `name` as the project title, but users often want something like "Pack Name: Subtitle".
+  Requires a `planetminecraft.title` field in `puppy.yaml` and a one-line patch to PackUploader's `src/planetminecraft.js` line 196: `title: project.config.planetminecraft?.title ?? project.config.name`.
+  Defaults to `name` so no breaking change.
+
+
+
 - **Jinja conditional wrapping**: No clean syntax for wrapping text in tags conditionally. Options: macro+call block, repeated `{% if %}` tags, or a custom Jinja extension. Verbose in current form.
 - **Site abbreviations**: `cf`, `mr`, `pmc` added as aliases — reconsider whether this is a good idea.
 
