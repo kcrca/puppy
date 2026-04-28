@@ -66,7 +66,7 @@ def run_puppy(monkeypatch):
     """Invokes the CLI directly via the entry point."""
 
     def _run(*args):
-        monkeypatch.setattr('sys.argv', ['puppy'] + list(args))
+        monkeypatch.setattr('sys.argv', ['puppy', '--no-open'] + list(args))
         try:
             return puppy.__main__.main()
         except SystemExit as e:

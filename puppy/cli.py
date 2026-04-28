@@ -104,6 +104,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        '--no-open',
+        action='store_false',
+        dest='open_browser',
+        default=True,
+        help='Do not open the dry-run preview in a browser.',
+    )
+
+    parser.add_argument(
         '--worker',
         type=Path,
         dest='worker',
@@ -137,5 +145,6 @@ def main(argv: list[str] = None) -> None:
         pack_filter=args.pack_name,
         force=args.force,
         images=args.images,
+        open_browser=args.open_browser,
         worker=args.worker,
     )

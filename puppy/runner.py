@@ -2,6 +2,7 @@ import json
 import shutil
 import subprocess
 import tempfile
+import webbrowser
 from pathlib import Path
 
 from puppy.checks import check_auth, check_preflight
@@ -112,6 +113,7 @@ def run(
     pack_filter: str | None = None,
     force: bool = False,
     images: bool = False,
+    open_browser: bool = True,
     worker: Path = None,
 ) -> None:
     if action == 'init':
@@ -166,6 +168,7 @@ def run(
                 site,
                 pack=pack,
                 print_url=len(projects) == 1 or pack_filter is not None,
+                open_browser=open_browser,
             )
             dry_run_projects.append(project)
         else:
@@ -243,7 +246,7 @@ def _write_batch_index(projects: list) -> None:
     print(f'file://{index}')
 
 
-def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack=False, print_url=True):
+def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack=False, print_url=True, open_browser=True):
     debug_dir = Path(tempfile.gettempdir()) / 'puppy' / project.pack
     if debug_dir.exists():
         shutil.rmtree(debug_dir)
@@ -286,6 +289,8 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack
     preview_path = debug_dir / 'index.html'
     if print_url:
         print(f'file://{preview_path}')
+    if open_browser and preview_path.exists():
+        webbrowser.open(preview_path.as_uri())
 
 
 def _dispatch(

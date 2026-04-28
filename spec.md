@@ -117,7 +117,8 @@ Puppy has the following actions:
 * **`-n/--dry-run`:** Valid for `push`.
   Executes the full pipeline without hitting APIs or running the worker.
   Writes a per-site preview to `{tempdir}/puppy/{pack}/index.html` — a tabbed HTML page showing rendered descriptions, project metadata, icon, and images for each site.
-  Also prints the `file://` URL to open it directly.
+  Prints the `file://` URL and opens it in the default browser automatically.
+* **`--no-open`:** Suppress the automatic browser open after a dry run.
 * **`-v` / `-vv`:** High-level progress (`-v`) or raw worker stdout/stderr (`-vv`).
 * **`-d/--dir [path]`:** Sets working directory. Defaults to CWD.
 * **`-s/--site [sitename]`:** Limits action to a specific site (e.g. `modrinth`, `curseforge`, `planetminecraft`).
