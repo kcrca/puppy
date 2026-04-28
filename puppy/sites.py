@@ -81,16 +81,18 @@ class CurseForgeSite(Site):
             cf_license = ' '.join(license_.rsplit('-', 1)) if '-' in license_ else license_
             config.setdefault('curseforge', {}).setdefault('license', cf_license)
 
-        donation = config.get('donation')
-        if donation and isinstance(donation, dict):
-            first_platform, first_url = next(iter(donation.items()))
-            config.setdefault('curseforge', {}).setdefault(
-                'donation', {'type': first_platform, 'value': first_url}
-            )
-
         links = config.get('links') or {}
         if isinstance(links, dict) and links.get('home'):
             config.setdefault('curseforge', {}).setdefault('socials', {}).setdefault('website', links['home'])
+
+        if isinstance(links, dict):
+            for key in self._DONATION_LINK_KEYS:
+                if links.get(key):
+                    cf_key = 'github' if key == 'github_sponsors' else key
+                    config.setdefault('curseforge', {}).setdefault(
+                        'donation', {'type': cf_key, 'value': links[key]}
+                    )
+                    break
 
     def preview_rows(self, sc: dict) -> list[tuple[str, str]]:
         rows = []
@@ -127,6 +129,8 @@ class CurseForgeSite(Site):
             latest.get('size') == local_size
             and f'v{version}' in latest.get('displayName', '')
         )
+
+    _DONATION_LINK_KEYS = ['patreon', 'kofi', 'paypal', 'buyMeACoffee', 'github_sponsors', 'other']
 
     _SOCIAL_KEYS = [
         'bluesky', 'discord', 'facebook', 'github', 'instagram', 'mastodon',
@@ -177,9 +181,15 @@ class ModrinthSite(Site):
         if license_:
             config.setdefault('modrinth', {}).setdefault('license', license_)
 
-        donation = config.get('donation')
-        if donation and isinstance(donation, dict):
-            config.setdefault('modrinth', {}).setdefault('donation', dict(donation))
+        links = config.get('links') or {}
+        if isinstance(links, dict):
+            donation = {
+                mr_key: links[link_key]
+                for link_key, mr_key in self._LINKS_TO_MR_DONATION.items()
+                if links.get(link_key)
+            }
+            if donation:
+                config.setdefault('modrinth', {}).setdefault('donation', donation)
 
     def preview_rows(self, sc: dict) -> list[tuple[str, str]]:
         rows = []
@@ -231,6 +241,15 @@ class ModrinthSite(Site):
         except Exception as e:
             raise SystemExit(f"Could not resolve Modrinth ID for slug '{slug}': {e}")
         return config
+
+    _LINKS_TO_MR_DONATION = {
+        'patreon': 'patreon',
+        'kofi': 'kofi',
+        'paypal': 'paypal',
+        'buyMeACoffee': 'buyMeACoffee',
+        'github_sponsors': 'github',
+        'other': 'other',
+    }
 
     _DONATION_KEYS = ['buyMeACoffee', 'github', 'kofi', 'other', 'patreon', 'paypal']
 

@@ -223,6 +223,9 @@ This means a config key can reference other config keys, projects variables, or 
   * `home: <url>` — project home page; maps to CF social `website` and PMC `website.link`
   * `source: <url>` — source repository; maps to `github` internally, which PU uses for CF source link and Modrinth `source_url`/`issues_url`
   * `issues: <url>` — issue tracker; stored but not yet applied (requires PU to expose a separate `issues_url` setting)
+  * `patreon: <url>`, `kofi: <url>`, `paypal: <url>`, `buyMeACoffee: <url>`, `github_sponsors: <url>`, `other: <url>` — donation links;
+    CF receives the first one as `{type, value}`;
+    Modrinth receives all as `donation.*` (with `github_sponsors` mapped to `github`)
 
 **Special image files** (placed in `{{project}}`):
 * `thumbnail.png` — hero/banner image; staged and uploaded separately from gallery images
@@ -300,7 +303,7 @@ Examples:
 | `license: CC-BY-4.0` ([SPDX](https://spdx.org/licenses/)) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |
 | `resolution: 16` | `mainCategory: 16x` | full tier group (`16x: true`, others false) | `resolution: 16`, tags `16x` and `16x16` |
 | `progress: 100` | ignored | ignored | `progress: 100` |
-| `donation: {patreon: url, kofi: url, …}` | first entry as `{type: platform, value: url}` | full dict passed through | ignored |
+| `links.patreon/kofi/… (donation keys)` | first key as `{type: platform, value: url}` | all donation keys passed as `donation.*` (`github_sponsors` → `github`) | ignored |
 
 
 ### Translation & Shielding

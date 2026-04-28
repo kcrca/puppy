@@ -108,6 +108,34 @@ def test_license_per_site_override():
     assert config['modrinth']['license'] == 'CC-BY-4.0'
 
 
+def test_donation_patreon_cf():
+    config = _apply_neutral_metadata({'links': {'patreon': 'https://patreon.com/me'}})
+    assert config['curseforge']['donation'] == {'type': 'patreon', 'value': 'https://patreon.com/me'}
+
+
+def test_donation_patreon_modrinth():
+    config = _apply_neutral_metadata({'links': {'patreon': 'https://patreon.com/me'}})
+    assert config['modrinth']['donation'] == {'patreon': 'https://patreon.com/me'}
+
+
+def test_donation_github_sponsors_maps_to_mr_github():
+    config = _apply_neutral_metadata({'links': {'github_sponsors': 'https://github.com/sponsors/me'}})
+    assert config['modrinth']['donation'] == {'github': 'https://github.com/sponsors/me'}
+
+
+def test_donation_cf_takes_first_key():
+    config = _apply_neutral_metadata({'links': {'kofi': 'https://ko-fi.com/me', 'patreon': 'https://patreon.com/me'}})
+    assert config['curseforge']['donation']['type'] == 'patreon'
+
+
+def test_donation_per_site_override_wins():
+    config = _apply_neutral_metadata({
+        'links': {'patreon': 'https://patreon.com/me'},
+        'curseforge': {'donation': {'type': 'kofi', 'value': 'https://ko-fi.com/me'}},
+    })
+    assert config['curseforge']['donation']['type'] == 'kofi'
+
+
 def test_links_source_sets_github():
     config = _apply_neutral_metadata({'links': {'source': 'https://github.com/me/pack'}})
     assert config['github'] == 'https://github.com/me/pack'
