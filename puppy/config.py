@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from jinja2 import Environment
 
 from puppy.core import project_source
 from puppy.sites import SITES
@@ -74,7 +75,9 @@ class ConfigSynthesizer:
             images_yaml = self.puppy_home / 'images.yaml'
         if images_yaml:
             images_base = images_yaml.parent
-            raw = yaml.safe_load(images_yaml.read_text()) or []
+            render_ctx = dict(config, top=str(self.puppy_home.parent), puppy=str(self.puppy_home), project=str(project_puppy))
+            rendered = Environment().from_string(images_yaml.read_text()).render(render_ctx)
+            raw = yaml.safe_load(rendered) or []
             if isinstance(raw, list):
                 images, images_source = raw, None
             else:
