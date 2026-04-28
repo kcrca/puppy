@@ -87,7 +87,7 @@ For simplicity, puppy can be invoked from:
 All relative paths named within yaml files are derived relative to that file's location, not the running location.
 
 ## CLI & Actions
-`puppy [options] [action] [pack ...]`
+`puppy [options] [action] [project ...]`
 
 ### Actions
 Puppy has the following actions:
@@ -142,8 +142,8 @@ Puppy has the following actions:
   CurseForge and Modrinth provide the icon; PMC does not.
 
 ### Arguments
-* **`pack`** (positional): Limits action to a specific pack, matched by pack slug.
-  Example: `puppy push neonglow` will push only NeonGlow in a multi-pack project.
+* **`project`** (positional): Limits action to specific projects, matched by pack slug.
+  Example: `puppy push neonglow` will push only NeonGlow in a multi-project repo.
 
 ## Known Sites
 

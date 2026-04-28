@@ -165,7 +165,7 @@ def run(
                 puppy_home,
                 site,
                 pack=pack,
-                print_url=len(projects) == 1,
+                print_url=len(projects) == 1 or pack_filter is not None,
             )
             dry_run_projects.append(project)
         else:

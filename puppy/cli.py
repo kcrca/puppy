@@ -22,8 +22,8 @@ def build_parser() -> argparse.ArgumentParser:
         'pack_name',
         nargs='?',
         default=None,
-        metavar='PACK',
-        help='Limit action to a specific pack (by pack slug).',
+        metavar='PROJECT',
+        help='Limit action to a specific project (by pack slug).',
     )
 
     parser.add_argument(
