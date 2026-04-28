@@ -1,4 +1,5 @@
 import argparse
+import sys
 from pathlib import Path
 
 from puppy.runner import run
@@ -126,7 +127,7 @@ def main(argv: list[str] = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if args.action == 'create' and not args.force:
+    if args.action == 'create' and not args.force and sys.stdin.isatty():
         answer = input('Create new projects on sites? This cannot be undone. [y/N] ')
         if not answer.strip().lower().startswith('y'):
             raise SystemExit('Aborted.')
