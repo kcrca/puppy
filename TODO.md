@@ -17,6 +17,10 @@
 
 ## Design Questions
 
+- **`links.issues` not applied**: The neutral `links.issues` field is accepted but not wired to any site.
+  Modrinth derives `issues_url` from `source` automatically (`github + "/issues"`).
+  To support an independent issues URL, ask Ewan to read `project.config.links?.issues` in PU's modrinth.js.
+
 - **PMC description import**: PMC blocks non-browser HTTP, so the description can't be fetched with `urllib`.
   Ask Ewan to include the BBCode description string in PU's import JSON output — it already has the data (via `getDescription()`), it just doesn't write it out.
   Once available, puppy would save it to `planetminecraft/description.bbcode`.

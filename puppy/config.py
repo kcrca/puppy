@@ -98,6 +98,9 @@ class ConfigSynthesizer:
 def _apply_neutral_metadata(config: dict) -> dict:
     """Expand top-level neutral keys into per-site fields; per-site values win."""
     config = dict(config)
+    links = config.get('links') or {}
+    if isinstance(links, dict) and links.get('source'):
+        config.setdefault('github', links['source'])
     for site in SITES:
         site.apply_neutral(config)
     return config

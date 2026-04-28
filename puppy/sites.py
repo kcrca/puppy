@@ -88,6 +88,10 @@ class CurseForgeSite(Site):
                 'donation', {'type': first_platform, 'value': first_url}
             )
 
+        links = config.get('links') or {}
+        if isinstance(links, dict) and links.get('home'):
+            config.setdefault('curseforge', {}).setdefault('socials', {}).setdefault('website', links['home'])
+
     def preview_rows(self, sc: dict) -> list[tuple[str, str]]:
         rows = []
         if sc.get('mainCategory'):
@@ -277,6 +281,10 @@ class PlanetMinecraftSite(Site):
         progress = config.get('progress')
         if progress is not None:
             config.setdefault('planetminecraft', {}).setdefault('progress', int(progress))
+
+        links = config.get('links') or {}
+        if isinstance(links, dict) and links.get('home'):
+            config.setdefault('planetminecraft', {}).setdefault('website', {}).setdefault('link', links['home'])
 
     def preview_rows(self, sc: dict) -> list[tuple[str, str]]:
         rows = []

@@ -108,6 +108,45 @@ def test_license_per_site_override():
     assert config['modrinth']['license'] == 'CC-BY-4.0'
 
 
+def test_links_source_sets_github():
+    config = _apply_neutral_metadata({'links': {'source': 'https://github.com/me/pack'}})
+    assert config['github'] == 'https://github.com/me/pack'
+
+
+def test_links_home_sets_cf_social_website():
+    config = _apply_neutral_metadata({'links': {'home': 'https://mypack.com'}})
+    assert config['curseforge']['socials']['website'] == 'https://mypack.com'
+
+
+def test_links_home_sets_pmc_website_link():
+    config = _apply_neutral_metadata({'links': {'home': 'https://mypack.com'}})
+    assert config['planetminecraft']['website']['link'] == 'https://mypack.com'
+
+
+def test_links_explicit_github_wins_over_source():
+    config = _apply_neutral_metadata({
+        'github': 'https://github.com/me/other',
+        'links': {'source': 'https://github.com/me/pack'},
+    })
+    assert config['github'] == 'https://github.com/me/other'
+
+
+def test_links_explicit_pmc_website_wins_over_home():
+    config = _apply_neutral_metadata({
+        'links': {'home': 'https://mypack.com'},
+        'planetminecraft': {'website': {'link': 'https://explicit.com'}},
+    })
+    assert config['planetminecraft']['website']['link'] == 'https://explicit.com'
+
+
+def test_links_explicit_cf_social_wins_over_home():
+    config = _apply_neutral_metadata({
+        'links': {'home': 'https://mypack.com'},
+        'curseforge': {'socials': {'website': 'https://explicit.com'}},
+    })
+    assert config['curseforge']['socials']['website'] == 'https://explicit.com'
+
+
 def test_resolution_expands_to_all_sites(project_env, run_puppy):
     (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'resolution': 16}))
     run_puppy('push', '-n')

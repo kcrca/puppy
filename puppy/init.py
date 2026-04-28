@@ -34,7 +34,11 @@ def _puppy_yaml(name: str, pack: str) -> str:
         'progress:\n'
         'license:\n'
         'donation:\n'
-        '  patreon:  # URL\n\n'
+        '  patreon:  # URL\n'
+        'links:\n'
+        '  home:    # project home page URL\n'
+        '  source:  # source repository URL\n'
+        '  issues:  # issue tracker URL\n\n'
         '# Platform IDs and slugs. Required for import, create, and publish.\n'
         '# Set id to null if the project does not yet exist on that platform.\n'
         + site_entries

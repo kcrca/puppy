@@ -217,7 +217,10 @@ This means a config key can reference other config keys, projects variables, or 
 * `summary` — one-line project description shown in search results
 * `optifine: true/false` — whether the pack requires [OptiFine](https://optifine.net/) (default false)
 * `video: <youtube-id>` — a youtube ID for an associated video (default none)
-* `github: <url>` — URL to a repo (default none)
+* `links:` — external URLs for the project (all optional):
+  * `home: <url>` — project home page; maps to CF social `website` and PMC `website.link`
+  * `source: <url>` — source repository; maps to `github` internally, which PU uses for CF source link and Modrinth `source_url`/`issues_url`
+  * `issues: <url>` — issue tracker; stored but not yet applied (requires PU to expose a separate `issues_url` setting)
 
 **Special image files** (placed in `{{project}}`):
 * `thumbnail.png` — hero/banner image; staged and uploaded separately from gallery images
