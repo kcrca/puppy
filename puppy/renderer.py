@@ -16,7 +16,12 @@ class _ErrorUndefined(Undefined):
         raise UndefinedError(f"unknown variable '{self._undefined_name}'")
 
 
+def _read_file(path: str) -> str:
+    return Path(path).read_text()
+
+
 _env = Environment(undefined=_ErrorUndefined)
+_env.globals['read'] = _read_file
 
 DEFAULT_SHIELD_TAGS = ['u']
 

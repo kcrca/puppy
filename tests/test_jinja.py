@@ -65,6 +65,34 @@ def test_unknown_variable_in_if_is_falsy():
     assert result == 'no'
 
 
+def test_read_function_inlines_file(tmp_path):
+    target = tmp_path / 'credits.md'
+    target.write_text('Thanks everyone!')
+    result = render(f'{{{{ read("{target}") }}}}', {})
+    assert result == 'Thanks everyone!'
+
+
+def test_read_function_with_path_variable(tmp_path):
+    target = tmp_path / 'notes.md'
+    target.write_text('Some notes.')
+    result = render('{{ read(top + "/notes.md") }}', {'top': str(tmp_path)})
+    assert result == 'Some notes.'
+
+
+def test_read_function_missing_file_raises(tmp_path):
+    with pytest.raises(Exception):
+        render(f'{{{{ read("{tmp_path}/nonexistent.md") }}}}', {})
+
+
+def test_read_function_with_project_variable(project_env, run_puppy, tmp_path):
+    notes = Path(project_env['project']) / 'notes.md'
+    notes.write_text('Project notes here.')
+    (project_env['project'] / 'description.md').write_text('{{ read(project + "/notes.md") }}')
+    run_puppy('push', '-n', '-s', 'modrinth')
+    out = Path(tempfile.gettempdir()) / 'puppy' / 'neonglow' / 'modrinth' / 'description.md'
+    assert 'Project notes here.' in out.read_text()
+
+
 def test_config_string_deep_chain_expansion():
     # chain: v0 -> v1 -> v2 -> ... -> v19 -> 'final'
     n = 20

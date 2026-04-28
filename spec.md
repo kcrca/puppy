@@ -206,6 +206,10 @@ Two path variables are automatically injected into every Jinja context:
 
 These can be used in `puppy.yaml` values as well as description templates — for example `icon: {{top}}/neon/pack.png`.
 
+A `read()` function is also available in all Jinja contexts to inline the contents of any file by path:
+`{{ read(top + "/shared/credits.md") }}`
+All yaml values and path variables are available as arguments.
+
 **Recursive config expansion:** String values in the config that contain `{{ }}` expressions are themselves expanded through Jinja — repeatedly until stable.
 This means a config key can reference other config keys, projects variables, or file-inclusion variables, and those references will be fully resolved before they appear in the description.
 
