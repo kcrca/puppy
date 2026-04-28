@@ -110,7 +110,7 @@ def run(
     site: str | None,
     version: str | None,
     pack: bool = False,
-    pack_filter: str | None = None,
+    pack_filter: list[str] | None = None,
     force: bool = False,
     images: bool = False,
     open_browser: bool = True,
@@ -140,7 +140,7 @@ def run(
         ).get_running_config()
         project = Project.from_config(project_root, config)
 
-        if pack_filter and project.pack != pack_filter:
+        if pack_filter and project.pack not in pack_filter:
             continue
         ran_any = True
 
@@ -193,7 +193,7 @@ def run(
 
 
     if pack_filter and not ran_any:
-        raise SystemExit(f'No project with pack slug {pack_filter!r} found in {puppy_home}')
+        raise SystemExit(f'No projects matching {pack_filter!r} found in {puppy_home}')
 
     if len(dry_run_projects) > 1:
         _write_batch_index(dry_run_projects)

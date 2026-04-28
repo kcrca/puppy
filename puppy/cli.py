@@ -7,7 +7,7 @@ from puppy.runner import run
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='puppy',
-        description='Thin management layer for PackUpdate (pu).',
+        description='Manage one or more Minecraft projects on multiple sites',
     )
 
     parser.add_argument(
@@ -20,10 +20,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         'pack_name',
-        nargs='?',
-        default=None,
-        metavar='PROJECT',
-        help='Limit action to a specific project (by pack slug).',
+        nargs='*',
+        metavar='project',
+        help='Limit action to one or more projects (by pack slug).',
     )
 
     parser.add_argument(
@@ -67,7 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
         dest='site',
         default=None,
         metavar='SITENAME',
-        help='Limit action to a specific site.',
+        help='Limit action to one or more sites (comma-separated, e.g. cf,mr).',
     )
 
     parser.add_argument(
@@ -142,7 +141,7 @@ def main(argv: list[str] = None) -> None:
         site=args.site,
         version=args.version,
         pack=args.pack,
-        pack_filter=args.pack_name,
+        pack_filter=args.pack_name or None,
         force=args.force,
         images=args.images,
         open_browser=args.open_browser,

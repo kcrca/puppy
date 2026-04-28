@@ -121,7 +121,9 @@ Puppy has the following actions:
 * **`--no-open`:** Suppress the automatic browser open after a dry run.
 * **`-v` / `-vv`:** High-level progress (`-v`) or raw worker stdout/stderr (`-vv`).
 * **`-d/--dir [path]`:** Sets working directory. Defaults to CWD.
-* **`-s/--site [sitename]`:** Limits action to a specific site (e.g. `modrinth`, `curseforge`, `planetminecraft`).
+* **`-s/--site [sitename]`:** Limits action to one or more sites.
+  Accepts a single name or a comma-separated list (e.g. `modrinth`, `cf,mr`).
+  Site abbreviations are accepted (`cf`, `mr`, `pmc`).
 * **`-V/--version [string]`:** Version string override.
   Falls back to `version` in `puppy.yaml`.
   Artifact matched via any `.zip` in `puppy/` whose filename ends with `[-_.]version.zip`.
@@ -143,8 +145,8 @@ Puppy has the following actions:
   CurseForge and Modrinth provide the icon; PMC does not.
 
 ### Arguments
-* **`project`** (positional): Limits action to specific projects, matched by pack slug.
-  Example: `puppy push neonglow` will push only NeonGlow in a multi-project repo.
+* **`project ...`** (positional): Limits action to one or more projects, matched by pack slug.
+  Example: `puppy push neon dark` will push only those two projects in a multi-project repo.
 
 ## Known Sites
 
