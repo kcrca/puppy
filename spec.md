@@ -106,7 +106,7 @@ Puppy has the following actions:
   Per-site errors do not abort the other sites.
   Description body text import varies by platform:
   * *Modrinth:* Full description body imported via API. This md file is put in the site home.
-  * *CurseForge:* Only the summary is imported — full HTML description not available via API.
+  * *CurseForge:* Full HTML description imported via `api.curseforge.com/v1/mods/{id}/description` using the API token. Saved to `curseforge/description.html`.
   * *Planet Minecraft:* No description imported. Manually paste content into `puppy/planetminecraft/description.bbcode`.
 * **`create`:** Creates the pack project on each site, then automatically runs `import` to harvest the site-assigned ID, slug, and any defaults back into `puppy.yaml`.
   Prompts for confirmation unless `-f/--force` is given.

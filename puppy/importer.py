@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 
 from puppy.core import Project
-from puppy.sites import MODRINTH, SITES, SiteVisitor
+from puppy.sites import CURSEFORGE, MODRINTH, SITES, SiteVisitor
 from puppy.worker import read_output, run_worker
 
 
@@ -134,8 +134,16 @@ def _harvest_description(
     project: Project, result_data: dict, site: str | None, auth: dict
 ) -> None:
     visitor = SiteVisitor(site)
-    if not any(s is MODRINTH for s in visitor):
-        return
+    for s in visitor:
+        if s is MODRINTH:
+            _harvest_modrinth_description(project, result_data, auth)
+        elif s is CURSEFORGE:
+            _harvest_cf_description(project, result_data, auth)
+
+
+def _harvest_modrinth_description(
+    project: Project, result_data: dict, auth: dict
+) -> None:
     modrinth_id = result_data.get('modrinth', {}).get('id')
     token = auth.get('modrinth')
     if not modrinth_id or not token:
@@ -149,6 +157,24 @@ def _harvest_description(
     site_dir = project.puppy_dir / 'modrinth'
     site_dir.mkdir(parents=True, exist_ok=True)
     (site_dir / 'description.md').write_text(data['body'])
+
+
+def _harvest_cf_description(
+    project: Project, result_data: dict, auth: dict
+) -> None:
+    cf_id = result_data.get('curseforge', {}).get('id')
+    token = auth.get('curseforge', {}).get('token')
+    if not cf_id or not token:
+        return
+    req = urllib.request.Request(
+        f'https://api.curseforge.com/v1/mods/{cf_id}/description',
+        headers={'x-api-key': token},
+    )
+    with urllib.request.urlopen(req) as resp:
+        data = json.loads(resp.read())
+    site_dir = project.puppy_dir / 'curseforge'
+    site_dir.mkdir(parents=True, exist_ok=True)
+    (site_dir / 'description.html').write_text(data['data'])
 
 
 def _harvest_icon(project_worker_dir: Path, puppy_dir: Path) -> None:

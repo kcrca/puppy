@@ -27,7 +27,7 @@ def _no_preflight(monkeypatch):
 class _FakeResponse:
     def __init__(self):
         import json as _json
-        self._data = _json.dumps({'body': ''}).encode()
+        self._data = _json.dumps({'body': '', 'data': ''}).encode()
 
     def read(self):
         return self._data

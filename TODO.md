@@ -17,6 +17,10 @@
 
 ## Design Questions
 
+- **PMC description import**: PMC blocks non-browser HTTP, so the description can't be fetched with `urllib`.
+  Ask Ewan to include the BBCode description string in PU's import JSON output — it already has the data (via `getDescription()`), it just doesn't write it out.
+  Once available, puppy would save it to `planetminecraft/description.bbcode`.
+
 - **PMC title override**: PMC uses `name` as the project title, but users often want something like "Pack Name: Subtitle".
   Requires a `planetminecraft.title` field in `puppy.yaml` and a one-line patch to PackUploader's `src/planetminecraft.js` line 196: `title: project.config.planetminecraft?.title ?? project.config.name`.
   Defaults to `name` so no breaking change.

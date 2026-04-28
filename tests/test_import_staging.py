@@ -24,7 +24,7 @@ _FAKE_BODY = '# NeonGlow\nFake imported description.'
 
 class _FakeResponse:
     def __init__(self):
-        self._data = json.dumps({'body': _FAKE_BODY}).encode()
+        self._data = json.dumps({'body': _FAKE_BODY, 'data': _FAKE_BODY}).encode()
 
     def read(self):
         return self._data
@@ -115,6 +115,20 @@ def test_harvest_yaml_site_filter(project_env, worker_env, run_puppy, monkeypatc
     assert written.get('modrinth', {}).get('id') == 'abc123'
     assert 'curseforge' not in written
     assert 'planetminecraft' not in written
+
+
+def test_harvest_modrinth_description(import_env, run_puppy):
+    run_puppy('import', '--worker', str(import_env['worker']))
+    desc = import_env['project'] / 'modrinth' / 'description.md'
+    assert desc.exists()
+    assert _FAKE_BODY in desc.read_text()
+
+
+def test_harvest_cf_description(import_env, run_puppy):
+    run_puppy('import', '--worker', str(import_env['worker']))
+    desc = import_env['project'] / 'curseforge' / 'description.html'
+    assert desc.exists()
+    assert _FAKE_BODY in desc.read_text()
 
 
 def test_import_calls_worker(import_env, run_puppy, monkeypatch):
