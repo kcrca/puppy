@@ -135,9 +135,11 @@ Puppy has the following actions:
   With `push -p`, bypasses skip logic and uploads unconditionally on all sites.
   With `create`, skips the confirmation prompt.
 * **`--worker [path]`:** PackUploader worker directory. Defaults to `~/PackUploader`.
-* **`-I/--images`:** Valid for `import`. Forces image gallery download even if image info already exists.
-  Without this flag, images are downloaded automatically only on first import (when no image info is present); subsequent imports leave existing image info untouched.
+* **`-I/--images`:** Valid for `import`. Downloads the image gallery and icon (`pack.png`) from the site.
+  Without this flag, images and icon are downloaded automatically only on first import (when no image info is present); subsequent imports leave existing image info untouched.
   When images are downloaded, files go to `images/` and metadata to `images/images.yaml`; any top-level `images.yaml` is removed.
+  Icon is copied as `pack.png` only if no icon PNG is already present.
+  CurseForge and Modrinth provide the icon; PMC does not.
 
 ### Arguments
 * **`pack`** (positional): Limits action to a specific pack, matched by pack slug.

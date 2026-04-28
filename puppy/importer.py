@@ -79,6 +79,7 @@ def _harvest(
     _harvest_yaml(project, result_data, puppy_dir, site, do_images)
     if do_images:
         _harvest_images(project_worker_dir, puppy_dir)
+        _harvest_icon(project_worker_dir, puppy_dir)
     _harvest_description(project, result_data, site, auth)
 
 
@@ -148,6 +149,16 @@ def _harvest_description(
     site_dir = project.puppy_dir / 'modrinth'
     site_dir.mkdir(parents=True, exist_ok=True)
     (site_dir / 'description.md').write_text(data['body'])
+
+
+def _harvest_icon(project_worker_dir: Path, puppy_dir: Path) -> None:
+    src = project_worker_dir / 'pack.png'
+    if not src.exists():
+        return
+    existing = [p for p in puppy_dir.iterdir() if p.suffix == '.png' and p.name not in ('thumbnail.png', 'logo.png')]
+    if existing:
+        return
+    shutil.copy(src, puppy_dir / 'pack.png')
 
 
 def _harvest_images(project_worker_dir: Path, puppy_dir: Path) -> None:

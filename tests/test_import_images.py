@@ -39,6 +39,13 @@ class _FakeResponse:
         pass
 
 
+def _write_project_json_with_icon(worker_dir):
+    pd = worker_dir / 'projects' / _PACK
+    pd.mkdir(parents=True, exist_ok=True)
+    (pd / 'pack.png').write_bytes(b'fakepng')
+    (pd / 'project.json').write_text(json.dumps(_PROJECT_JSON))
+
+
 def _write_project_json_with_images(worker_dir, image_names):
     pd = worker_dir / 'projects' / _PACK
     pd.mkdir(parents=True, exist_ok=True)
@@ -136,3 +143,43 @@ def test_top_level_images_yaml_removed_when_images_downloaded(import_env, run_pu
     run_puppy('import', '--images', '--worker', str(import_env['worker']))
     assert (import_env['project'] / 'images' / 'images.yaml').exists()
     assert not (import_env['project'] / 'images.yaml').exists()
+
+
+@pytest.fixture
+def icon_import_env(project_env, worker_env, monkeypatch):
+    (project_env['project'] / 'puppy.yaml').write_text(
+        yaml.dump({
+            'name': 'NeonGlow', 'pack': _PACK,
+            'curseforge': {'id': 111, 'slug': _PACK},
+            'modrinth': {'id': 'abc123', 'slug': _PACK},
+            'planetminecraft': {'id': 999, 'slug': _PACK},
+        })
+    )
+    def fake_run(cmd, **kwargs):
+        _write_project_json_with_icon(worker_env)
+        return subprocess.CompletedProcess(cmd, 0)
+    monkeypatch.setattr('puppy.worker.subprocess.run', fake_run)
+    return {**project_env, 'worker': worker_env}
+
+
+def test_icon_harvested_when_no_icon_exists(icon_import_env, run_puppy):
+    run_puppy('import', '--worker', str(icon_import_env['worker']))
+    assert (icon_import_env['project'] / 'pack.png').exists()
+
+
+def test_icon_not_harvested_when_icon_exists(icon_import_env, run_puppy):
+    (icon_import_env['project'] / 'myicon.png').write_bytes(b'existing')
+    run_puppy('import', '--worker', str(icon_import_env['worker']))
+    assert not (icon_import_env['project'] / 'pack.png').exists()
+
+
+def test_icon_not_harvested_without_images_flag_when_info_exists(icon_import_env, run_puppy):
+    (icon_import_env['project'] / 'images.yaml').write_text('[]')
+    run_puppy('import', '--worker', str(icon_import_env['worker']))
+    assert not (icon_import_env['project'] / 'pack.png').exists()
+
+
+def test_icon_harvested_with_images_flag(icon_import_env, run_puppy):
+    (icon_import_env['project'] / 'images.yaml').write_text('[]')
+    run_puppy('import', '--images', '--worker', str(icon_import_env['worker']))
+    assert (icon_import_env['project'] / 'pack.png').exists()
