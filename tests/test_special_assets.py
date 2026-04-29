@@ -3,9 +3,9 @@ import tempfile
 from pathlib import Path
 
 
-def test_thumbnail_and_logo_staging(project_env, run_puppy):
-    """thumbnail.png and logo.png should be staged separately from general icons."""
-    (project_env['project'] / 'thumbnail.png').write_text('fake_thumb')
+def test_banner_and_logo_staging(project_env, run_puppy):
+    """banner.png and logo.png should be staged separately from general icons."""
+    (project_env['project'] / 'banner.png').write_text('fake_banner')
     (project_env['project'] / 'logo.png').write_text('fake_logo')
     # Also include a normal icon
     img = Image.new('RGB', (64, 64))

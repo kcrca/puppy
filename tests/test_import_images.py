@@ -18,8 +18,7 @@ _PROJECT_JSON = {
 
 
 @pytest.fixture(autouse=True)
-def _no_preflight(monkeypatch):
-    monkeypatch.setattr('puppy.runner.check_preflight', lambda: None)
+def _fake_urlopen(monkeypatch):
     monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
     monkeypatch.setattr('puppy.importer.urllib.request.urlopen', lambda req: _FakeResponse())
 

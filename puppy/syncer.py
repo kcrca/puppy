@@ -9,6 +9,7 @@ from puppy.creator import (
     _find_icon,
     _find_optional,
     _resolve_asset,
+    _resolve_optional_asset,
     _validate_square,
 )
 from puppy.images import copy_images, stage_image
@@ -29,6 +30,7 @@ def run_push(
     version: str | None,
     pack: bool,
     force: bool,
+    images: bool = True,
     verbosity: int,
 ) -> None:
     config = dict(config)
@@ -57,7 +59,7 @@ def run_push(
     config = dict(config)
     config['description'] = []
 
-    _stage(project, config, icon, puppy_dir, worker_dir, site, descriptions)
+    _stage(project, config, icon, puppy_dir, worker_dir, site, descriptions, images=images)
     _run_worker(worker_dir, verbosity)
 
     if pack:
@@ -83,13 +85,14 @@ def _stage(
     worker_dir: Path,
     site: str | None,
     descriptions: dict[str, str] = None,
+    images: bool = True,
 ) -> None:
     cfg = _build_config(project, config)
 
     # data/details.json
     data_dir = worker_dir / 'data'
     data_dir.mkdir(parents=True, exist_ok=True)
-    details = {'id': project.pack, 'images': True, 'live': True}
+    details = {'id': project.pack, 'images': images, 'live': True}
     (data_dir / 'details.json').write_text(json.dumps(details, indent=2))
 
     # projects/{pack}/
@@ -113,10 +116,10 @@ def _stage(
 
     copy_images(config, puppy_dir, project_dir / 'images')
 
-    for optional in ('thumbnail.png', 'logo.png'):
-        src = _find_optional(optional, puppy_dir, config)
+    for src_name, dest_name, key in (('banner.png', 'thumbnail.png', 'banner'), ('logo.png', 'logo.png', 'logo')):
+        src = _resolve_optional_asset(config.get(key), src_name, puppy_dir, config)
         if src:
-            shutil.copy(src, project_dir / optional)
+            shutil.copy(src, project_dir / dest_name)
 
     _stage_templates(project_dir, puppy_dir, site, descriptions or {})
 

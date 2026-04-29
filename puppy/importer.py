@@ -80,6 +80,7 @@ def _harvest(
     if do_images:
         _harvest_images(project_worker_dir, puppy_dir)
         _harvest_icon(project_worker_dir, puppy_dir)
+        _harvest_special_images(project_worker_dir, puppy_dir)
     _harvest_description(project, result_data, site, auth)
 
 
@@ -181,10 +182,18 @@ def _harvest_icon(project_worker_dir: Path, puppy_dir: Path) -> None:
     src = project_worker_dir / 'pack.png'
     if not src.exists():
         return
-    existing = [p for p in puppy_dir.iterdir() if p.suffix == '.png' and p.name not in ('thumbnail.png', 'logo.png')]
+    existing = [p for p in puppy_dir.iterdir() if p.suffix == '.png' and p.name not in ('banner.png', 'logo.png')]
     if existing:
         return
     shutil.copy(src, puppy_dir / 'pack.png')
+
+
+def _harvest_special_images(project_worker_dir: Path, puppy_dir: Path) -> None:
+    for src_name, dest_name in (('thumbnail.png', 'banner.png'), ('logo.png', 'logo.png')):
+        src = project_worker_dir / src_name
+        dest = puppy_dir / dest_name
+        if src.exists() and not dest.exists():
+            shutil.copy(src, dest)
 
 
 def _harvest_images(project_worker_dir: Path, puppy_dir: Path) -> None:

@@ -325,6 +325,7 @@ def _dispatch(
             version=version,
             pack=pack,
             force=force,
+            images=images,
             verbosity=verbosity,
         )
     else:

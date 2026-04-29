@@ -9,8 +9,7 @@ _PACK = 'neonglow'
 
 
 @pytest.fixture(autouse=True)
-def _no_preflight(monkeypatch):
-    monkeypatch.setattr('puppy.runner.check_preflight', lambda: None)
+def _no_import(monkeypatch):
     monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
     monkeypatch.setattr('puppy.creator.run_import', lambda **k: None)
 

@@ -100,7 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
         '--images',
         action='store_true',
         dest='images',
-        help='Import image gallery (valid for import).',
+        help='Include image gallery. For import: download from site. For push: include in upload.',
     )
 
     parser.add_argument(

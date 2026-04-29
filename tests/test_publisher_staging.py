@@ -13,8 +13,7 @@ _VERSION = '1.0.0'
 
 
 @pytest.fixture(autouse=True)
-def _no_preflight(monkeypatch):
-    monkeypatch.setattr('puppy.runner.check_preflight', lambda: None)
+def _no_run_worker(monkeypatch):
     monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
     monkeypatch.setattr('puppy.syncer._run_worker', lambda *a, **k: None)
 

@@ -47,12 +47,25 @@ def run_create(
 
 
 def _find_optional(name: str, puppy_dir: Path, config: dict) -> Path | None:
-    """Return path to name from puppy_dir, falling back to puppy_home."""
     for base in (puppy_dir, Path(config['puppy'])):
         p = base / name
         if p.exists():
             return p
     return None
+
+
+def _resolve_optional_asset(explicit: str | None, default_name: str, puppy_dir: Path, config: dict) -> Path | None:
+    if explicit:
+        if '{{' in explicit:
+            from puppy.renderer import _env
+            explicit = _env.from_string(explicit).render(config)
+        p = Path(explicit)
+        if not p.is_absolute():
+            p = (puppy_dir / explicit).resolve()
+        if not p.exists():
+            raise SystemExit(f'Asset not found: {p}')
+        return p
+    return _find_optional(default_name, puppy_dir, config)
 
 
 def _resolve_asset(explicit: str | None, puppy_dir: Path, discover_fn, config: dict = None) -> Path:
@@ -71,7 +84,7 @@ def _find_icon(puppy_dir: Path) -> Path:
     pngs = [
         p
         for p in puppy_dir.iterdir()
-        if p.suffix == '.png' and p.name not in ('thumbnail.png', 'logo.png')
+        if p.suffix == '.png' and p.name not in ('banner.png', 'logo.png')
     ]
     if len(pngs) == 1:
         return pngs[0]
@@ -158,10 +171,10 @@ def _stage(
 
     copy_images(config, puppy_dir, data_dir / 'images')
 
-    for optional in ('thumbnail.png', 'logo.png'):
-        src = _find_optional(optional, puppy_dir, config)
+    for src_name, dest_name, key in (('banner.png', 'thumbnail.png', 'banner'), ('logo.png', 'logo.png', 'logo')):
+        src = _resolve_optional_asset(config.get(key), src_name, puppy_dir, config)
         if src:
-            shutil.copy(src, data_dir / optional)
+            shutil.copy(src, data_dir / dest_name)
 
     # Pre-stage projects/{pack}/ so existing IDs are preserved
     project_dir = worker_dir / 'projects' / project.pack
