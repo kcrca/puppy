@@ -138,9 +138,11 @@ Puppy has the following actions:
   With `push -p`, bypasses skip logic and uploads unconditionally on all sites.
   With `create`, skips the confirmation prompt.
 * **`--worker [path]`:** PackUploader worker directory. Defaults to `~/PackUploader`.
-* **`-I/--images`:** Valid for `import`. Downloads the image gallery and icon (`pack.png`) from the site.
-  Without this flag, images and icon are downloaded automatically only on first import (when no image info is present); subsequent imports leave existing image info untouched.
-  When images are downloaded, files go to `images/` and metadata to `images/images.yaml`; any top-level `images.yaml` is removed.
+* **`-I/--images`:** Controls image gallery handling.
+  For `push`: include the image gallery in the upload (default: no images).
+  For `import`: download the image gallery and icon (`pack.png`) from the site.
+  Without this flag on import, images and icon are downloaded automatically only on first import (when no image info is present); subsequent imports leave existing image info untouched.
+  When images are downloaded on import, files go to `images/` and metadata to `images/images.yaml`; any top-level `images.yaml` is removed.
   Icon is copied as `pack.png` only if no icon PNG is already present.
   CurseForge and Modrinth provide the icon; PMC does not.
 
@@ -228,8 +230,14 @@ This means a config key can reference other config keys, projects variables, or 
     Modrinth receives all as `donation.*` (with `github_sponsors` mapped to `github`)
 
 **Special image files** (placed in `{{project}}`):
-* `thumbnail.png` — hero/banner image; staged and uploaded separately from gallery images
-* `logo.png` — project logo; displayed at fixed aspect ratio (1280×256)
+* `pack.png` — the pack icon/avatar shown in site listings.
+  Saved here by `import` (when no icon PNG is already present).
+  If absent, the icon is auto-discovered as the single `.png` in the project dir (see Asset Discovery below).
+* `banner.png` — "Project Thumbnail": a large hero/featured image displayed separately from the gallery.
+  Not part of the regular gallery upload.
+  Override with `banner: <path>` in `puppy.yaml` to point at an external file instead of copying.
+* `logo.png` — project logo; displayed at fixed aspect ratio (1280×256).
+  Override with `logo: <path>` in `puppy.yaml` to point at an external file.
 
 **Image entry flags** (in `images.yaml`):
 * `embed: true` — image is embedded in the description body
@@ -243,7 +251,7 @@ This means a config key can reference other config keys, projects variables, or 
 ### Asset Discovery
 For `create` and `push`, the icon and zip artifact are resolved as follows:
 * **Explicit paths** `icon` and `zip` in `puppy.yaml`
-* **Implicit discovery** (fallback): a single `.png` in the project's home (excluding `thumbnail.png` and `logo.png`) is the icon; a single `.zip` is the artifact. Multiple files of either type is a fatal error.
+* **Implicit discovery** (fallback): a single `.png` in the project's home (excluding `banner.png` and `logo.png`) is the icon; a single `.zip` is the artifact. Multiple files of either type is a fatal error.
 * **Icon validation:** The icon must be a square PNG.
 
 ### Image Metadata
@@ -361,7 +369,7 @@ They share auth, global config, and can cross-link to each other.
     │   ├── puppy.yaml
     │   ├── description.md
     │   ├── icon.png
-    │   ├── thumbnail.png
+    │   ├── banner.png
     │   ├── neonglow-2.1.zip
     │   └── images/
     │       ├── images.yaml
@@ -372,7 +380,7 @@ They share auth, global config, and can cross-link to each other.
         ├── puppy.yaml
         ├── description.md
         ├── icon.png
-        ├── thumbnail.png
+        ├── banner.png
         ├── darkneon-2.1.zip
         └── images.yaml             ← flat format; source: ../screenshots
 ```
@@ -602,7 +610,7 @@ Before each run puppy resets the worker (`git reset --hard HEAD && git clean -fd
     └── {pack}/
         ├── project.json            ← full config + per-site IDs/slugs
         ├── pack.png                ← icon (always PNG, square)
-        ├── thumbnail.png           ← optional hero image
+        ├── banner.png           ← optional banner image
         ├── logo.png                ← optional logo
         ├── images/                 ← gallery images (always PNG)
         └── templates/

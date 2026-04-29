@@ -44,4 +44,8 @@
 
 ## Testing Gaps
 
+- **Modrinth API mock**: Add a reusable `fake_modrinth` fixture (or similar) that intercepts `urllib.request.urlopen` calls to `api.modrinth.com` and returns canned responses.
+  This would let tests cover `needs_upload`, `resolve_id`, and donation/tag expansion without hitting the network.
+  Similar mocks needed for CurseForge (`authors.curseforge.com`) and the CF description API.
+
 - **Integration tests on live sites**: End-to-end `create`, `import`, and `push --pack` against real CurseForge, Modrinth, and PMC accounts.
