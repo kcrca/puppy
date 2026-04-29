@@ -158,6 +158,7 @@ def run(
             )
 
         if dry_run:
+            single = len(projects) == 1 or pack_filter is not None
             _run_dry(
                 action,
                 project,
@@ -167,8 +168,8 @@ def run(
                 puppy_home,
                 site,
                 pack=pack,
-                print_url=len(projects) == 1 or pack_filter is not None,
-                open_browser=open_browser,
+                print_url=single,
+                open_browser=open_browser and single,
             )
             dry_run_projects.append(project)
         else:
@@ -196,10 +197,10 @@ def run(
         raise SystemExit(f'No projects matching {pack_filter!r} found in {puppy_home}')
 
     if len(dry_run_projects) > 1:
-        _write_batch_index(dry_run_projects)
+        _write_batch_index(dry_run_projects, open_browser=open_browser)
 
 
-def _write_batch_index(projects: list) -> None:
+def _write_batch_index(projects: list, open_browser: bool = False) -> None:
     base = Path(tempfile.gettempdir()) / 'puppy'
     tabs = ''.join(
         f'<button class="tab" onclick="show(\'{p.pack}\', this)">{p.name}</button>'
@@ -244,6 +245,8 @@ def _write_batch_index(projects: list) -> None:
     index = base / 'index.html'
     index.write_text(html)
     print(f'file://{index}')
+    if open_browser:
+        webbrowser.open(index.as_uri())
 
 
 def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack=False, print_url=True, open_browser=True):
