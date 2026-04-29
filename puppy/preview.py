@@ -264,6 +264,7 @@ def _page(
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<base target="_blank">
 <title>{title} \u2014 puppy dry-run</title>
 <style>
   body {{ font-family: sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #222; }}
