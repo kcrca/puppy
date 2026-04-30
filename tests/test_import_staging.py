@@ -96,7 +96,7 @@ def test_harvest_yaml_writes_ids(import_env, run_puppy):
     assert written['curseforge']['id'] == 111
     assert written['modrinth']['id'] == 'abc123'
     assert written['name'] == 'NeonGlow'
-    assert written['version'] == '1.0.0'
+    assert 'version' not in written
 
 
 def test_harvest_yaml_site_filter(project_env, worker_env, run_puppy, monkeypatch):
