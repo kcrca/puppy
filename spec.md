@@ -228,6 +228,9 @@ This means a config key can reference other config keys, projects variables, or 
   * `patreon: <url>`, `kofi: <url>`, `paypal: <url>`, `buyMeACoffee: <url>`, `github_sponsors: <url>`, `other: <url>` — donation links;
     CF receives the first one as `{type, value}`;
     Modrinth receives all as `donation.*` (with `github_sponsors` mapped to `github`)
+* `after_push: <message>` — a message printed to stdout after all projects have been pushed (not during dry-run).
+  When set inside a site block, prints only when that site is active, prefixed with the site label.
+  Useful for reminders about manual steps that can't be automated (e.g. fixing a PMC download link).
 
 **Special image files** (placed in `{{project}}`):
 * `pack.png` — the pack icon/avatar shown in site listings.

@@ -556,6 +556,7 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 | `zip` | Explicit path to the zip artifact. Discovered automatically (single `.zip` in project dir) if absent. |
 | `optifine` | `true`/`false` — whether the pack requires OptiFine. Default `false`. |
 | `video` | YouTube video ID for an associated video. |
+| `after_push` | Message printed after all projects are pushed (not during dry-run). When set inside a site block, prints only when that site is active, prefixed with the site label. |
 | `minecraft` | Game version for artifact upload. String → exact version; dict → passed as-is. Required for `push --pack` unless `versions` is set. |
 | `versions` | Explicit Minecraft version list. Alternative to `minecraft`. |
 

@@ -155,6 +155,7 @@ def _harvest_modrinth_description(
     )
     with urllib.request.urlopen(req) as resp:
         data = json.loads(resp.read())
+    result_data.setdefault('modrinth', {})['slug'] = data['slug']
     site_dir = project.puppy_dir / 'modrinth'
     site_dir.mkdir(parents=True, exist_ok=True)
     (site_dir / 'description.md').write_text(data['body'])

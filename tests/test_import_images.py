@@ -26,7 +26,7 @@ def _fake_urlopen(monkeypatch):
 class _FakeResponse:
     def __init__(self):
         import json as _json
-        self._data = _json.dumps({'body': '', 'data': ''}).encode()
+        self._data = _json.dumps({'body': '', 'data': '', 'slug': _PACK}).encode()
 
     def read(self):
         return self._data

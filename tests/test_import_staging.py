@@ -24,7 +24,7 @@ _FAKE_BODY = '# NeonGlow\nFake imported description.'
 
 class _FakeResponse:
     def __init__(self):
-        self._data = json.dumps({'body': _FAKE_BODY, 'data': _FAKE_BODY}).encode()
+        self._data = json.dumps({'body': _FAKE_BODY, 'data': _FAKE_BODY, 'slug': _PACK}).encode()
 
     def read(self):
         return self._data

@@ -133,6 +133,7 @@ def run(
     auth = check_auth(puppy_home, site)
 
     dry_run_projects: list = []
+    after_push_messages: list = []
     ran_any = False
     for project_root in projects:
         config = ConfigSynthesizer(
@@ -191,6 +192,7 @@ def run(
                 verbosity,
                 worker_dir,
             )
+            after_push_messages += _collect_after_push(config, site)
 
 
     if pack_filter and not ran_any:
@@ -198,6 +200,9 @@ def run(
 
     if len(dry_run_projects) > 1:
         _write_batch_index(dry_run_projects, open_browser=open_browser)
+
+    for msg in after_push_messages:
+        print(msg)
 
 
 def _write_batch_index(projects: list, open_browser: bool = False) -> None:
@@ -294,6 +299,17 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack
         print(f'file://{preview_path}')
     if open_browser and preview_path.exists():
         webbrowser.open(preview_path.as_uri())
+
+
+def _collect_after_push(config: dict, site: str | None) -> list:
+    messages = []
+    if config.get('after_push'):
+        messages.append(config['after_push'])
+    for s in SiteVisitor(site):
+        msg = config.get(s.name, {}).get('after_push')
+        if msg:
+            messages.append(f'[{s.label}] {msg}')
+    return messages
 
 
 def _dispatch(
