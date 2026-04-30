@@ -61,6 +61,28 @@ class Site:
         raise NotImplementedError
 
 
+# Maps SPDX license IDs to the keys PU's curseforge.js license map uses
+_SPDX_TO_PU_CF = {
+    'CC0-1.0': 'Public Domain',
+    'CC-BY-4.0': 'Creative Commons 4.0',
+    'CC-BY-SA-4.0': 'Creative Commons 4.0',
+    'CC-BY-NC-4.0': 'Creative Commons 4.0',
+    'CC-BY-NC-SA-4.0': 'Attribution-NonCommercial-ShareAlike 4.0 International',
+    'CC-BY-ND-4.0': 'Creative Commons 4.0',
+    'CC-BY-NC-ND-4.0': 'Creative Commons 4.0',
+    'MIT': 'MIT License',
+    'Apache-2.0': 'Apache License version 2.0',
+    'GPL-2.0': 'GNU General Public License version 2 (GPLv2)',
+    'GPL-3.0': 'GNU General Public License version 3 (GPLv3)',
+    'LGPL-2.1': 'GNU Lesser General Public License version 2.1 (LGPLv2.1)',
+    'LGPL-3.0': 'GNU Lesser General Public License version 3 (LGPLv3)',
+    'AGPL-3.0': 'GNU Affero General Public License version 3 (AGPLv3)',
+    'MPL-2.0': 'Mozilla Public License 2.0',
+    'ISC': 'ISC License (ISCL)',
+    'Zlib': 'zlib/libpng License',
+}
+
+
 class CurseForgeSite(Site):
     name = 'curseforge'
     aliases = ['cf']
@@ -78,7 +100,7 @@ class CurseForgeSite(Site):
 
         license_ = config.get('license')
         if license_:
-            cf_license = ' '.join(license_.rsplit('-', 1)) if '-' in license_ else license_
+            cf_license = _SPDX_TO_PU_CF.get(license_, license_)
             config.setdefault('curseforge', {}).setdefault('license', cf_license)
 
         links = config.get('links') or {}
@@ -162,6 +184,30 @@ class CurseForgeSite(Site):
         return f'https://www.curseforge.com/minecraft/texture-packs/{ref}'
 
 
+# Maps SPDX license IDs to the keys PU's modrinth.js license map uses
+_SPDX_TO_PU_MR = {
+    'CC0-1.0': 'CC Zero (Public Domain equivalent)',
+    'CC-BY-4.0': 'CC-BY 4.0',
+    'CC-BY-SA-4.0': 'CC-BY-SA 4.0',
+    'CC-BY-NC-4.0': 'CC-BY-NC 4.0',
+    'CC-BY-NC-SA-4.0': 'CC-BY-NC-SA 4.0',
+    'CC-BY-ND-4.0': 'CC-BY-ND 4.0',
+    'CC-BY-NC-ND-4.0': 'CC-BY-NC-ND 4.0',
+    'MIT': 'MIT License',
+    'Apache-2.0': 'Apache License 2.0',
+    'GPL-2.0': 'GNU General Public License v2',
+    'GPL-3.0': 'GNU General Public License v3',
+    'LGPL-2.1': 'GNU Lesser General Public License v2.1',
+    'LGPL-3.0': 'GNU Lesser General Public License v3',
+    'AGPL-3.0': 'GNU Affero General Public License v3',
+    'MPL-2.0': 'Mozilla Public License 2.0',
+    'BSD-2-Clause': 'BSD 2-Clause "Simplified" License',
+    'BSD-3-Clause': 'BSD 3-Clause "New" or "Revised" License',
+    'ISC': 'ISC License',
+    'Zlib': 'zlib License',
+}
+
+
 class ModrinthSite(Site):
     name = 'modrinth'
     aliases = ['mr']
@@ -179,7 +225,8 @@ class ModrinthSite(Site):
 
         license_ = config.get('license')
         if license_:
-            config.setdefault('modrinth', {}).setdefault('license', license_)
+            pu_license = _SPDX_TO_PU_MR.get(license_, license_)
+            config.setdefault('modrinth', {}).setdefault('license', pu_license)
 
         links = config.get('links') or {}
         if isinstance(links, dict):

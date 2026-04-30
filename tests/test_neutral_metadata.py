@@ -87,14 +87,14 @@ def test_progress_pmc():
 
 def test_license_cf_and_modrinth():
     config = _apply_neutral_metadata({'license': 'CC-BY-4.0'})
-    assert config['curseforge']['license'] == 'CC-BY 4.0'
-    assert config['modrinth']['license'] == 'CC-BY-4.0'
+    assert config['curseforge']['license'] == 'Creative Commons 4.0'
+    assert config['modrinth']['license'] == 'CC-BY 4.0'
 
 
 def test_license_no_hyphen_unchanged():
     config = _apply_neutral_metadata({'license': 'MIT'})
-    assert config['curseforge']['license'] == 'MIT'
-    assert config['modrinth']['license'] == 'MIT'
+    assert config['curseforge']['license'] == 'MIT License'
+    assert config['modrinth']['license'] == 'MIT License'
 
 
 def test_license_per_site_override():
@@ -105,7 +105,7 @@ def test_license_per_site_override():
         }
     )
     assert config['curseforge']['license'] == 'All Rights Reserved'
-    assert config['modrinth']['license'] == 'CC-BY-4.0'
+    assert config['modrinth']['license'] == 'CC-BY 4.0'
 
 
 def test_donation_patreon_cf():
