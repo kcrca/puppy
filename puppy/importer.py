@@ -8,6 +8,7 @@ import yaml
 from puppy.core import Project
 from puppy.sites import CURSEFORGE, MODRINTH, SITES, SiteVisitor
 from puppy.worker import read_output, run_worker
+from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
 
 
 def run_import(
@@ -89,10 +90,7 @@ def _harvest_yaml(
     images: bool,
 ) -> None:
     puppy_yaml = puppy_dir / 'puppy.yaml'
-    config = {}
-    if puppy_yaml.exists():
-        with puppy_yaml.open() as f:
-            config = yaml.safe_load(f) or {}
+    config = load_puppy_yaml(puppy_yaml)
 
     imported = result_data.get('config', {})
 
@@ -124,11 +122,7 @@ def _harvest_yaml(
         if s.name in imported:
             config.setdefault(s.name, {}).update(imported[s.name])
 
-    puppy_yaml.parent.mkdir(parents=True, exist_ok=True)
-    with puppy_yaml.open('w') as f:
-        yaml.dump(
-            config, f, default_flow_style=False, allow_unicode=True, sort_keys=False
-        )
+    dump_puppy_yaml(config, puppy_yaml)
 
 
 def _harvest_description(

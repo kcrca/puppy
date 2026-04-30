@@ -2,7 +2,6 @@ import json
 import shutil
 from pathlib import Path
 
-import yaml
 from PIL import Image
 
 from puppy.core import Project
@@ -10,6 +9,7 @@ from puppy.images import copy_images, stage_image
 from puppy.importer import run_import
 from puppy.sites import SITES, SiteVisitor
 from puppy.worker import read_output, run_worker
+from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
 
 
 def run_create(
@@ -197,9 +197,7 @@ def _run_worker(worker_dir: Path, verbosity: int) -> None:
 
 def _harvest(project: Project, result_data: dict, site: str | None) -> dict:
     puppy_yaml = project.puppy_dir / 'puppy.yaml'
-    config: dict = {}
-    if puppy_yaml.exists():
-        config = yaml.safe_load(puppy_yaml.read_text()) or {}
+    config = load_puppy_yaml(puppy_yaml)
 
     for s in SiteVisitor(site):
         platform_data = result_data.get(s.name, {})
@@ -209,8 +207,5 @@ def _harvest(project: Project, result_data: dict, site: str | None) -> dict:
             config[s.name]['id'] = harvested_id
             config[s.name]['slug'] = platform_data.get('slug')
 
-    with puppy_yaml.open('w') as f:
-        yaml.dump(
-            config, f, default_flow_style=False, allow_unicode=True, sort_keys=False
-        )
+    dump_puppy_yaml(config, puppy_yaml)
     return config

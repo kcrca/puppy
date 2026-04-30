@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 
-import yaml
+from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
 
 
 def _slugify(name: str) -> str:
@@ -67,12 +67,6 @@ class Project:
 
 
 def _update_yaml(path: Path, updates: dict) -> None:
-    existing = {}
-    if path.exists():
-        with path.open() as f:
-            existing = yaml.safe_load(f) or {}
+    existing = load_puppy_yaml(path)
     existing.update(updates)
-    with path.open('w') as f:
-        yaml.dump(
-            existing, f, default_flow_style=False, allow_unicode=True, sort_keys=False
-        )
+    dump_puppy_yaml(existing, path)
