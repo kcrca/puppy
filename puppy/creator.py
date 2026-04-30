@@ -52,12 +52,7 @@ def _find_optional(name: str, puppy_dir: Path, config: dict) -> Path | None:
 
 def _resolve_optional_asset(explicit: str | None, default_name: str, puppy_dir: Path, config: dict) -> Path | None:
     if explicit:
-        if '{{' in explicit:
-            from puppy.renderer import _env
-            explicit = _env.from_string(explicit).render(config)
-        p = Path(explicit)
-        if not p.is_absolute():
-            p = (puppy_dir / explicit).resolve()
+        p = Path(explicit) if Path(explicit).is_absolute() else (puppy_dir / explicit).resolve()
         if not p.exists():
             raise SystemExit(f'Asset not found: {p}')
         return p
@@ -66,9 +61,6 @@ def _resolve_optional_asset(explicit: str | None, default_name: str, puppy_dir: 
 
 def _resolve_asset(explicit: str | None, puppy_dir: Path, discover_fn, config: dict = None) -> Path:
     if explicit:
-        if config and '{{' in explicit:
-            from puppy.renderer import _env
-            explicit = _env.from_string(explicit).render(config)
         p = (puppy_dir / explicit).resolve()
         if not p.exists():
             raise SystemExit(f'Asset not found: {p}')

@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from puppy.renderer import _env as _jinja_env
+from puppy.renderer import _resolve_config_strings
 
 from puppy.core import project_source
 from puppy.sites import SITES
@@ -59,6 +59,10 @@ class ConfigSynthesizer:
         for layer in layers:
             config = _deep_merge(config, _resolve_layer_paths(_load_yaml(layer), layer.parent))
 
+        config['puppy'] = str(self.puppy_home)
+        config['top'] = str(self.puppy_home.parent)
+        config['project'] = str(project_puppy)
+
         images_path = project_puppy / 'images'
         if images_path.exists() and not images_path.is_dir():
             raise SystemExit(f'{images_path} exists but is not a directory')
@@ -75,9 +79,7 @@ class ConfigSynthesizer:
             images_yaml = self.puppy_home / 'images.yaml'
         if images_yaml:
             images_base = images_yaml.parent
-            render_ctx = dict(config, top=str(self.puppy_home.parent), puppy=str(self.puppy_home), project=str(project_puppy))
-            rendered = _jinja_env.from_string(images_yaml.read_text()).render(render_ctx)
-            raw = yaml.safe_load(rendered) or []
+            raw = yaml.safe_load(images_yaml.read_text()) or []
             if isinstance(raw, list):
                 images, images_source = raw, None
             else:
@@ -86,12 +88,11 @@ class ConfigSynthesizer:
             if images:
                 config['images'] = images
             if images_source:
-                config['images_source'] = str((images_base / images_source).resolve())
+                src = _resolve_config_strings({**config, '_s': images_source}, strict=False)['_s']
+                p = Path(src) if Path(src).is_absolute() else (images_base / src).resolve()
+                config['images_source'] = str(p)
 
-        config['puppy'] = str(self.puppy_home)
-        config['top'] = str(self.puppy_home.parent)
-        config['project'] = str(project_puppy)
-
+        config = _resolve_config_strings(config, strict=False)
         return _apply_neutral_metadata(config)
 
 

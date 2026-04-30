@@ -97,14 +97,23 @@ def _pre_populate_files(text: str, ctx: dict, discovery) -> dict:
     return ctx
 
 
-def _resolve_config_strings(ctx: dict) -> dict:
+def _resolve_config_strings(ctx: dict, strict: bool = True) -> dict:
+    def _expand(v):
+        if isinstance(v, str) and '{{' in v:
+            try:
+                return _env.from_string(v).render(ctx)
+            except UndefinedError:
+                if strict:
+                    raise
+                return v
+        if isinstance(v, dict):
+            return {k: _expand(val) for k, val in v.items()}
+        if isinstance(v, list):
+            return [_expand(item) for item in v]
+        return v
+
     while True:
-        resolved = {}
-        for k, v in ctx.items():
-            if isinstance(v, str) and '{{' in v:
-                resolved[k] = _env.from_string(v).render(ctx)
-            else:
-                resolved[k] = v
+        resolved = {k: _expand(v) for k, v in ctx.items()}
         if resolved == ctx:
             return ctx
         ctx = resolved
