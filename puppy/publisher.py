@@ -48,7 +48,10 @@ def upload_pack(
 def _resolve_zip(config: dict, puppy_dir: Path, version: str, project: Project) -> Path:
     explicit = config.get('zip')
     if explicit:
-        p = (puppy_dir / explicit).resolve()
+        if '{{' in explicit:
+            from puppy.renderer import _env
+            explicit = _env.from_string(explicit).render(config)
+        p = Path(explicit) if Path(explicit).is_absolute() else (puppy_dir / explicit).resolve()
         if not p.exists():
             raise SystemExit(f'Zip not found: {p}')
         return p

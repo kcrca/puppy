@@ -26,7 +26,7 @@ def test_site_neutral_url_shorthand(project_env, run_puppy):
     mr_out = (
         Path(tempfile.gettempdir()) / 'puppy' / 'neonglow' / 'modrinth' / 'description.md'
     )
-    assert 'https://modrinth.com/mod/abc' in mr_out.read_text()
+    assert 'https://modrinth.com/resourcepack/abc' in mr_out.read_text()
 
     run_puppy('push', '-n', '-s', 'curseforge')
     cf_out = (
@@ -74,7 +74,7 @@ def test_cross_project_url_resolution(project_env, run_puppy):
     debug_file = (
         Path(tempfile.gettempdir()) / 'puppy' / 'neonglow' / 'modrinth' / 'description.md'
     )
-    assert 'https://modrinth.com/mod/abc' in debug_file.read_text()
+    assert 'https://modrinth.com/resourcepack/abc' in debug_file.read_text()
 
 
 def test_linked_projects_top_level_slug(project_env, run_puppy):
@@ -92,7 +92,7 @@ def test_linked_projects_top_level_slug(project_env, run_puppy):
 
     run_puppy('push', '-n', '-s', 'modrinth')
     mr_out = Path(tempfile.gettempdir()) / 'puppy' / 'neonglow' / 'modrinth' / 'description.md'
-    assert 'https://modrinth.com/mod/my-pack' in mr_out.read_text()
+    assert 'https://modrinth.com/resourcepack/my-pack' in mr_out.read_text()
     assert 'https://www.curseforge.com/minecraft/texture-packs/my-pack' in mr_out.read_text()
 
 
@@ -114,5 +114,5 @@ def test_linked_projects_site_slug_overrides_default(project_env, run_puppy):
 
     run_puppy('push', '-n', '-s', 'modrinth')
     mr_out = Path(tempfile.gettempdir()) / 'puppy' / 'neonglow' / 'modrinth' / 'description.md'
-    assert 'https://modrinth.com/mod/modrinth-specific' in mr_out.read_text()
+    assert 'https://modrinth.com/resourcepack/modrinth-specific' in mr_out.read_text()
     assert 'https://www.curseforge.com/minecraft/texture-packs/default-slug' in mr_out.read_text()

@@ -607,7 +607,7 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 |---|---|
 | `id` | Modrinth project ID. Written by `import`/`create`. Resolved from `slug` automatically if absent. |
 | `slug` | Project slug on Modrinth. |
-| `type` | Project type: `resourcepack`, `mod`, `modpack`, etc. Default `mod`. Affects the Modrinth URL path segment. |
+| `type` | Project type: `resourcepack`, `mod`, `modpack`, etc. Default `resourcepack`. Affects the Modrinth URL path segment. |
 | `license` | SPDX license. Set by `license`; override here. |
 | `tags` | Map of resolution tier name → `true`/`false` (e.g. `16x: true`). Set by `resolution`; override individual tiers here. |
 | `donation` | Map of platform name → URL (`patreon`, `kofi`, `paypal`, `buyMeACoffee`, `github`, `other`). Set from `links.*`; override here. |

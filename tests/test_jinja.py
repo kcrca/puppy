@@ -33,21 +33,21 @@ def test_all_yaml_vars_available_to_jinja(project_env, run_puppy):
 
 def test_config_string_values_expanded_recursively():
     config = {
-        'projects': {'other': {'modrinth': {'url': 'https://modrinth.com/mod/other'}}},
+        'projects': {'other': {'modrinth': {'url': 'https://modrinth.com/resourcepack/other'}}},
         'other_url': '{{ projects.other.url }}',
         'blurb': 'See {{ other_url }} for details.',
     }
     result = render('{{ blurb }}', config, site=MODRINTH)
-    assert result == 'See https://modrinth.com/mod/other for details.'
+    assert result == 'See https://modrinth.com/resourcepack/other for details.'
 
 
 def test_config_string_direct_project_ref():
     config = {
-        'projects': {'other': {'modrinth': {'url': 'https://modrinth.com/mod/other'}}},
+        'projects': {'other': {'modrinth': {'url': 'https://modrinth.com/resourcepack/other'}}},
         'link': '[Other]({{ projects.other.url }})',
     }
     result = render('{{ link }}', config, site=MODRINTH)
-    assert result == '[Other](https://modrinth.com/mod/other)'
+    assert result == '[Other](https://modrinth.com/resourcepack/other)'
 
 
 def test_unknown_variable_raises():

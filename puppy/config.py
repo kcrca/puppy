@@ -110,10 +110,13 @@ def _inject_urls(cfg: dict) -> dict:
     default_slug = cfg.get('slug')
     pack = cfg.get('pack')
     unconfigured = pack and not any(cfg.get(s.name) for s in SITES)
+    top_type = cfg.get('type')
     for site in SITES:
         site_cfg = cfg.get(site.name, {})
         if default_slug and 'slug' not in site_cfg:
             site_cfg = dict(site_cfg, slug=default_slug)
+        if top_type and 'type' not in site_cfg:
+            site_cfg = dict(site_cfg, type=top_type)
         url = site.url_for(site_cfg)
         if not url and unconfigured:
             url = site.url_for({'slug': pack})

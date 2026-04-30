@@ -71,9 +71,9 @@ def test_create_site_filter_stages_project_json(create_env, run_puppy):
     pj = json.loads(
         (create_env['worker'] / 'projects' / _PACK / 'project.json').read_text()
     )
-    assert pj['modrinth']['id'] is None   # active site, no pre-existing ID
-    assert pj['curseforge']['id'] is None  # inactive site, skipped
-    assert pj['planetminecraft']['id'] is None
+    assert pj['modrinth']['id'] is None        # active site, no pre-existing ID
+    assert pj['curseforge']['id'] == '__skip__'  # inactive site, skipped
+    assert pj['planetminecraft']['id'] == '__skip__'
 
 
 def test_create_webp_icon_converted(create_env, run_puppy):
@@ -102,11 +102,18 @@ def test_create_calls_worker(create_env, run_puppy, monkeypatch):
     assert any('create.js' in str(c) for c in calls)
 
 
-def test_create_errors_if_id_already_set(create_env, run_puppy):
+def test_create_calls_import_with_images_false(create_env, run_puppy, monkeypatch):
+    calls = []
+    monkeypatch.setattr('puppy.creator.run_import', lambda **k: calls.append(k))
+    run_puppy('create', '--force', '--worker', str(create_env['worker']))
+    assert calls and calls[0]['images'] is False
+
+
+def test_create_proceeds_if_some_ids_set(create_env, run_puppy):
     source = create_env['project']
     config = yaml.safe_load((source / 'puppy.yaml').read_text())
-    config['modrinth']['id'] = 'existing-id'
+    config.setdefault('modrinth', {})['id'] = 'existing-id'
     (source / 'puppy.yaml').write_text(yaml.dump(config))
 
-    result = run_puppy('create', '--force', '--worker', str(create_env['worker']))
-    assert 'already has IDs' in str(result)
+    run_puppy('create', '--force', '--worker', str(create_env['worker']))
+    assert (create_env['worker'] / 'data' / 'create' / 'create.json').exists()

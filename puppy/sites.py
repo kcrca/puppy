@@ -269,7 +269,7 @@ class ModrinthSite(Site):
         ref = site_config.get('slug') or site_config.get('id')
         if not ref:
             return None
-        site_type = site_config.get('type', 'mod')
+        site_type = site_config.get('type', 'resourcepack')
         return f'https://modrinth.com/{site_type}/{ref}'
 
 

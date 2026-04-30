@@ -21,11 +21,6 @@ def run_create(
     site: str | None,
     verbosity: int,
 ) -> None:
-    if existing_ids := [s.name for s in SiteVisitor(site) if config.get(s.name, {}).get('id')]:
-        raise SystemExit(
-            f'[{project.name}] already has IDs for: {", ".join(existing_ids)} — '
-            'use import to update, not create'
-        )
     puppy_dir = project.puppy_dir
     icon = _resolve_asset(config.get('icon'), puppy_dir, _find_icon, config)
     zip_path = _resolve_asset(config.get('zip'), puppy_dir, _find_zip, config)
@@ -40,6 +35,7 @@ def run_create(
         auth=auth,
         worker_dir=worker_dir,
         site=site,
+        images=False,
         verbosity=verbosity,
     )
     if verbosity >= 1:
@@ -185,7 +181,8 @@ def _stage(
     visitor = SiteVisitor(site)
     existing = {
         s.name: {
-            'id': visitor.id_or_skip(s, config.get(s.name, {}).get('id')),
+            'id': config.get(s.name, {}).get('id') if s in visitor
+                  else (config.get(s.name, {}).get('id') or '__skip__'),
             'slug': config.get(s.name, {}).get('slug', 'my-project'),
         }
         for s in SITES

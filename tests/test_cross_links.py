@@ -20,4 +20,4 @@ def test_sibling_links(project_env, run_puppy):
     debug_file = (
         Path(tempfile.gettempdir()) / 'puppy' / 'neonglow' / 'modrinth' / 'description.md'
     )
-    assert 'https://modrinth.com/mod/other-slug' in debug_file.read_text()
+    assert 'https://modrinth.com/resourcepack/other-slug' in debug_file.read_text()
