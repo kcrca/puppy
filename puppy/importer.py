@@ -76,12 +76,12 @@ def _harvest(
     project_worker_dir = worker_dir / 'projects' / project.pack
 
     do_images = images or not _has_image_info(puppy_dir, site)
+    _harvest_description(project, result_data, site, auth)
     _harvest_yaml(project, result_data, puppy_dir, site, do_images)
     if do_images:
         _harvest_images(project_worker_dir, puppy_dir)
         _harvest_icon(project_worker_dir, puppy_dir)
         _harvest_special_images(project_worker_dir, puppy_dir)
-    _harvest_description(project, result_data, site, auth)
 
 
 def _harvest_yaml(
@@ -97,7 +97,7 @@ def _harvest_yaml(
     imported = result_data.get('config', {})
 
     # Scalars from imported config
-    for key in ('name', 'summary', 'version', 'video', 'github'):
+    for key in ('name', 'summary', 'video', 'github'):
         if imported.get(key) not in (None, '', [], False):
             config[key] = imported[key]
 
