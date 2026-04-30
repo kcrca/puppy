@@ -28,7 +28,7 @@ def project_env(tmp_path, monkeypatch):
         yaml.dump(
             {
                 'modrinth': 'token123',
-                'curseforge': {'token': 'cf456'},
+                'curseforge': {'token': 'cf456', 'cookie': 'CobaltSession=fake'},
             }
         )
     )
