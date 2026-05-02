@@ -15,7 +15,7 @@ def build_parser() -> argparse.ArgumentParser:
         'action',
         nargs='?',
         default='push',
-        choices=['push', 'create', 'import', 'init', 'clean'],
+        choices=['push', 'create', 'pull', 'init', 'clean'],
         help='Action to perform (default: push).',
     )
 
@@ -100,7 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
         '--images',
         action='store_true',
         dest='images',
-        help='Include image gallery. For import: download from site. For push: include in upload.',
+        help='Include image gallery. For pull: download from site. For push: include in upload.',
     )
 
     parser.add_argument(

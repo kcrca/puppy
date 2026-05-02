@@ -39,7 +39,7 @@ class _FakeResponse:
 @pytest.fixture(autouse=True)
 def _fake_urlopen(monkeypatch):
     monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
-    monkeypatch.setattr('puppy.importer.urllib.request.urlopen', lambda req: _FakeResponse())
+    monkeypatch.setattr('puppy.puller.urllib.request.urlopen', lambda req: _FakeResponse())
 
 
 @pytest.fixture
@@ -65,7 +65,7 @@ def import_env(project_env, worker_env, monkeypatch):
 
 
 def test_import_json_staged(import_env, run_puppy):
-    run_puppy('import', '--worker', str(import_env['worker']))
+    run_puppy('pull', '--worker', str(import_env['worker']))
     data = json.loads((import_env['worker'] / 'data' / 'import.json').read_text())
     assert data['id'] == _PACK
     assert data['curseforge']['id'] == 111
@@ -83,7 +83,7 @@ def test_import_site_filter_nulls_others(import_env, run_puppy, monkeypatch):
         return subprocess.CompletedProcess(cmd, 0)
 
     monkeypatch.setattr('puppy.worker.subprocess.run', fake_run_mr)
-    run_puppy('import', '--site', 'modrinth', '--worker', str(import_env['worker']))
+    run_puppy('pull', '--site', 'modrinth', '--worker', str(import_env['worker']))
     data = json.loads((import_env['worker'] / 'data' / 'import.json').read_text())
     assert data['modrinth']['id'] == 'abc123'
     assert data['curseforge']['id'] is None
@@ -91,7 +91,7 @@ def test_import_site_filter_nulls_others(import_env, run_puppy, monkeypatch):
 
 
 def test_harvest_yaml_writes_ids(import_env, run_puppy):
-    run_puppy('import', '--worker', str(import_env['worker']))
+    run_puppy('pull', '--worker', str(import_env['worker']))
     written = yaml.safe_load((import_env['project'] / 'puppy.yaml').read_text())
     assert written['curseforge']['id'] == 111
     assert written['modrinth']['id'] == 'abc123'
@@ -109,7 +109,7 @@ def test_harvest_yaml_site_filter(project_env, worker_env, run_puppy, monkeypatc
     (project_env['project'] / 'puppy.yaml').write_text(
         yaml.dump({'name': 'NeonGlow', 'pack': _PACK, 'modrinth': {'id': 'abc123', 'slug': _PACK}})
     )
-    run_puppy('import', '--site', 'modrinth', '--worker', str(worker_env))
+    run_puppy('pull', '--site', 'modrinth', '--worker', str(worker_env))
     written = yaml.safe_load((project_env['project'] / 'puppy.yaml').read_text())
     assert written.get('modrinth', {}).get('id') == 'abc123'
     assert 'curseforge' not in written
@@ -117,14 +117,14 @@ def test_harvest_yaml_site_filter(project_env, worker_env, run_puppy, monkeypatc
 
 
 def test_harvest_modrinth_description(import_env, run_puppy):
-    run_puppy('import', '--worker', str(import_env['worker']))
+    run_puppy('pull', '--worker', str(import_env['worker']))
     desc = import_env['project'] / 'modrinth' / 'description.md'
     assert desc.exists()
     assert _FAKE_BODY in desc.read_text()
 
 
 def test_harvest_cf_description(import_env, run_puppy):
-    run_puppy('import', '--worker', str(import_env['worker']))
+    run_puppy('pull', '--worker', str(import_env['worker']))
     desc = import_env['project'] / 'curseforge' / 'description.html'
     assert desc.exists()
     assert _FAKE_BODY in desc.read_text()
@@ -139,5 +139,5 @@ def test_import_calls_worker(import_env, run_puppy, monkeypatch):
         return subprocess.CompletedProcess(cmd, 0)
 
     monkeypatch.setattr('puppy.worker.subprocess.run', tracking_run)
-    run_puppy('import', '--worker', str(import_env['worker']))
+    run_puppy('pull', '--worker', str(import_env['worker']))
     assert any('import.js' in str(c) for c in calls)

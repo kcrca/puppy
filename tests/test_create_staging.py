@@ -11,7 +11,7 @@ _PACK = 'neonglow'
 @pytest.fixture(autouse=True)
 def _no_import(monkeypatch):
     monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
-    monkeypatch.setattr('puppy.creator.run_import', lambda **k: None)
+    monkeypatch.setattr('puppy.creator.run_pull', lambda **k: None)
 
 
 @pytest.fixture
@@ -104,7 +104,7 @@ def test_create_calls_worker(create_env, run_puppy, monkeypatch):
 
 def test_create_calls_import_with_images_false(create_env, run_puppy, monkeypatch):
     calls = []
-    monkeypatch.setattr('puppy.creator.run_import', lambda **k: calls.append(k))
+    monkeypatch.setattr('puppy.creator.run_pull', lambda **k: calls.append(k))
     run_puppy('create', '--force', '--worker', str(create_env['worker']))
     assert calls and calls[0]['images'] is False
 

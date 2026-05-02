@@ -8,7 +8,7 @@
 # Current version of the project. Used by publish if --version is not passed on the CLI.
 version: "1.0.0"
 
-# Platform IDs and slugs. Required for import, create, and publish.
+# Platform IDs and slugs. Required for pull, create, and push.
 # Set id to null if the project does not yet exist on that platform.
 curseforge:
   id: 123456

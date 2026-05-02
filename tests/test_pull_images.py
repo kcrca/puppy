@@ -3,7 +3,7 @@ import subprocess
 import pytest
 import yaml
 
-from puppy.importer import _has_image_info
+from puppy.puller import _has_image_info
 
 _PACK = 'neonglow'
 _PROJECT_JSON = {
@@ -20,7 +20,7 @@ _PROJECT_JSON = {
 @pytest.fixture(autouse=True)
 def _fake_urlopen(monkeypatch):
     monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
-    monkeypatch.setattr('puppy.importer.urllib.request.urlopen', lambda req: _FakeResponse())
+    monkeypatch.setattr('puppy.puller.urllib.request.urlopen', lambda req: _FakeResponse())
 
 
 class _FakeResponse:
@@ -113,33 +113,33 @@ def test_has_image_info_site_nested_yaml(tmp_path):
 # --- Integration tests for auto-download behaviour ---
 
 def test_images_downloaded_when_no_info(import_env, run_puppy):
-    run_puppy('import', '--worker', str(import_env['worker']))
+    run_puppy('pull', '--worker', str(import_env['worker']))
     assert (import_env['project'] / 'images').exists()
     assert any((import_env['project'] / 'images').iterdir())
 
 
 def test_images_not_downloaded_when_info_exists(import_env, run_puppy):
     (import_env['project'] / 'images.yaml').write_text('[]')
-    run_puppy('import', '--worker', str(import_env['worker']))
+    run_puppy('pull', '--worker', str(import_env['worker']))
     assert not (import_env['project'] / 'images').exists()
 
 
 def test_images_downloaded_when_info_exists_with_flag(import_env, run_puppy):
     (import_env['project'] / 'images.yaml').write_text('[]')
-    run_puppy('import', '--images', '--worker', str(import_env['worker']))
+    run_puppy('pull', '--images', '--worker', str(import_env['worker']))
     assert (import_env['project'] / 'images').exists()
     assert any((import_env['project'] / 'images').iterdir())
 
 
 def test_yaml_written_to_images_subdir(import_env, run_puppy):
-    run_puppy('import', '--worker', str(import_env['worker']))
+    run_puppy('pull', '--worker', str(import_env['worker']))
     assert (import_env['project'] / 'images' / 'images.yaml').exists()
     assert not (import_env['project'] / 'images.yaml').exists()
 
 
 def test_top_level_images_yaml_removed_when_images_downloaded(import_env, run_puppy):
     (import_env['project'] / 'images.yaml').write_text('[]')
-    run_puppy('import', '--images', '--worker', str(import_env['worker']))
+    run_puppy('pull', '--images', '--worker', str(import_env['worker']))
     assert (import_env['project'] / 'images' / 'images.yaml').exists()
     assert not (import_env['project'] / 'images.yaml').exists()
 
@@ -162,23 +162,23 @@ def icon_import_env(project_env, worker_env, monkeypatch):
 
 
 def test_icon_harvested_when_no_icon_exists(icon_import_env, run_puppy):
-    run_puppy('import', '--worker', str(icon_import_env['worker']))
+    run_puppy('pull', '--worker', str(icon_import_env['worker']))
     assert (icon_import_env['project'] / 'pack.png').exists()
 
 
 def test_icon_not_harvested_when_icon_exists(icon_import_env, run_puppy):
     (icon_import_env['project'] / 'myicon.png').write_bytes(b'existing')
-    run_puppy('import', '--worker', str(icon_import_env['worker']))
+    run_puppy('pull', '--worker', str(icon_import_env['worker']))
     assert not (icon_import_env['project'] / 'pack.png').exists()
 
 
 def test_icon_not_harvested_without_images_flag_when_info_exists(icon_import_env, run_puppy):
     (icon_import_env['project'] / 'images.yaml').write_text('[]')
-    run_puppy('import', '--worker', str(icon_import_env['worker']))
+    run_puppy('pull', '--worker', str(icon_import_env['worker']))
     assert not (icon_import_env['project'] / 'pack.png').exists()
 
 
 def test_icon_harvested_with_images_flag(icon_import_env, run_puppy):
     (icon_import_env['project'] / 'images.yaml').write_text('[]')
-    run_puppy('import', '--images', '--worker', str(icon_import_env['worker']))
+    run_puppy('pull', '--images', '--worker', str(icon_import_env['worker']))
     assert (icon_import_env['project'] / 'pack.png').exists()

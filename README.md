@@ -177,7 +177,7 @@ So you will see many fields populated there from the site.
 
 #### Setup for Existing Sites
 
-If you already have a project at an existing site, you can import the data from it to start your settings.
+If you already have a project at an existing site, you can pull the data from it to start your settings.
 You just provide the id and (for PMC) the slug.
 These are stored in the site-specific parts of `puppy.yaml`.
 
@@ -195,10 +195,10 @@ planetminecraft:
 
 (Any site you don't give info for will be skipped.)
 
-Then run `puppy import`.
+Then run `puppy pull`.
 You can run puppy from either the top dir (`~/neon`) or anywhere under the puppy dir (`~/neon/puppy`).
 
-If this runs successfully, `puppy.yaml` will now have a ton of other data, pulled during the import.
+If this runs successfully, `puppy.yaml` will now have a ton of other data, pulled from the site.
 
 ```
 ~/neon/
@@ -497,7 +497,7 @@ Some of them only apply to some commands, but others apply universally.
 The overall syntax is:
 
 ```
-puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-p] [-f] [-I] [--no-open] [--worker PATH] [{push,create,import,init,clean}] [project ...]
+puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-p] [-f] [-I] [--no-open] [--worker PATH] [{push,create,pull,init,clean}] [project ...]
 ```
 
 ## Global Options
@@ -514,8 +514,8 @@ puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-p] [-f] [-I]
 * **init**: Set up the puppy directory in the current directory, or **--dir** points.
 * **create**: Create project on the site(s). If run from a terminal, this will prompt for confirmation.
     * **-f**, **--force**: Skip the confirmation prompt.
-* **import**: Pull data from the site(s). This will not overwrite existing images, but it will merge new data into yaml files.
-    * **-I**, **--images**: Also import logo, icon, banner, and image gallery.
+* **pull**: Pull data from the site(s). This will not overwrite existing images, but it will merge new data into yaml files.
+    * **-I**, **--images**: Also pull logo, icon, banner, and image gallery.
 * **push**: Push description, metadata, logo, icon, and banner.
     * **-I**, **--images**: Also push image gallery.
     * **-p**, **--pack**: Also push the `.zip` file. This will be skipped if site-specific data says it is not needed.
@@ -594,7 +594,7 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 
 | Field | Meaning |
 |---|---|
-| `id` | CurseForge project ID. Written by `import`/`create`. |
+| `id` | CurseForge project ID. Written by `pull`/`create`. |
 | `slug` | Project slug on CurseForge. |
 | `mainCategory` | Main category string (e.g. `16x`). Set by `resolution`; override here. |
 | `additionalCategories` | Map of category name → `true`/`false`. |
@@ -606,7 +606,7 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 
 | Field | Meaning |
 |---|---|
-| `id` | Modrinth project ID. Written by `import`/`create`. Resolved from `slug` automatically if absent. |
+| `id` | Modrinth project ID. Written by `pull`/`create`. Resolved from `slug` automatically if absent. |
 | `slug` | Project slug on Modrinth. |
 | `type` | Project type: `resourcepack`, `mod`, `modpack`, etc. Default `resourcepack`. Affects the Modrinth URL path segment. |
 | `license` | SPDX license. Set by `license`; override here. |
@@ -618,7 +618,7 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 
 | Field | Meaning |
 |---|---|
-| `id` | PMC project ID. Written by `import`/`create`. |
+| `id` | PMC project ID. Written by `pull`/`create`. |
 | `slug` | Project slug on PMC. |
 | `resolution` | Resolution integer. Set by `resolution`; override here. |
 | `progress` | Completion percentage 0–100. Set by `progress`; override here. |

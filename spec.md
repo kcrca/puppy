@@ -99,16 +99,16 @@ Puppy has the following actions:
 * **`push`** (Default): Updates metadata, summaries, descriptions, images, and icons.
   With `-p/--pack`, also uploads the zip artifact.
   Requires `version` in `puppy.yaml` or `-V/--version` when using `-p`.
-* **`import`:** Pulls live site data.
+* **`pull`:** Pulls live site data.
   Update yaml in puppy home and the project home (if different).
   Does **not** create description templates (those are created by `init`).
   Requires `id` in each site's config block; for PMC, also requires `slug` since there is no API to look it up from the ID.
   Per-site errors do not abort the other sites.
-  Description body text import varies by platform:
-  * *Modrinth:* Full description body imported via API. This md file is put in the site home.
-  * *CurseForge:* Full HTML description imported via `api.curseforge.com/v1/mods/{id}/description` using the API token. Saved to `curseforge/description.html`.
-  * *Planet Minecraft:* No description imported. Manually paste content into `puppy/planetminecraft/description.bbcode`.
-* **`create`:** Creates the pack project on each site, then automatically runs `import` to harvest the site-assigned ID, slug, and any defaults back into `puppy.yaml`.
+  Description body text pulled varies by platform:
+  * *Modrinth:* Full description body pulled via API. This md file is put in the site home.
+  * *CurseForge:* Full HTML description pulled via `api.curseforge.com/v1/mods/{id}/description` using the API token. Saved to `curseforge/description.html`.
+  * *Planet Minecraft:* No description pulled. Manually paste content into `puppy/planetminecraft/description.bbcode`.
+* **`create`:** Creates the pack project on each site, then automatically runs `pull` to harvest the site-assigned ID, slug, and any defaults back into `puppy.yaml`.
   Prompts for confirmation unless `-f/--force` is given.
   Per-site errors do not abort the other sites.
 * **`clean`:** Resets the PackUploader worker without pushing.
@@ -140,9 +140,9 @@ Puppy has the following actions:
 * **`--worker [path]`:** PackUploader worker directory. Defaults to `~/PackUploader`.
 * **`-I/--images`:** Controls image gallery handling.
   For `push`: include the image gallery in the upload (default: no images).
-  For `import`: download the image gallery and icon (`pack.png`) from the site.
-  Without this flag on import, images and icon are downloaded automatically only on first import (when no image info is present); subsequent imports leave existing image info untouched.
-  When images are downloaded on import, files go to `images/` and metadata to `images/images.yaml`; any top-level `images.yaml` is removed.
+  For `pull`: download the image gallery and icon (`pack.png`) from the site.
+  Without this flag on pull, images and icon are downloaded automatically only on first pull (when no image info is present); subsequent pulls leave existing image info untouched.
+  When images are downloaded on pull, files go to `images/` and metadata to `images/images.yaml`; any top-level `images.yaml` is removed.
   Icon is copied as `pack.png` only if no icon PNG is already present.
   CurseForge and Modrinth provide the icon; PMC does not.
 
@@ -234,7 +234,7 @@ This means a config key can reference other config keys, projects variables, or 
 
 **Special image files** (placed in `{{project}}`):
 * `pack.png` — the pack icon/avatar shown in site listings.
-  Saved here by `import` (when no icon PNG is already present).
+  Saved here by `pull` (when no icon PNG is already present).
   If absent, the icon is auto-discovered as the single `.png` in the project dir (see Asset Discovery below).
 * `banner.png` — "Project Thumbnail": a large hero/featured image displayed separately from the gallery.
   Not part of the regular gallery upload.
@@ -289,8 +289,8 @@ If the file cannot be found or converted, Puppy exits with an error.
 If there is a `projects` field in {{puppy}}/puppy.yaml, puppy iterates through these sequentially, unless specific projects are given on the command line.
 
 ### State Harvesting
-After `import` (and after the implicit import that follows `create`), platform IDs, slugs, and full metadata are written back to the project's `puppy.yaml`.
-If imported, images and their metadata are written to `{{project}}/images/` and `{{project}}/images/images.yaml` respectively.
+After `pull` (and after the implicit pull that follows `create`), platform IDs, slugs, and full metadata are written back to the project's `puppy.yaml`.
+If pulled, images and their metadata are written to `{{project}}/images/` and `{{project}}/images/images.yaml` respectively.
 Leading and trailing underscores are stripped from image filenames on harvest.
 
 ### Artifact Match
@@ -607,7 +607,7 @@ Before each run puppy resets the worker (`git reset --hard HEAD && git clean -fd
 ├── settings.json                   ← patched to set ewan: false
 ├── data/
 │   ├── details.json                ← push: {id, images, live}
-│   ├── import.json                 ← import: per-site IDs and slugs
+│   ├── import.json                 ← pull: per-site IDs and slugs
 │   └── create.json                 ← create: name, summary, icon path
 └── projects/
     └── {pack}/
@@ -633,7 +633,7 @@ If no description was found in the cascade, a minimal `{{ description }}\n\n{{ i
 | Action | Script |
 |---|---|
 | `push` | `scripts/details.js` |
-| `import` | `scripts/import.js` |
+| `pull` | `scripts/import.js` |
 | `create` | `scripts/create.js` |
 
 All scripts are run as `node --no-warnings scripts/{action}.js` from the worker directory.

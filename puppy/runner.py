@@ -9,7 +9,7 @@ from puppy.checks import check_auth, check_preflight
 from puppy.config import ConfigSynthesizer, _load_yaml, build_projects_context
 from puppy.core import Project
 from puppy.creator import run_create
-from puppy.importer import run_import
+from puppy.puller import run_pull
 from puppy.init import run_init
 from puppy.preview import generate as generate_preview
 from puppy.publisher import _resolve_zip
@@ -315,8 +315,8 @@ def _collect_after_push(config: dict, site: str | None) -> list:
 def _dispatch(
     action, project, config, version, auth, puppy_home, site, pack, force, images, verbosity, worker_dir
 ):
-    if action == 'import':
-        run_import(
+    if action == 'pull':
+        run_pull(
             project=project,
             config=config,
             auth=auth,

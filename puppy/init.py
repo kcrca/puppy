@@ -40,7 +40,7 @@ def _puppy_yaml(name: str, pack: str) -> str:
         '  patreon:          # donation URL\n'
         '  kofi:             # donation URL\n'
         '  github_sponsors:  # GitHub Sponsors URL\n\n'
-        '# Platform IDs and slugs. Required for import, create, and publish.\n'
+        '# Platform IDs and slugs. Required for pull, create, and push.\n'
         '# Set id to null if the project does not yet exist on that platform.\n'
         + site_entries
     )

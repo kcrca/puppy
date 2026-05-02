@@ -6,7 +6,7 @@ from PIL import Image
 
 from puppy.core import Project
 from puppy.images import copy_images, stage_image
-from puppy.importer import run_import
+from puppy.puller import run_pull
 from puppy.sites import SITES, SiteVisitor
 from puppy.worker import read_output, run_worker
 from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
@@ -29,7 +29,7 @@ def run_create(
     _run_worker(worker_dir, verbosity)
     result_data = read_output(project, worker_dir)
     updated_config = _harvest(project, result_data, site)
-    run_import(
+    run_pull(
         project=project,
         config=updated_config,
         auth=auth,

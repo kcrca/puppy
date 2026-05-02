@@ -6,7 +6,7 @@
 
 
 
-- **Duplicate check on create (CF and PMC)**: Before creating, warn the user that duplicates are possible on sites without unique name enforcement. For CF, search by name (filtered to texture packs) and show matches, asking if theirs is one of them or a new project — if an existing ID is chosen, run import instead. For PMC there is no API, so only a manual reminder is possible. `--force` should skip any interactive check. Modrinth is not a concern — its API rejects duplicate slugs cleanly. **Open question:** do we only care about conflicts with the user's own existing projects, or also with other people's projects with the same name?
+- **Duplicate check on create (CF and PMC)**: Before creating, warn the user that duplicates are possible on sites without unique name enforcement. For CF, search by name (filtered to texture packs) and show matches, asking if theirs is one of them or a new project — if an existing ID is chosen, run pull instead. For PMC there is no API, so only a manual reminder is possible. `--force` should skip any interactive check. Modrinth is not a concern — its API rejects duplicate slugs cleanly. **Open question:** do we only care about conflicts with the user's own existing projects, or also with other people's projects with the same name?
 
 
 - **Non-pack project types**: Set up for at least some kinds of non-pack projects, like worlds.
@@ -21,7 +21,7 @@
   Modrinth derives `issues_url` from `source` automatically (`github + "/issues"`).
   To support an independent issues URL, ask Ewan to read `project.config.links?.issues` in PU's modrinth.js.
 
-- **PMC description import**: PMC blocks non-browser HTTP, so the description can't be fetched with `urllib`.
+- **PMC description pull**: PMC blocks non-browser HTTP, so the description can't be fetched with `urllib`.
   Ask Ewan to include the BBCode description string in PU's import JSON output — it already has the data (via `getDescription()`), it just doesn't write it out.
   Once available, puppy would save it to `planetminecraft/description.bbcode`.
 
@@ -48,4 +48,4 @@
   This would let tests cover `needs_upload`, `resolve_id`, and donation/tag expansion without hitting the network.
   Similar mocks needed for CurseForge (`authors.curseforge.com`) and the CF description API.
 
-- **Integration tests on live sites**: End-to-end `create`, `import`, and `push --pack` against real CurseForge, Modrinth, and PMC accounts.
+- **Integration tests on live sites**: End-to-end `create`, `pull`, and `push --pack` against real CurseForge, Modrinth, and PMC accounts.

@@ -14,3 +14,6 @@
 - Approval of one item in a sequence does not imply approval of the next. Wait for explicit confirmation each time.
 - If an instruction seems like a bad idea, say so before acting — one or two sentences, then ask.
 - Don't be obsequious, don't compliment, be succinct about describing things not asked
+
+## Markdown style
+- On our own markdown files, each sentence starts on a new line

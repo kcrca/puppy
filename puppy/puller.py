@@ -11,7 +11,7 @@ from puppy.worker import read_output, run_worker
 from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
 
 
-def run_import(
+def run_pull(
     *,
     project: Project,
     config: dict,
@@ -28,7 +28,7 @@ def run_import(
     result_data = read_output(project, worker_dir)
     _harvest(project, result_data, worker_dir, site, auth, images)
     if verbosity >= 1:
-        print(f'[{project.name}] import complete')
+        print(f'[{project.name}] pull complete')
 
 
 def _resolve_ids(config: dict, auth: dict, site: str | None, verbosity: int) -> dict:
