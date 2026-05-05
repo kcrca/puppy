@@ -5,10 +5,12 @@
 - Commit messages are a single line. No "Co-Authored-By" or any other trailers.
 - Always run `.venv/bin/pytest` (full suite) and confirm all unit tests pass before proposing a commit.
 - Always `git add` relevant files explicitly — never `git add -A` or `git add .`.
+- Always delete things when you make them obsolete.
 
 ## Python style
 - Single quotes everywhere. Double quotes only when the string contains a single quote.
 - imports only at top of file
+- If a variable is assigned 'None', do not declare ' | None' as part of its type (if the type is declared), that is inferred
 
 ## General behaviour
 - Approval of one item in a sequence does not imply approval of the next. Wait for explicit confirmation each time.
