@@ -226,6 +226,7 @@ def _write_batch_index(projects: list, open_browser: bool = False) -> None:
   #tabs {{ display: flex; align-items: center; gap: 6px; padding: 10px 12px; background: #111; border-bottom: 3px solid #0af; }}
   #tabs-label {{ color: #0af; font-size: 13px; font-weight: bold;
                  letter-spacing: 1px; margin-right: 8px; white-space: nowrap; }}
+  #folder-link {{ color: #888; font-size: 10px; white-space: nowrap; }}
   .tab {{ padding: 10px 28px; border: 2px solid #555; border-radius: 6px; cursor: pointer;
           background: #333; color: #aaa; font-size: 16px; font-weight: bold; }}
   .tab:hover {{ background: #444; color: #fff; border-color: #888; }}
@@ -234,9 +235,10 @@ def _write_batch_index(projects: list, open_browser: bool = False) -> None:
 </style>
 </head>
 <body>
-<div id="tabs"><span id="tabs-label">Projects:</span>{tabs}</div>
+<div id="tabs"><span id="tabs-label">Projects:</span>{tabs}<a id="folder-link" href="#">open folder</a></div>
 {frames}
 <script>
+  document.getElementById('folder-link').href = window.location.href.replace(/index\.html$/, '');
   function show(id, btn) {{
     document.querySelectorAll('iframe').forEach(f => f.style.display = 'none');
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -277,6 +279,9 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack
                 rendered = render(body, site_config, source=str(source_path), site=s)
                 staged_ext = source_path.suffix if source_path else s.template_ext
                 if source_path and source_path.suffix == '.md':
+                    md_out = debug_dir / s.name / 'description.md'
+                    md_out.parent.mkdir(parents=True, exist_ok=True)
+                    md_out.write_text(rendered)
                     rendered = s.convert_md(rendered)
                     staged_ext = s.template_ext
                 ext = s.template_ext

@@ -289,10 +289,11 @@ def _page(
 </style>
 </head>
 <body>
-<h1>{title}</h1>
+<h1>{title} <a id="folder-link" href="#" style="font-size:0.6em;font-weight:normal;color:#666">open folder</a></h1>
 {zip_line}{meta_table}<div class="tabs">
 {tab_buttons}</div>
 {tab_panes}<script>
+document.getElementById('folder-link').href = window.location.href.replace(/index\.html$/, '');
 function showTab(id) {{
   document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
