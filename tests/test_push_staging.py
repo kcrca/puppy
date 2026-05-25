@@ -1,5 +1,4 @@
 import json
-import pytest
 
 
 def _details(push_env):

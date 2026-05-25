@@ -1,5 +1,4 @@
 import yaml
-from pathlib import Path
 
 from puppy.runner import _collect_after_push
 

@@ -20,7 +20,7 @@ def run_worker(script: str, worker_dir: Path, verbosity: int, *, stream: bool = 
         proc.wait()
         if proc.returncode != 0:
             raise SystemExit(f'Worker failed\n{stderr}'.strip())
-        failures = [l for l in stdout_lines if 'failed' in l.lower()]
+        failures = [line for line in stdout_lines if 'failed' in line.lower()]
         if failures:
             if verbosity < 1:
                 print('WARNING: worker reported failures:')

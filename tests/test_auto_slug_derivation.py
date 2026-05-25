@@ -1,5 +1,4 @@
 import yaml
-from pathlib import Path
 
 
 def test_name_to_slug_derivation_and_writeback(project_env, run_puppy):

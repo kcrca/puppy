@@ -5,15 +5,14 @@ from pathlib import Path
 import markdown
 import yaml
 
-from puppy.transformers import PMCTransformer
-
-_pmc = PMCTransformer()
-
 from puppy.core import Project
 from puppy.creator import _expand_versions, _find_icon, _resolve_asset
 from puppy.images import find_image, stage_image
 from puppy.renderer import DEFAULT_SHIELD_TAGS
 from puppy.sites import Site
+from puppy.transformers import PMCTransformer
+
+_pmc = PMCTransformer()
 
 
 def generate(
@@ -139,7 +138,7 @@ def _combined_metadata_table(project: Project, config: dict, sites: list[str]) -
                 order.append(k)
 
     labels = [s.label for s in sites]
-    header = '<tr><th></th>' + ''.join(f'<th>{l}</th>' for l in labels) + '</tr>'
+    header = '<tr><th></th>' + ''.join(f'<th>{label}</th>' for label in labels) + '</tr>'
     rows = ''
     for field in order:
         cells = ''.join(
@@ -293,7 +292,7 @@ def _page(
 {zip_line}{meta_table}<div class="tabs">
 {tab_buttons}</div>
 {tab_panes}<script>
-document.getElementById('folder-link').href = window.location.href.replace(/index\.html$/, '');
+document.getElementById('folder-link').href = window.location.href.replace(/index\\.html$/, '');
 function showTab(id) {{
   document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));

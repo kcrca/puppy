@@ -1,9 +1,7 @@
 import json
-import subprocess
 import pytest
 import puppy.__main__
 import yaml
-from pathlib import Path
 from PIL import Image
 
 

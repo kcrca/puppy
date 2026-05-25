@@ -7,7 +7,6 @@ from puppy.core import Project
 from puppy.creator import (
     _build_config,
     _find_icon,
-    _find_optional,
     _resolve_asset,
     _resolve_optional_asset,
     _validate_square,

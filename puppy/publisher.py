@@ -3,6 +3,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import yaml
+
 from puppy.artifacts import ArtifactFinder
 from puppy.core import Project
 from puppy.creator import _expand_versions

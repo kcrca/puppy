@@ -1,4 +1,3 @@
-import pytest
 
 def test_auth_not_in_gitignore_fails(project_env, run_puppy):
     """

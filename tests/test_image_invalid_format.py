@@ -1,4 +1,3 @@
-import pytest
 
 
 def test_invalid_file_raises_error(project_env, run_puppy):

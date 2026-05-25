@@ -1,6 +1,5 @@
 import pytest
 import yaml
-from pathlib import Path
 
 from puppy.checks import check_auth
 

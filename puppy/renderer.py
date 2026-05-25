@@ -78,7 +78,6 @@ def _collect_undefined(texts: list[str], ctx: dict) -> set[str]:
 
 def _pre_populate_files(text: str, ctx: dict, discovery) -> dict:
     """Add file-cascade inclusions for any {{ name }} not yet in ctx."""
-    from puppy.searcher import ContentDiscovery  # avoid import cycle at module level
     site = ctx.get('_site')
     pending = {text}
     while True:
