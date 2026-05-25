@@ -18,7 +18,11 @@ _AUTH_SHAPE = {
 def check_preflight() -> None:
     missing = [t for t in REQUIRED_TOOLS if shutil.which(t) is None]
     if missing:
-        raise SystemExit(f'Missing required tools: {", ".join(missing)}')
+        raise SystemExit(
+            f'Missing required tools: {", ".join(missing)}\n'
+            'puppy requires git, node, and npm to run PackUploader.\n'
+            'Install Node.js from https://nodejs.org/ and git from https://git-scm.com/'
+        )
 
 
 def check_auth(puppy_home: Path, site: str = None) -> dict:
