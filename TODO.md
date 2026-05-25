@@ -17,6 +17,8 @@
 
 ## Design Questions
 
+- Investigate: How much work would it be to stop depending on PackUploader?
+
 - **`links.issues` not applied**: The neutral `links.issues` field is accepted but not wired to any site.
   Modrinth derives `issues_url` from `source` automatically (`github + "/issues"`).
   To support an independent issues URL, ask Ewan to read `project.config.links?.issues` in PU's modrinth.js.
