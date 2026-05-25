@@ -111,11 +111,12 @@ def _resolve_config_strings(ctx: dict, strict: bool = True) -> dict:
             return [_expand(item) for item in v]
         return v
 
-    while True:
+    for _ in range(20):
         resolved = {k: _expand(v) for k, v in ctx.items()}
         if resolved == ctx:
             return ctx
         ctx = resolved
+    raise SystemExit('Template expansion exceeded 20 iterations — possible circular reference in config')
 
 
 def render(text: str, config: dict, source: str = '<description>', *, site=None) -> str:
