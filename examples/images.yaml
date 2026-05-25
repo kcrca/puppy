@@ -1,0 +1,29 @@
+# images.yaml — image gallery metadata.
+# Place at: puppy/images.yaml  (or puppy/images/images.yaml if storing images inside puppy/).
+#
+# Images are uploaded in the order listed.
+# Files are resolved relative to this file unless 'source' is set.
+
+# Optional: directory where image files live (relative to this file).
+# If absent, images are loaded from puppy/images/.
+source: ../screenshots
+
+- name: Overview
+  description: Default plains biome showing terrain and sky
+  file: overview           # .png extension optional; will also find .jpg, .webp
+  featured: true           # promoted as featured image on supporting sites
+  embed: true              # embedded in the description body via {{ images }}
+
+- name: Villages
+  description: Village with custom textures
+  file: village
+
+- name: Nether
+  description: Nether biome
+  file: nether
+
+# Special images (not in the regular gallery):
+#
+# pack.png   — icon shown in site listings (400×400 square PNG, auto-discovered)
+# banner.png — large hero image (1920×1080, not part of gallery)
+# logo.png   — project logo (1280×256, not part of gallery)

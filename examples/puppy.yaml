@@ -1,28 +1,67 @@
 # puppy.yaml — project configuration.
-# Place at: {puppy_home}/{ProjectName}/puppy/puppy.yaml
+# For a single-pack repo, place at: puppy/puppy.yaml
+# For a multi-pack repo, place at: puppy/{packname}/puppy.yaml
 
-# Optional: override the name and pack slug derived from the directory name.
-# name: My Project
-# pack: myproject
+# Display name and internal slug.
+# Both are derived from the directory name if omitted.
+name: Neon
+# pack: neon   # derived from name if omitted
 
-# Current version of the project. Used by publish if --version is not passed on the CLI.
+# Version published with 'puppy push --pack'.
+# Can be overridden on the CLI with --version.
 version: "1.0.0"
 
-# Platform IDs and slugs. Required for pull, create, and push.
-# Set id to null if the project does not yet exist on that platform.
+# One-line description shown in site search results.
+summary: A vibrant, neon-lit resource pack that makes vanilla Minecraft glow.
+
+# License (SPDX identifier).
+license: MIT
+
+# Minecraft version(s) to tag the upload against.
+# A plain string means exact version; see spec for range/latest options.
+minecraft: "1.21.4"
+
+# Optional: YouTube video ID.
+# video: dQw4w9WgXcQ
+
+# Optional: requires OptiFine.
+optifine: false
+
+# External links (all optional).
+links:
+  home: https://example.com/neon
+  source: https://github.com/example/neon
+  issues: https://github.com/example/neon/issues
+  # kofi: https://ko-fi.com/example
+  # patreon: https://patreon.com/example
+
+# Platform IDs and slugs.
+# Run 'puppy create' to create the project and fill these in automatically,
+# or run 'puppy pull' if the project already exists on the platforms.
 curseforge:
-  id: 123456
-  slug: my-project
+  id: null
+  slug: neon
+  mainCategory: 16x
+  additionalCategories:
+    modSupport: false
+    modern: false
 
 modrinth:
-  id: AbCdEfGh
-  slug: my-project
+  id: null
+  slug: neon
+  type: resourcepack
+  tags:
+    16x: featured
+    vanilla-like: true
 
 planetminecraft:
-  id: 1234567
-  slug: my-project-full-slug
-
-# Content fragments used in description templates.
-# strings:
-#   header: "My Project Header"
-#   footer: "My Project Footer"
+  id: null
+  slug: neon
+  category: Simplistic
+  resolution: 16
+  progress: 100
+  modifies:
+    terrain: true
+    gui: true
+    items: true
+    mobs: false
