@@ -36,12 +36,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     verbosity = parser.add_mutually_exclusive_group()
     verbosity.add_argument(
-        '-v',
+        '-q',
+        '--quiet',
         action='store_const',
-        const=1,
+        const=0,
         dest='verbosity',
-        default=0,
-        help='High-level progress output.',
+        default=1,
+        help='Suppress progress output.',
     )
     verbosity.add_argument(
         '-vv',
