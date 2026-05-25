@@ -18,9 +18,6 @@ _DESCRIPTION_MD = """\
      Example: {{ version }}, {{ name }}. Conditionals: {% if key %}...{% endif %} -->
 """
 
-# TODO: consider --scaffold option to also create site subdirs with starter templates
-
-
 def _puppy_yaml(name: str, pack: str) -> str:
     site_entries = '\n'.join(s.puppy_yaml_entry(pack) for s in SITES)
     return (

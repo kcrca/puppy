@@ -22,7 +22,7 @@ class _FakeResponse:
 def fake_urlopen(monkeypatch):
     responses = {}
 
-    def _urlopen(req):
+    def _urlopen(req, **kw):
         slug = req.full_url.rstrip('/').split('/')[-1]
         if slug not in responses:
             raise Exception(f'No fake response for slug {slug!r}')

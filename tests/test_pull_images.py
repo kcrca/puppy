@@ -20,7 +20,7 @@ _PROJECT_JSON = {
 @pytest.fixture(autouse=True)
 def _fake_urlopen(monkeypatch):
     monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
-    monkeypatch.setattr('puppy.puller.urllib.request.urlopen', lambda req: _FakeResponse())
+    monkeypatch.setattr('puppy.puller.urllib.request.urlopen', lambda req, **kw: _FakeResponse())
 
 
 class _FakeResponse:

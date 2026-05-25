@@ -142,7 +142,7 @@ class CurseForgeSite(Site):
                 'Content-Type': 'application/json',
             },
         )
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=30) as r:
             files = json.loads(r.read())
         if not files:
             return True
@@ -257,7 +257,7 @@ class ModrinthSite(Site):
             f'https://api.modrinth.com/v2/project/{site_id}/version',
             headers=headers,
         )
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=30) as r:
             versions = json.loads(r.read())
         for v in versions:
             for f in v.get('files', []):
@@ -279,7 +279,7 @@ class ModrinthSite(Site):
                 f'https://api.modrinth.com/v2/project/{slug}',
                 headers=headers,
             )
-            with urllib.request.urlopen(req) as r:
+            with urllib.request.urlopen(req, timeout=30) as r:
                 data = json.loads(r.read())
             config = dict(config)
             config['modrinth'] = dict(mr, id=data['id'], slug=data['slug'])

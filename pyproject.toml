@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "puppy"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Publish Minecraft resource packs to CurseForge, Modrinth, and Planet Minecraft"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -26,9 +26,16 @@ test = ["pytest", "pyyaml>=6.0"]
 [project.scripts]
 puppy = "puppy.cli:main"
 
+[tool.setuptools.dynamic]
+version = {attr = "puppy.__version__"}
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["puppy*"]
+
+[project.urls]
+Repository = "https://github.com/kenarnold/puppy"
+"Bug Tracker" = "https://github.com/kenarnold/puppy/issues"
 
 [tool.ruff.format]
 quote-style = "single"

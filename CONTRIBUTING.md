@@ -3,7 +3,7 @@
 ## Dev setup
 
 ```
-git clone https://github.com/example/puppy
+git clone https://github.com/kenarnold/puppy
 cd puppy
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate

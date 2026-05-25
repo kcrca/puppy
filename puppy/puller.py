@@ -147,7 +147,7 @@ def _harvest_modrinth_description(
         f'https://api.modrinth.com/v2/project/{modrinth_id}',
         headers={'Authorization': token},
     )
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:
         data = json.loads(resp.read())
     result_data.setdefault('modrinth', {})['slug'] = data['slug']
     site_dir = project.puppy_dir / 'modrinth'
@@ -166,7 +166,7 @@ def _harvest_cf_description(
         f'https://api.curseforge.com/v1/mods/{cf_id}/description',
         headers={'x-api-key': token},
     )
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:
         data = json.loads(resp.read())
     site_dir = project.puppy_dir / 'curseforge'
     site_dir.mkdir(parents=True, exist_ok=True)
