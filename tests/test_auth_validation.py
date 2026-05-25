@@ -53,3 +53,23 @@ def test_curseforge_missing_both_keys(auth_home):
     })
     with pytest.raises(SystemExit, match='curseforge'):
         check_auth(auth_home)
+
+
+def test_placeholder_modrinth_rejected(auth_home):
+    _write_auth(auth_home, {
+        'curseforge': {'token': 'abc', 'cookie': 'CobaltSession=xyz'},
+        'modrinth': 'YOUR_MODRINTH_TOKEN',
+        'planetminecraft': 'pmc_autologin=xyz',
+    })
+    with pytest.raises(SystemExit, match='unchanged'):
+        check_auth(auth_home)
+
+
+def test_placeholder_curseforge_rejected(auth_home):
+    _write_auth(auth_home, {
+        'curseforge': {'token': 'YOUR_CURSEFORGE_API_TOKEN', 'cookie': 'CobaltSession=xyz'},
+        'modrinth': 'token123',
+        'planetminecraft': 'pmc_autologin=xyz',
+    })
+    with pytest.raises(SystemExit, match='unchanged'):
+        check_auth(auth_home)

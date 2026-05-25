@@ -20,7 +20,7 @@ You also need a tool called PackUploader.
 This is some really cool stuff that communicates with these sites, doing all the hard work.
 Puppy uses it as a communication worker for its site-specific work.
 So you need a copy, but you don't have to personally interact with it beyond installation.
-Typically this will live in your home folder.
+Typically this will live in your home folder (`~` on macOS/Linux, `%USERPROFILE%` on Windows — e.g. `C:\Users\YourName`).
 So go to your home folder, and then follow the [**Installation** instructions for PackUploader](https://github.com/ewanhowell5195/PackUploader#installation).
 Go on, we'll wait right here.
 

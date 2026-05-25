@@ -139,7 +139,7 @@ def run(
         config = ConfigSynthesizer(
             puppy_home, project_root, site=site
         ).get_running_config()
-        project = Project.from_config(project_root, config)
+        project = Project.from_config(project_root, config, dry_run=dry_run)
 
         if pack_filter and project.pack not in pack_filter:
             continue
@@ -238,7 +238,7 @@ def _write_batch_index(projects: list, open_browser: bool = False) -> None:
 <div id="tabs"><span id="tabs-label">Projects:</span>{tabs}<a id="folder-link" href="#">open folder</a></div>
 {frames}
 <script>
-  document.getElementById('folder-link').href = window.location.href.replace(/index\.html$/, '');
+  document.getElementById('folder-link').href = window.location.href.replace(/index\\.html$/, '');
   function show(id, btn) {{
     document.querySelectorAll('iframe').forEach(f => f.style.display = 'none');
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -275,6 +275,8 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack
                 site_config = ConfigSynthesizer(
                     puppy_home, project.root, site=s
                 ).get_running_config()
+                site_config.setdefault('name', project.name)
+                site_config.setdefault('pack', project.pack)
                 site_config['projects'] = config['projects']
                 rendered = render(body, site_config, source=str(source_path), site=s)
                 staged_ext = source_path.suffix if source_path else s.template_ext

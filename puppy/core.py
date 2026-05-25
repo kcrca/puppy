@@ -40,7 +40,7 @@ class Project:
             self.name = dir_name if dir_name != dir_name.lower() else dir_name.title()
 
     @classmethod
-    def from_config(cls, project_root: Path, config: dict) -> 'Project':
+    def from_config(cls, project_root: Path, config: dict, dry_run: bool = False) -> 'Project':
         had_name = 'name' in config
         had_pack = 'pack' in config
 
@@ -50,7 +50,12 @@ class Project:
             override_pack=config.get('pack'),
         )
 
-        if not had_name or not had_pack:
+        if not had_name:
+            config['name'] = project.name
+        if not had_pack:
+            config['pack'] = project.pack
+
+        if not dry_run and (not had_name or not had_pack):
             _update_yaml(
                 project_source(project_root) / 'puppy.yaml',
                 {
