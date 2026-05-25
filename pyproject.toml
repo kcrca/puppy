@@ -5,17 +5,30 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "puppy"
 version = "0.1.0"
+description = "Publish Minecraft resource packs to CurseForge, Modrinth, and Planet Minecraft"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Ken Arnold", email = "arnold@peak.im" }]
 requires-python = ">=3.11"
-dependencies = ["pyyaml", "jinja2", "markdown", "Pillow", "md2bbcode", "bbcode", "ruamel.yaml"]
+dependencies = [
+    "pyyaml>=6.0",
+    "jinja2>=3.1",
+    "markdown>=3.10",
+    "Pillow>=12.0",
+    "md2bbcode>=1.1",
+    "bbcode>=1.1",
+    "ruamel.yaml>=0.19",
+]
 
 [project.optional-dependencies]
-test = ["pytest", "pyyaml"]
+test = ["pytest", "pyyaml>=6.0"]
 
 [project.scripts]
 puppy = "puppy.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["puppy*"]
 
 [tool.ruff.format]
 quote-style = "single"
