@@ -51,3 +51,10 @@
   Similar mocks needed for CurseForge (`authors.curseforge.com`) and the CF description API.
 
 - **Integration tests on live sites**: End-to-end `create`, `pull`, and `push --pack` against real CurseForge, Modrinth, and PMC accounts.
+
+## PackUploader Contribution Ideas
+
+- **Integration test harness for PU**: Jest-based test suite that runs PU's existing scripts (`create.js`, `details.js`, `update.js`, `import.js`) against dedicated test accounts on each site.
+  Permanent test projects (known IDs hardcoded), no create/delete per run — each test pushes known content, reads it back via the site APIs, and asserts it matches.
+  Credentials loaded from `auth.json` as normal; tests skip gracefully if auth is absent.
+  Low friction for Ewan to adopt: `npm test`, no new config format, no rewrite of PU itself.
