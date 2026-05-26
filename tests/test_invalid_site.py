@@ -1,5 +1,3 @@
-import yaml
-
 from puppy.sites import SiteVisitor
 
 
