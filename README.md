@@ -62,6 +62,8 @@ First, there is `auth.yaml` which has the login information for the sites.
 It is important that this not be in a public repo, so puppy requires it to be ignored by `.gitignore`.
 Then there is `puppy.yaml` which has the global configuration for the work you want puppy to do.
 
+You may find the 'examples' folder useful, as it has an annotated `puppy.yaml` file to give you some help.
+
 ### Authentication (`auth.yaml`)
 
 Now we're going to send you right back to PackUploader for the [**Authentication** instructions](https://github.com/ewanhowell5195/PackUploader#authentication)
