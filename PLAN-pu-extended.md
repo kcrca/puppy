@@ -1,5 +1,9 @@
 # Plan: Extend PackUploader for Worlds and Mods, Puppy Uses PU
 
+This plan is to explore one approach for supporting other kinds of projects.
+In this approach, we would extend PackUploader to handle other kinds, and continue to have puppy use PackUploader as the primary communication layer.
+See "**Plan: Puppy Native — Drop PackUploader, Add Worlds and Mods**" to explore a different approach.
+
 ## Goal
 
 Add world save and mod support to PackUploader.

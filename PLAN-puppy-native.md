@@ -1,5 +1,9 @@
 # Plan: Puppy Native — Drop PackUploader, Add Worlds and Mods
 
+This plan is to explore one approach for supporting other kinds of projects.
+In this approach, we would make puppy directly talk to remote sites, bypassing PackUploader.
+See "**Plan: Extend PackUploader for Worlds and Mods, Puppy Uses PU**" to explore a different approach.
+
 ## Goal
 
 Replace PackUploader entirely with native Python.
