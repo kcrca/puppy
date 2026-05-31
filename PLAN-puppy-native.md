@@ -68,7 +68,33 @@ PMC form fields need reverse-engineering from browser DevTools.
 
 Until this is built, PMC push remains routed through PU (hybrid mode), or is skipped.
 
-### 1.5 Remove PU Dependency
+### 1.5 Interactive Auth (`puppy auth`)
+
+New command: `puppy auth [--site cf|modrinth|pmc]`.
+Requires Playwright (same optional dependency as PMC).
+Replaces manual cookie-hunting in DevTools.
+
+Flow per site:
+
+1. Open headed Chromium to the site's login page.
+2. Inject an overlay instructing the user what's about to happen ("Log in, then we'll set up your token automatically").
+3. Poll for successful login (auth cookie present or profile element visible).
+4. Attempt automated token/cookie extraction:
+   - **Modrinth**: navigate to Settings → API tokens, fill form, submit, scrape the generated token value.
+   - **CurseForge**: extract session cookies from `authors.curseforge.com` domain (CF has no public token API).
+   - **PMC**: extract session cookies (Playwright is used for all PMC operations anyway).
+5. If automated extraction fails (selector not found — site redesigned), overlay updates:
+   "Couldn't find the token form — things may have changed.
+   Go to Settings → API tokens, create one, and paste it below."
+   Overlay shows an input field; user pastes; puppy saves it.
+6. Write extracted credentials to `auth.yaml`, close browser.
+7. Log which path was taken (automated vs. manual fallback) so breakage is visible.
+
+Cookie expiry: CF and PMC session cookies expire on logout or after a period.
+`puppy auth` can be re-run per-site: `puppy auth --site curseforge`.
+Detect stale auth on 401/redirect during push and print a reminder to re-run `puppy auth`.
+
+### 1.6 Remove PU Dependency
 
 Once 1.2–1.4 are done:
 - Delete `puppy/worker.py`
@@ -78,7 +104,7 @@ Once 1.2–1.4 are done:
 - Remove `run/mods` working directory reference
 - Update `README.md`: no longer requires Node, npm, or `~/PackUploader`
 
-### 1.6 Testing
+### 1.7 Testing
 
 - Unit tests: mock Pillow calls, assert resize parameters
 - Integration tests: dedicated test accounts on CF and Modrinth; push known content, read back, assert fields match
@@ -201,7 +227,8 @@ No significant gaps.
 | 1.2 CF native | REST API calls | 2–3 days |
 | 1.3 Modrinth native | REST API calls | 1–2 days |
 | 1.4 PMC native | Playwright browser | 1–2 weeks |
-| 1.5 Remove PU | Cleanup | 1 day |
+| 1.5 Interactive auth | `puppy auth` Playwright flow | 1–2 days |
+| 1.6 Remove PU | Cleanup | 1 day |
 | 2 Worlds | CF + PMC branching | 3–5 days |
 | 3 Mods | CF + Modrinth + loaders | 1–2 weeks |
 | **Total** | | **5–10 weeks** |
