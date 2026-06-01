@@ -28,18 +28,36 @@ Pillow's `Image.LANCZOS` resampling matches sharp's output quality closely enoug
 ### 1.2 CurseForge Native
 
 Effort: **2–3 days**.
-Auth: `auth.curseforge.cookie` (same as PU today).
-Base URL: `https://authors.curseforge.com/_api/`.
 
-Operations needed:
-- Upload icon: `POST /projects/game/432/upload-avatar`
-- List gallery images: `GET /projects/{id}/media`
-- Delete gallery image: `DELETE /projects/{id}/media/{mediaId}`
-- Upload gallery image: `POST /projects/{id}/media`
-- Update details (description, socials, donation): `PATCH /projects/{id}` or equivalent
+**Two separate CF APIs in use:**
+
+`https://minecraft.curseforge.com/api/` — **official, documented** ([authors.curseforge.com/docs/api](https://authors.curseforge.com/docs/api)).
+Covers only file upload (`POST /projects/{id}/upload-file`) and game metadata lookups.
+Requires API token via `X-Api-Token` header.
+
+`https://authors.curseforge.com/_api/` — **internal, undocumented**.
+Used by CF's own authors dashboard frontend.
+No public spec, no stability guarantees, no changelog.
+In practice: stable for at least 21 months (PU's curseforge.js history shows no endpoint-repair commits since August 2024).
+No other known third-party tools use these endpoints.
+
+Operations split by API:
+
+| Operation | API | Endpoint |
+|-----------|-----|----------|
+| Upload file | Official | `POST /api/projects/{id}/upload-file` |
+| Upload icon | Internal `_api/` | `POST /projects/game/432/upload-avatar` |
+| List gallery | Internal `_api/` | `GET /image-attachments/image/{id}` |
+| Delete gallery image | Internal `_api/` | `DELETE /image-attachments/{id}/{imageId}/1` |
+| Upload gallery image | Internal `_api/` | `POST /image-attachments/{id}` |
+| Update details/description | Internal `_api/` | `POST /projects/description/{id}`, `POST /projects/{id}/update-details` |
+| Update license | Internal `_api/` | `POST /project-license/{id}/update` |
+| Update source/links | Internal `_api/` | `POST /project-source/{id}/update` |
+
+Auth: official API uses API token; internal `_api/` uses session cookie (`auth.curseforge.cookie`).
 
 Extend existing `CurseForgeSite` class in `sites.py` with these methods.
-CF API is not publicly documented; reverse-engineer from PU's `curseforge.js` and browser DevTools.
+Reverse-engineer internal endpoints from PU's `curseforge.js` (already done) and verify against browser DevTools.
 
 ### 1.3 Modrinth Native
 
@@ -56,7 +74,23 @@ Operations needed:
 
 Extend existing `ModrinthSite` class in `sites.py`.
 
-### 1.4 Planet Minecraft
+### 1.4 Auth Error Detection
+
+All site classes catch auth-related errors reactively and surface a clear message.
+
+| Site | Auth failure signal | Detection |
+|------|--------------------|-----------| 
+| Modrinth | HTTP 401 | Check status code |
+| CF official API | HTTP 401/403 | Check status code |
+| CF `_api/` | HTTP 403 | Check status code |
+| PMC | HTTP 302 redirect to login page | Check redirect URL |
+
+On detection, raise a named exception (e.g. `AuthExpiredError`) with a message:
+`"CurseForge session expired — run: puppy auth --site curseforge"`
+
+Callers in `syncer.py` catch it and print cleanly without a traceback.
+
+### 1.6 Planet Minecraft
 
 Effort: **1–2 weeks** (PMC blocks non-browser HTTP).
 Optional dependency: `pip install puppy[pmc]` installs `playwright`.
@@ -68,7 +102,7 @@ PMC form fields need reverse-engineering from browser DevTools.
 
 Until this is built, PMC push remains routed through PU (hybrid mode), or is skipped.
 
-### 1.5 Interactive Auth (`puppy auth`)
+### 1.7 Interactive Auth (`puppy auth`)
 
 New command: `puppy auth [--site cf|modrinth|pmc]`.
 Requires Playwright (same optional dependency as PMC).
@@ -94,7 +128,7 @@ Cookie expiry: CF and PMC session cookies expire on logout or after a period.
 `puppy auth` can be re-run per-site: `puppy auth --site curseforge`.
 Detect stale auth on 401/redirect during push and print a reminder to re-run `puppy auth`.
 
-### 1.6 Remove PU Dependency
+### 1.8 Remove PU Dependency
 
 Once 1.2–1.4 are done:
 - Delete `puppy/worker.py`
@@ -104,7 +138,7 @@ Once 1.2–1.4 are done:
 - Remove `run/mods` working directory reference
 - Update `README.md`: no longer requires Node, npm, or `~/PackUploader`
 
-### 1.7 Testing
+### 1.9 Testing
 
 - Unit tests: mock Pillow calls, assert resize parameters
 - Integration tests: dedicated test accounts on CF and Modrinth; push known content, read back, assert fields match
@@ -209,15 +243,21 @@ No significant gaps.
 - **CurseForge**: major platform, well-supported (classId 17 — Maps)
 - **Planet Minecraft**: major platform for maps/worlds
 - **Modrinth**: no world project type; skip
-- **Missing**: no other platforms worth adding — niche map sites (mc-maps.com, minecraftWorldMap.com) have minimal traffic and no useful APIs
+- **Missing**: no other platforms worth adding — niche map sites (mc-maps.com, minecraftWorldMap.com) have minimal traffic and no useful APIs.
+  9Minecraft aggregates/mirrors content without an upload API.
+  Checked May 2026; no new major platforms found.
 
 ### Mods
 - **CurseForge**: essential — dominant mod platform
 - **Modrinth**: essential — fast-growing, modern API, increasingly the primary platform
-- **GitHub Releases**: standard for mod authors; already handled by mc-publish for packs, should extend naturally to mods
+- **GitHub Releases**: standard for mod authors; out of scope for puppy.
+  GitHub Releases requires a git tag and is distribution infrastructure, not discovery.
+  Mod authors should use mc-publish in CI (same as Philter's publish workflow).
 - **Planet Minecraft**: not relevant for mods; skip
 - **Hangar / Spigot / Bukkit**: Paper/Bukkit plugin ecosystem — entirely different from Fabric/Forge, out of scope
-- **Missing**: nothing significant beyond CF + Modrinth + GitHub Releases
+- **FTB / Technic**: modpack launchers, not mod hosting platforms — authors don't publish individual mods there
+- **Missing**: nothing significant beyond CF + Modrinth + GitHub Releases.
+  Checked May 2026; no new major platforms found.
 
 ## Effort Summary
 
@@ -226,9 +266,10 @@ No significant gaps.
 | 1.1 Image processing | Pillow resize | 0.5 days |
 | 1.2 CF native | REST API calls | 2–3 days |
 | 1.3 Modrinth native | REST API calls | 1–2 days |
-| 1.4 PMC native | Playwright browser | 1–2 weeks |
-| 1.5 Interactive auth | `puppy auth` Playwright flow | 1–2 days |
-| 1.6 Remove PU | Cleanup | 1 day |
+| 1.4 Auth error detection | Reactive 401/redirect handling | 0.5 days |
+| 1.6 PMC native | Playwright browser | 1–2 weeks |
+| 1.7 Interactive auth | `puppy auth` Playwright flow | 1–2 days |
+| 1.8 Remove PU | Cleanup | 1 day |
 | 2 Worlds | CF + PMC branching | 3–5 days |
 | 3 Mods | CF + Modrinth + loaders | 1–2 weeks |
 | **Total** | | **5–10 weeks** |
