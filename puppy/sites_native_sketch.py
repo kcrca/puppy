@@ -164,8 +164,13 @@ class CurseForgeSite(Site):
     aliases = ['cf']
     label = 'CurseForge'
 
-    _API = 'https://minecraft.curseforge.com/api'
-    _DASH = 'https://authors.curseforge.com/_api'
+    def __init__(
+        self,
+        api_base: str = 'https://minecraft.curseforge.com/api',
+        dash_base: str = 'https://authors.curseforge.com/_api',
+    ) -> None:
+        self._API = api_base
+        self._DASH = dash_base
 
     _CLASS_IDS = {
         'resourcepack': 12,
@@ -384,7 +389,8 @@ class ModrinthSite(Site):
     aliases = ['mr']
     label = 'Modrinth'
 
-    _API = 'https://api.modrinth.com/v2'
+    def __init__(self, api_base: str = 'https://api.modrinth.com/v2') -> None:
+        self._API = api_base
 
     _PROJECT_TYPES = {
         'resourcepack': 'resourcepack',

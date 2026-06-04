@@ -32,7 +32,12 @@ puppy/
   runner.py       orchestrates actions across projects
   core.py         Project: name/slug derivation
   config.py       puppy.yaml loading, Jinja2 config synthesis
-  sites.py        Site protocol + CurseForgeSite, ModrinthSite, PlanetMinecraftSite
+  sites/
+    __init__.py   exports CURSEFORGE, MODRINTH, PMC, SITES list
+    base.py       Site class, PushContext, PulledData, HTTP helpers
+    curseforge.py CurseForgeSite
+    modrinth.py   ModrinthSite
+    pmc.py        PlanetMinecraftSite
   imaging.py      Pillow resize/encode for all asset types
   renderer.py     Jinja2 rendering; DescriptionFormat hierarchy (MD, HTML, BBCode)
   syncer.py       push pipeline: metadata + gallery sync per site
@@ -45,8 +50,19 @@ puppy/
   errors.py       AuthExpiredError, SiteError
 ```
 
+Adding a new site: create one file in `sites/`, register an instance in `sites/__init__.py`.
+No other files need changing.
+
 `pmc_browser.py` is an optional module installed with `puppy[pmc]`.
 All other modules must import it conditionally.
+
+---
+
+## HTTP and Concurrency
+
+Site HTTP calls use `urllib.request` (stdlib, no added dependency).
+`syncer.py` runs the per-site push loop with `concurrent.futures.ThreadPoolExecutor` so CF, Modrinth, and PMC push in parallel.
+Site methods stay synchronous — parallelism is at the call site, not inside site classes.
 
 ---
 
@@ -216,6 +232,11 @@ Both are optional; defaults are identity/empty.
 
 Sites use both the slug's `type` and the per-entry site ID to build the URL.
 Example: `related.fabric-api.type = mod` + `related.fabric-api.modrinth = P7dR8mSH` → `https://modrinth.com/mod/P7dR8mSH`.
+
+**CurseForge `descriptionType`:** The `_api/projects/description/{id}` endpoint takes `{ description: <string>, descriptionType: <int> }`.
+PU sends `descriptionType: 1` for HTML.
+CF added a Markdown editor to its dashboard in Feb 2026 but made no documented API change; a `descriptionType` value for Markdown may exist but is unknown without a DevTools sniff.
+Use `descriptionType: 1` (HTML) until confirmed otherwise.
 
 **Adding a new site with an existing format**: set `description_format = HTML`. Zero new code.
 **Adding a new site with a new format**: add one `DescriptionFormat` subclass to `renderer.py`. No changes to `sites.py` or the pipeline.

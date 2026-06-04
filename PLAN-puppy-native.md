@@ -104,6 +104,8 @@ Until this is built, PMC push remains routed through PU (hybrid mode), or is ski
 
 ### 1.7 Interactive Auth (`puppy auth`)
 
+Confirmed Phase 1 — not deferred.
+
 New command: `puppy auth [--site cf|modrinth|pmc]`.
 Requires Playwright (same optional dependency as PMC).
 Replaces manual cookie-hunting in DevTools.
