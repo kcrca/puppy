@@ -1,7 +1,12 @@
 import shutil
+from io import BytesIO
 from pathlib import Path
 
 from PIL import Image
+
+_ICON_SIZE = (512, 512)
+_GALLERY_SIZE = (1920, 1080)
+_LOGO_SIZE = (1280, 256)
 
 _IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.tiff', '.tif']
 
@@ -44,6 +49,46 @@ def stage_image(src: Path, dest: Path) -> None:
                 img.convert('RGBA').save(dest, format='PNG')
         except Exception as e:
             raise SystemExit(f'Failed to convert {src} to PNG: {e}')
+
+
+def prepare_icon(src: Path, verbosity: int = 0) -> bytes:
+    with Image.open(src) as img:
+        w, h = img.size
+        if w != h:
+            print(f'Warning: icon {src.name} is not square ({w}×{h}) — padding to 512×512')
+        scale = min(_ICON_SIZE[0] / w, _ICON_SIZE[1] / h)
+        new_size = (round(w * scale), round(h * scale))
+        scaled = img.convert('RGBA').resize(new_size, Image.LANCZOS)
+    canvas = Image.new('RGBA', _ICON_SIZE, (0, 0, 0, 0))
+    offset = ((_ICON_SIZE[0] - new_size[0]) // 2, (_ICON_SIZE[1] - new_size[1]) // 2)
+    canvas.paste(scaled, offset)
+    if verbosity >= 1:
+        print(f'  {src.name} → {_ICON_SIZE[0]}×{_ICON_SIZE[1]} PNG')
+    buf = BytesIO()
+    canvas.save(buf, format='PNG')
+    return buf.getvalue()
+
+
+def prepare_gallery_image(src: Path, verbosity: int = 0) -> bytes:
+    if verbosity >= 1:
+        print(f'  {src.name} → {_GALLERY_SIZE[0]}×{_GALLERY_SIZE[1]} JPEG')
+    with Image.open(src) as img:
+        out = img.convert('RGB')
+        out.thumbnail(_GALLERY_SIZE, Image.LANCZOS)
+    buf = BytesIO()
+    out.save(buf, format='JPEG', quality=95)
+    return buf.getvalue()
+
+
+def prepare_logo(src: Path, verbosity: int = 0) -> bytes:
+    if verbosity >= 1:
+        print(f'  {src.name} → {_LOGO_SIZE[0]}×{_LOGO_SIZE[1]} PNG')
+    with Image.open(src) as img:
+        out = img.convert('RGBA')
+        out.thumbnail(_LOGO_SIZE, Image.LANCZOS)
+    buf = BytesIO()
+    out.save(buf, format='PNG')
+    return buf.getvalue()
 
 
 def copy_images(config: dict, puppy_dir: Path, dest: Path) -> None:
