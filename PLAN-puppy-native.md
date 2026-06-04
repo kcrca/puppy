@@ -235,6 +235,50 @@ Skip — PMC is not a meaningful platform for mods.
 
 ## Platform Coverage by Project Type
 
+### Support Matrix
+
+| Type | CurseForge | Modrinth | Planet Minecraft | Notes |
+|------|-----------|----------|-----------------|-------|
+| **Resource Pack** | ✓ classId 12 | ✓ `resourcepack` | ✓ texture-packs | **Current** |
+| **World/Map** | ✓ classId 17 | ✗ no type | ✓ projects/ | **Phase 2** |
+| **Mod** | ✓ classId 6 | ✓ `mod` | ~ not meaningful | **Phase 3** |
+| **Shader** | ✓ `class=shaders` | ✓ `shader` | ~ customization | High value — same workflow as resource packs |
+| **Data Pack** | ~ unclear classId | ✓ `datapack` | ✓ data-packs/ | Near-zero effort after Phase 1 — same ZIP workflow, only classId/project_type differs |
+| **Modpack** | ✓ classId 4471 | ✓ `modpack` | ✗ | Low priority — special file formats (.mrpack, manifest), complex dependency manifests |
+| **Plugin (Bukkit/Paper)** | ✓ bukkit-plugins | ✓ `plugin` | ✗ | Different ecosystem; Hangar/Spigot are primary; out of scope |
+| **Skin** | ~ limited | ✗ no type | ✓ skins/ | No versioning concept; very different workflow; low priority |
+| **Server** | ✗ | ✓ `minecraft_java_server` | ✗ | Not a publishing use case |
+
+Legend: ✓ = supported with classId/type, ~ = partial or uncertain, ✗ = not supported
+
+CF classIds confirmed: resource packs (12), worlds (17), mods (6), modpacks (4471), shaders (dedicated class), bukkit plugins (dedicated class).
+Modrinth types confirmed via API (`/v2/tag/project_type`): mod, modpack, resourcepack, shader, plugin, datapack, minecraft_java_server.
+PMC types from site navigation; no API — all Playwright-driven.
+
+### Future Type Priority
+
+**Shaders** are the most natural next type after mods.
+The workflow is nearly identical to resource packs (ZIP file, icon, gallery, description) with the same three sites.
+Only difference: different classId on CF and `project_type: "shader"` on Modrinth.
+Estimated effort: 0.5 days once Phase 1 is complete.
+
+**Data Packs** are server-side logic (recipes, loot tables, advancements, world gen); resource packs are client-side assets.
+Both are ZIPs with `pack.mcmeta`; different internal structure (`data/` vs `assets/`) but identical from a publishing perspective.
+"Texture pack" is just the legacy name for resource pack — not a separate type.
+Adding `type: datapack` is nearly zero work: swap classId on CF and `project_type` on Modrinth; file handling, image pipeline, and description rendering are unchanged.
+Modrinth and PMC both have dedicated sections; CF classId needs verification against CF categories API.
+Estimated effort: 0.5 days.
+
+**Modpacks** require special file formats (`.mrpack` for Modrinth, `manifest.json` + overrides ZIP for CF) and dependency resolution.
+Substantially more complex than other types; separate project when/if needed.
+
+**Plugins** are a different ecosystem (Bukkit/Paper/Spigot).
+Hangar and Spigot are the primary platforms, not CF/Modrinth/PMC.
+Out of scope.
+
+**Skins** have no versioning concept and a fundamentally different workflow.
+Not a fit for puppy's version-centric model.
+
 ### Resource Packs
 Currently supported sites (CF, Modrinth, PMC) cover the field.
 No significant gaps.
