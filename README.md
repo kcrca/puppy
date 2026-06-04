@@ -1,3 +1,13 @@
+# TODO (native branch)
+
+- **Installation**: Remove PackUploader requirement. Add: install Firefox, run `playwright install firefox`, run `puppy auth`.
+- **Authentication**: Replace PackUploader auth instructions with `puppy auth` flow. Note manual token steps for CF and MR.
+- **`--worker` option**: Remove (PU gone).
+- **`clean` subcommand**: Remove (PU gone).
+- **Manual cookie fallback**: Add instructions for users who can't use Firefox (DevTools steps for Chrome/Safari).
+
+---
+
 # Introduction
 
 If you have a texture pack, and you want others to use it, you have to put it out there.

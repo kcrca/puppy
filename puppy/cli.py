@@ -15,7 +15,7 @@ def build_parser() -> argparse.ArgumentParser:
         'action',
         nargs='?',
         default='push',
-        choices=['push', 'create', 'pull', 'init', 'clean'],
+        choices=['push', 'create', 'pull', 'init', 'clean', 'auth'],
         help='Action to perform (default: push).',
     )
 
@@ -128,12 +128,17 @@ def main(argv: list[str] = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    directory = args.directory or Path.cwd()
+
+    if args.action == 'auth':
+        from puppy.auth import run_auth
+        run_auth(site=args.site, directory=directory)
+        return
+
     if args.action == 'create' and not args.force and sys.stdin.isatty():
         answer = input('Create new projects on sites? This cannot be undone. [y/N] ')
         if not answer.strip().lower().startswith('y'):
             raise SystemExit('Aborted.')
-
-    directory = args.directory or Path.cwd()
 
     run(
         action=args.action,

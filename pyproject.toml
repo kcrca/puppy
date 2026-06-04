@@ -18,6 +18,7 @@ dependencies = [
     "md2bbcode>=1.1",
     "bbcode>=1.1",
     "ruamel.yaml>=0.19",
+    "playwright>=1.40",
 ]
 
 [project.optional-dependencies]
