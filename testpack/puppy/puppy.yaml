@@ -1,0 +1,15 @@
+name: puppytest
+pack: testpack
+minecraft: '1.21'
+summary: A minimal resource pack for testing puppy workflows.
+license: MIT
+
+curseforge:
+  id: 1565122
+  slug: puppytest
+
+modrinth:
+  slug: REPLACE_WITH_MR_SLUG
+
+planetminecraft:
+  slug: REPLACE_WITH_PMC_SLUG
