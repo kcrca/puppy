@@ -30,11 +30,20 @@ def run_pull(
     mr_id = mr.get('id') or mr.get('slug')
     use_mr_native = MODRINTH in visitor and bool(mr_token) and bool(mr_id)
 
-    all_native = use_mr_native and all(s is MODRINTH for s in visitor)
+    cf_token = auth.get('curseforge', {}).get('token')
+    cf_cookie = auth.get('curseforge', {}).get('cookie')
+    cf_id = config.get('curseforge', {}).get('id')
+    use_cf_native = CURSEFORGE in visitor and bool(cf_token) and bool(cf_cookie) and bool(cf_id)
 
-    if all_native:
+    native_sites = {s for s, used in ((MODRINTH, use_mr_native), (CURSEFORGE, use_cf_native)) if used}
+    all_native = all(s in native_sites for s in visitor)
+
+    if use_mr_native:
         _run_mr_native_pull(project, config, auth, site, images, verbosity)
-    else:
+    if use_cf_native:
+        _run_cf_native_pull(project, config, auth, site, images, verbosity)
+
+    if not all_native:
         worker_prep(worker_dir, verbosity)
         _stage(project, config, worker_dir, site)
         _clean_existing(project, worker_dir)
@@ -69,6 +78,32 @@ def _run_mr_native_pull(
         )
     except AuthExpiredError as e:
         raise SystemExit(f'Modrinth auth expired (HTTP {e.code}) — run: puppy auth --site modrinth')
+
+    _harvest_yaml(project, result_data, puppy_dir, site, do_images)
+
+
+def _run_cf_native_pull(
+    project: Project,
+    config: dict,
+    auth: dict,
+    site: str | None,
+    images: bool,
+    verbosity: int,
+) -> None:
+    cf_id = config.get('curseforge', {}).get('id')
+    puppy_dir = project.puppy_dir
+    do_images = images or not _has_image_info(puppy_dir, site)
+
+    try:
+        result_data = CURSEFORGE.pull(
+            project_id=cf_id,
+            auth=auth,
+            puppy_dir=puppy_dir,
+            images=do_images,
+            verbosity=verbosity,
+        )
+    except AuthExpiredError as e:
+        raise SystemExit(f'CurseForge auth expired (HTTP {e.code}) — run: puppy auth --site cf')
 
     _harvest_yaml(project, result_data, puppy_dir, site, do_images)
 

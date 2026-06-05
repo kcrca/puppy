@@ -34,6 +34,11 @@ def _no_mr_native_pull(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_cf_native_pull(monkeypatch):
+    monkeypatch.setattr('puppy.puller._run_cf_native_pull', lambda *a, **k: None)
+
+
+@pytest.fixture(autouse=True)
 def _no_mr_native_upload(monkeypatch):
     monkeypatch.setattr('puppy.publisher.MODRINTH.upload_version', lambda *a, **k: None)
 

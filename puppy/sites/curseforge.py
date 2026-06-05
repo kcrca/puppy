@@ -106,6 +106,12 @@ def _cf_post_multipart(
     return _cf_send(req)
 
 
+def _cf_download(url: str, dest: Path) -> None:
+    req = urllib.request.Request(url, headers=_cf_headers({}))
+    with urllib.request.urlopen(req, timeout=30) as r:
+        dest.write_bytes(r.read())
+
+
 def _cf_send(req: urllib.request.Request) -> Any:
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
@@ -486,3 +492,110 @@ class CurseForgeSite(Site):
             if verbosity >= 1:
                 print(f'  [CurseForge] uploading file v{version}')
             self.upload_file(project_id, auth, pack_path, version, config)
+
+    def pull(
+        self,
+        project_id,
+        auth: dict,
+        puppy_dir: Path,
+        images: bool = True,
+        verbosity: int = 0,
+    ) -> dict:
+        if verbosity >= 1:
+            print('  [CurseForge] fetching project')
+        data = self.fetch_project(project_id, auth)
+        if not data:
+            raise SystemExit(f'Could not fetch CurseForge project: {project_id}')
+
+        token = auth.get('curseforge', {}).get('token')
+        if token:
+            desc_req = urllib.request.Request(
+                f'https://api.curseforge.com/v1/mods/{project_id}/description',
+                headers={'x-api-key': token},
+            )
+            with urllib.request.urlopen(desc_req, timeout=30) as resp:
+                desc_data = json.loads(resp.read())
+            site_dir = puppy_dir / 'curseforge'
+            site_dir.mkdir(parents=True, exist_ok=True)
+            (site_dir / 'description.html').write_text(desc_data['data'])
+
+        h = self._cookie_headers(auth)
+        params = urllib.parse.urlencode({
+            'filter': '{}',
+            'range': '[0,24]',
+            'sort': '["id","DESC"]',
+        })
+        gallery = _cf_get(f'{_CF_DASH}/image-attachments/image/{project_id}?{params}', h) or []
+
+        image_entries = []
+        for item in gallery:
+            title = item.get('title', '')
+            if title:
+                image_entries.append({'file': title, 'description': item.get('description', '')})
+
+        if images:
+            avatar_url = data.get('avatarUrl')
+            if avatar_url:
+                existing = [
+                    p for p in puppy_dir.iterdir()
+                    if p.suffix in ('.png', '.jpg', '.jpeg')
+                    and p.name not in ('banner.png', 'logo.png')
+                ]
+                if not existing:
+                    if verbosity >= 1:
+                        print('  [CurseForge] downloading icon')
+                    _cf_download(avatar_url, puppy_dir / 'pack.png')
+
+            if gallery:
+                images_dir = puppy_dir / 'images'
+                images_dir.mkdir(parents=True, exist_ok=True)
+                if verbosity >= 1:
+                    print(f'  [CurseForge] downloading {len(gallery)} gallery images')
+                for item in gallery:
+                    url = item.get('imageUrl') or item.get('url', '')
+                    title = item.get('title', '')
+                    if url and title:
+                        stem = Path(title).stem.strip('_')
+                        suffix = Path(url.split('?')[0]).suffix or '.jpg'
+                        _cf_download(url, images_dir / (stem + suffix))
+
+        social_inv = {v: k for k, v in _CF_SOCIAL_TYPES.items()}
+        socials = {}
+        for link in (data.get('links') or []):
+            key = social_inv.get(link.get('type'))
+            url = link.get('url')
+            if key and url:
+                socials[key] = url
+
+        donation_inv = {v: k for k, v in _CF_DONATION_TYPES.items()}
+        dtype = donation_inv.get(data.get('donationTypeId'), 'none')
+        donation = None
+        if dtype and dtype != 'none':
+            dval = data.get('donationIdentifier', '')
+            if dval:
+                donation = {'type': dtype, 'value': dval}
+
+        license_id_inv = {v: k for k, v in _CF_LICENSE_IDS.items()}
+        license_name = license_id_inv.get(data.get('licenseId'))
+
+        cf_result: dict = {
+            'id': data.get('id', project_id),
+            'slug': data.get('slug'),
+        }
+        if donation:
+            cf_result['donation'] = donation
+        if license_name:
+            cf_result['license'] = license_name
+        if data.get('primaryCategoryId') is not None:
+            cf_result['mainCategory'] = data['primaryCategoryId']
+        if socials:
+            cf_result['socials'] = socials
+
+        return {
+            'config': {
+                'name': data.get('name', ''),
+                'summary': data.get('summary', ''),
+                'images': image_entries,
+            },
+            'curseforge': cf_result,
+        }

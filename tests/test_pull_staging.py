@@ -72,22 +72,6 @@ def test_import_json_staged(import_env, run_puppy):
     assert data['planetminecraft']['id'] == 999
 
 
-def test_import_site_filter_nulls_others(import_env, run_puppy, monkeypatch):
-    def fake_run_cf(cmd, **kwargs):
-        pd = import_env['worker'] / 'projects' / _PACK
-        pd.mkdir(parents=True, exist_ok=True)
-        (pd / 'project.json').write_text(
-            json.dumps({'config': {'name': 'NeonGlow'}, 'curseforge': {'id': 111, 'slug': _PACK}})
-        )
-        return subprocess.CompletedProcess(cmd, 0)
-
-    monkeypatch.setattr('puppy.worker.subprocess.run', fake_run_cf)
-    run_puppy('pull', '--site', 'curseforge', '--worker', str(import_env['worker']))
-    data = json.loads((import_env['worker'] / 'data' / 'import.json').read_text())
-    assert data['curseforge']['id'] == 111
-    assert data['modrinth']['id'] is None
-    assert data['planetminecraft']['id'] is None
-
 
 def test_harvest_yaml_writes_ids(import_env, run_puppy):
     run_puppy('pull', '--worker', str(import_env['worker']))

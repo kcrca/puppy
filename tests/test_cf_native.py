@@ -323,3 +323,141 @@ def test_run_push_uses_native_path_when_cf_token_present(tmp_path, monkeypatch):
     # args: project, config, icon, puppy_dir, descriptions, auth, verbosity
     called_config = cf_native_calls[0][1]
     assert called_config.get('curseforge', {}).get('id') == 99
+
+
+# ── pull ──────────────────────────────────────────────────────────────────────
+
+_PROJECT_DATA = {
+    'id': 12345,
+    'slug': 'mypack',
+    'name': 'My Pack',
+    'summary': 'A great pack',
+    'avatarUrl': None,
+    'primaryCategoryId': 405,
+    'donationTypeId': 8,
+    'donationIdentifier': 'myname',
+    'licenseId': 4,
+    'links': [
+        {'type': 2, 'url': 'https://discord.gg/x'},
+        {'type': 3, 'url': 'https://mypack.com'},
+    ],
+}
+
+_DESC_DATA = {'data': '<p>Hello world</p>'}
+
+
+def test_cf_pull_fetches_project_and_writes_description(tmp_path):
+    with patch('urllib.request.urlopen', side_effect=[
+        _make_response(_PROJECT_DATA),   # fetch_project
+        _make_response(_DESC_DATA),      # description endpoint
+        _make_response([]),              # gallery
+    ]):
+        result = CURSEFORGE.pull(_PROJECT_ID, _AUTH, tmp_path, images=False)
+
+    desc = tmp_path / 'curseforge' / 'description.html'
+    assert desc.exists()
+    assert '<p>Hello world</p>' in desc.read_text()
+    assert result['config']['name'] == 'My Pack'
+    assert result['config']['summary'] == 'A great pack'
+    assert result['curseforge']['id'] == 12345
+    assert result['curseforge']['slug'] == 'mypack'
+    assert result['curseforge']['mainCategory'] == 405
+    assert result['curseforge']['donation'] == {'type': 'kofi', 'value': 'myname'}
+    assert result['curseforge']['license'] == 'MIT License'
+    assert result['curseforge']['socials'] == {'discord': 'https://discord.gg/x', 'website': 'https://mypack.com'}
+
+
+def test_cf_pull_downloads_gallery_images(tmp_path):
+    gallery = [
+        {'title': 'img1.jpg', 'description': '', 'imageUrl': 'https://cdn.cf.com/img1.jpg'},
+        {'title': 'img2.jpg', 'description': '', 'imageUrl': 'https://cdn.cf.com/img2.jpg'},
+    ]
+    with patch('urllib.request.urlopen', side_effect=[
+        _make_response(_PROJECT_DATA),
+        _make_response(_DESC_DATA),
+        _make_response(gallery),
+        _make_response(b'IMG1DATA'),
+        _make_response(b'IMG2DATA'),
+    ]):
+        result = CURSEFORGE.pull(_PROJECT_ID, _AUTH, tmp_path, images=True)
+
+    assert (tmp_path / 'images' / 'img1.jpg').exists()
+    assert (tmp_path / 'images' / 'img2.jpg').exists()
+    assert result['config']['images'] == [
+        {'file': 'img1.jpg', 'description': ''},
+        {'file': 'img2.jpg', 'description': ''},
+    ]
+
+
+def test_cf_pull_downloads_icon(tmp_path):
+    project_with_icon = {**_PROJECT_DATA, 'avatarUrl': 'https://cdn.cf.com/icon.png'}
+    with patch('urllib.request.urlopen', side_effect=[
+        _make_response(project_with_icon),
+        _make_response(_DESC_DATA),
+        _make_response([]),
+        _make_response(b'ICONDATA'),
+    ]):
+        CURSEFORGE.pull(_PROJECT_ID, _AUTH, tmp_path, images=True)
+
+    assert (tmp_path / 'pack.png').read_bytes() == b'ICONDATA'
+
+
+def test_cf_pull_skips_icon_if_existing(tmp_path):
+    (tmp_path / 'existing.png').write_bytes(b'EXISTING')
+    project_with_icon = {**_PROJECT_DATA, 'avatarUrl': 'https://cdn.cf.com/icon.png'}
+    with patch('urllib.request.urlopen', side_effect=[
+        _make_response(project_with_icon),
+        _make_response(_DESC_DATA),
+        _make_response([]),
+    ]):
+        CURSEFORGE.pull(_PROJECT_ID, _AUTH, tmp_path, images=True)
+
+    assert not (tmp_path / 'pack.png').exists()
+
+
+def test_run_pull_uses_cf_native_when_cf_creds_present(tmp_path, monkeypatch):
+    root = tmp_path / 'neon'
+    home = root / 'puppy'
+    project_dir = home / 'MyPack'
+    project_dir.mkdir(parents=True)
+
+    (home / '.gitignore').write_text('auth.yaml\n')
+    (home / 'puppy.yaml').write_text(yaml.dump({'projects': ['MyPack']}))
+    (home / 'auth.yaml').write_text(yaml.dump({
+        'curseforge': {'token': 'cf-tok', 'cookie': 'CobaltSession=abc'},
+    }))
+    (project_dir / 'puppy.yaml').write_text(yaml.dump({
+        'name': 'MyPack', 'pack': 'mypack',
+        'curseforge': {'id': 99, 'slug': 'mypack'},
+    }))
+
+    worker_dir = tmp_path / 'PackUploader'
+    worker_dir.mkdir()
+    (worker_dir / 'settings.json').write_text(json.dumps({
+        'ewan': False, 'modrinth': {}, 'curseforge': {}, 'planetminecraft': {},
+        'templateDefaults': {},
+    }))
+
+    cf_native_calls = []
+    monkeypatch.setattr('puppy.puller._run_cf_native_pull', lambda *a, **k: cf_native_calls.append(a))
+    monkeypatch.chdir(project_dir)
+
+    from puppy.config import ConfigSynthesizer
+    from puppy.core import Project
+    from puppy.puller import run_pull
+
+    config = ConfigSynthesizer(home, project_dir).get_running_config()
+    project = Project.from_config(project_dir, config, dry_run=True)
+    auth = {'curseforge': {'token': 'cf-tok', 'cookie': 'CobaltSession=abc'}}
+
+    run_pull(
+        project=project,
+        config=config,
+        auth=auth,
+        worker_dir=worker_dir,
+        site='curseforge',
+        images=False,
+        verbosity=0,
+    )
+
+    assert len(cf_native_calls) == 1
