@@ -75,8 +75,8 @@ def test_patch_project_json_all_sites(push_pack_env, run_puppy):
     pj = json.loads(
         (push_pack_env['worker'] / 'projects' / _PACK / 'project.json').read_text()
     )
-    assert pj['curseforge']['id'] == 111
-    # MR is native — worker doesn't touch it, so id is nulled in project.json
+    # CF and MR are native — worker doesn't touch them, so ids are nulled in project.json
+    assert pj['curseforge']['id'] is None
     assert pj['modrinth']['id'] is None
     assert pj['planetminecraft']['id'] == 999
 

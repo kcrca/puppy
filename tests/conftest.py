@@ -43,6 +43,11 @@ def _no_mr_native_upload(monkeypatch):
     monkeypatch.setattr('puppy.publisher.MODRINTH.upload_version', lambda *a, **k: None)
 
 
+@pytest.fixture(autouse=True)
+def _no_cf_native_upload(monkeypatch):
+    monkeypatch.setattr('puppy.publisher.CURSEFORGE.upload_file', lambda *a, **k: None)
+
+
 @pytest.fixture
 def project_env(tmp_path, monkeypatch):
     """Creates the 'Global > Home > Project' structure from the spec."""

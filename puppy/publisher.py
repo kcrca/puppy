@@ -9,7 +9,7 @@ from puppy.artifacts import ArtifactFinder
 from puppy.core import Project
 from puppy.creator import _expand_versions
 from puppy.errors import AuthExpiredError
-from puppy.sites import MODRINTH, SITES, SiteVisitor
+from puppy.sites import CURSEFORGE, MODRINTH, SITES, SiteVisitor
 
 
 def upload_pack(
@@ -44,7 +44,14 @@ def upload_pack(
 
     mr_token = auth.get('modrinth', {}).get('token', '')
     native_mr = MODRINTH in sites_to_upload and bool(mr_token)
-    worker_sites = [s for s in sites_to_upload if not (s is MODRINTH and native_mr)]
+
+    cf_token = auth.get('curseforge', {}).get('token', '')
+    native_cf = CURSEFORGE in sites_to_upload and bool(cf_token)
+
+    worker_sites = [
+        s for s in sites_to_upload
+        if not (s is MODRINTH and native_mr) and not (s is CURSEFORGE and native_cf)
+    ]
 
     if native_mr:
         if verbosity >= 1:
@@ -55,6 +62,16 @@ def upload_pack(
         except AuthExpiredError as e:
             raise SystemExit(f'Modrinth auth expired (HTTP {e.code}) — run: puppy auth --site modrinth')
         MODRINTH.post_upload(puppy_dir, version)
+
+    if native_cf:
+        if verbosity >= 1:
+            print(f'  [CurseForge] uploading version {version}')
+        cf_id = config.get('curseforge', {}).get('id')
+        try:
+            CURSEFORGE.upload_file(cf_id, auth, zip_path, version, config)
+        except AuthExpiredError as e:
+            raise SystemExit(f'CurseForge auth expired (HTTP {e.code}) — run: puppy auth --site cf')
+        CURSEFORGE.post_upload(puppy_dir, version)
 
     if worker_sites:
         _patch_project_json(worker_dir, project, config, worker_sites)

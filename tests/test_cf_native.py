@@ -155,8 +155,9 @@ def test_upload_file_sends_correct_multipart_with_metadata(tmp_path):
         _make_response({'id': 99}),           # POST upload-file
     ]
 
+    real_upload = CURSEFORGE.__class__.upload_file
     with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
-        CURSEFORGE.upload_file(_PROJECT_ID, _AUTH, zip_path, '1.0.0', config)
+        real_upload(CURSEFORGE, _PROJECT_ID, _AUTH, zip_path, '1.0.0', config)
 
     calls = mock_open.call_args_list
     ver_req = calls[0][0][0]
@@ -253,9 +254,10 @@ def test_upload_file_401_raises_auth_expired(tmp_path):
     with zipfile.ZipFile(zip_path, 'w') as z:
         z.writestr('pack.mcmeta', '{}')
     config = {'curseforge': {'slug': 'p'}, 'pack': 'p', 'minecraft': '1.21'}
+    real_upload = CURSEFORGE.__class__.upload_file
     with patch('urllib.request.urlopen', side_effect=_make_http_error(401, 'Unauthorized')):
         with pytest.raises(AuthExpiredError):
-            CURSEFORGE.upload_file(_PROJECT_ID, _AUTH, zip_path, '1.0', config)
+            real_upload(CURSEFORGE, _PROJECT_ID, _AUTH, zip_path, '1.0', config)
 
 
 # ── 7. Integration: run_push uses native path when CF token present ──────────
@@ -323,6 +325,59 @@ def test_run_push_uses_native_path_when_cf_token_present(tmp_path, monkeypatch):
     # args: project, config, icon, puppy_dir, descriptions, auth, verbosity
     called_config = cf_native_calls[0][1]
     assert called_config.get('curseforge', {}).get('id') == 99
+
+
+def test_upload_file_uses_cf_native_in_push_pack(tmp_path, monkeypatch):
+    root = tmp_path / 'neon'
+    home = root / 'puppy'
+    project_dir = home / 'MyPack'
+    project_dir.mkdir(parents=True)
+
+    (home / '.gitignore').write_text('auth.yaml\n')
+    (home / 'puppy.yaml').write_text(yaml.dump({'projects': ['MyPack']}))
+    (home / 'auth.yaml').write_text(yaml.dump({
+        'curseforge': {'token': 'cf456', 'cookie': 'CobaltSession=fake'},
+    }))
+    (project_dir / 'puppy.yaml').write_text(yaml.dump({
+        'name': 'MyPack', 'pack': 'mypack', 'minecraft': '1.21',
+        'curseforge': {'id': 99, 'slug': 'mypack'},
+    }))
+    Image.new('RGB', (64, 64), color='blue').save(project_dir / 'icon.png')
+    zip_path = project_dir / 'mypack-1.0.zip'
+    with zipfile.ZipFile(zip_path, 'w') as z:
+        z.writestr('pack.mcmeta', '{}')
+
+    worker_dir = tmp_path / 'PackUploader'
+    worker_dir.mkdir()
+    (worker_dir / 'settings.json').write_text(json.dumps({
+        'ewan': False, 'modrinth': {}, 'curseforge': {}, 'planetminecraft': {},
+        'templateDefaults': {},
+    }))
+
+    upload_calls = []
+    monkeypatch.setattr('puppy.publisher.CURSEFORGE.upload_file', lambda *a, **k: upload_calls.append(a))
+    monkeypatch.setattr('puppy.syncer.worker_prep', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.syncer._run_worker', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.publisher.subprocess.run',
+                        lambda cmd, **kw: __import__('subprocess').CompletedProcess(cmd, 0))
+    monkeypatch.chdir(project_dir)
+
+    from puppy.runner import run
+    run(
+        action='push',
+        directory=project_dir,
+        dry_run=False,
+        verbosity=0,
+        site='curseforge',
+        version='1.0',
+        pack=True,
+        force=True,
+        worker=worker_dir,
+    )
+
+    assert len(upload_calls) == 1
+    assert upload_calls[0][0] == 99          # project_id
+    assert upload_calls[0][2].name == 'mypack-1.0.zip'  # zip_path
 
 
 # ── pull ──────────────────────────────────────────────────────────────────────
