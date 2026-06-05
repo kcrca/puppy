@@ -353,6 +353,7 @@ def _dispatch(
             force=force,
             images=images,
             verbosity=verbosity,
+            auth=auth,
         )
     else:
         raise NotImplementedError(f"action '{action}' not yet implemented")

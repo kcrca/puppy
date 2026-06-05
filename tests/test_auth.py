@@ -11,7 +11,7 @@ def _make_cookies(*pairs):
     return [{'name': n, 'value': v} for n, v in pairs]
 
 
-CF_COOKIES = _make_cookies(('CobaltSession', 'cf-abc'))
+CF_COOKIES = _make_cookies(('AuthorsUser', 'au-xyz'), ('CobaltSession', 'cf-abc'))
 PMC_COOKIES = _make_cookies(('pmc_autologin', 'pmc-xyz'))
 
 
@@ -60,7 +60,7 @@ def auth_run(tmp_path):
 
 def test_cf_cookie_saved(auth_run):
     auth, code = auth_run(site='cf')
-    assert auth['curseforge']['cookie'] == 'CobaltSession=cf-abc'
+    assert auth['curseforge']['cookie'] == 'AuthorsUser=au-xyz; CobaltSession=cf-abc'
     assert code == 0
 
 
@@ -76,9 +76,9 @@ def test_existing_data_preserved(auth_run):
 
 
 def test_cookie_overwritten(auth_run):
-    initial = {'curseforge': {'cookie': 'CobaltSession=old', 'token': 'cf-token'}}
+    initial = {'curseforge': {'cookie': 'AuthorsUser=old; CobaltSession=old', 'token': 'cf-token'}}
     auth, code = auth_run(site='cf', initial_auth=initial)
-    assert auth['curseforge']['cookie'] == 'CobaltSession=cf-abc'
+    assert auth['curseforge']['cookie'] == 'AuthorsUser=au-xyz; CobaltSession=cf-abc'
     assert auth['curseforge']['token'] == 'cf-token'
 
 
@@ -88,10 +88,16 @@ def test_missing_cookie_exits_1(auth_run):
     assert code == 1
 
 
+def test_partial_cf_cookies_exits_1(auth_run):
+    ctx = _ctx_mock(cf=_make_cookies(('CobaltSession', 'cf-abc')), pmc=PMC_COOKIES)
+    auth, code = auth_run(site='cf', ctx=ctx)
+    assert code == 1
+
+
 def test_pmc_failure_saves_cf(auth_run):
     ctx = _ctx_mock(cf=CF_COOKIES, pmc=[])
     auth, code = auth_run(ctx=ctx)
-    assert auth.get('curseforge', {}).get('cookie') == 'CobaltSession=cf-abc'
+    assert auth.get('curseforge', {}).get('cookie') == 'AuthorsUser=au-xyz; CobaltSession=cf-abc'
     assert code == 1
 
 

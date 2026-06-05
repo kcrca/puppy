@@ -6,8 +6,21 @@ from PIL import Image
 
 
 @pytest.fixture(autouse=True)
+def _clear_cf_cache():
+    import puppy.sites as sites_mod
+    sites_mod._cf_game_versions_cache.clear()
+    yield
+    sites_mod._cf_game_versions_cache.clear()
+
+
+@pytest.fixture(autouse=True)
 def _no_preflight(monkeypatch):
     monkeypatch.setattr('puppy.runner.check_preflight', lambda: None)
+
+
+@pytest.fixture(autouse=True)
+def _no_cf_native(monkeypatch):
+    monkeypatch.setattr('puppy.syncer._run_cf_native', lambda *a, **k: None)
 
 
 @pytest.fixture

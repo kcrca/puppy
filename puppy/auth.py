@@ -65,27 +65,35 @@ def _open_context(p):
         raise SystemExit(f'Failed to open Firefox profile: {e}') from e
 
 
+_CF_REQUIRED_COOKIES = ('AuthorsUser', 'CobaltSession')
+
+
 def _extract_site_cookies(ctx, site_names: list[str]) -> tuple[dict[str, str], dict[str, str]]:
     """Returns (cookies, errors) — both keyed by site name."""
-    _sites = {
-        'curseforge': (_CF_URL, lambda c: 'cobalt' in c['name'].lower()),
-        'planetminecraft': (_PMC_URL, lambda c: 'autologin' in c['name'].lower()),
-    }
     cookies, errors = {}, {}
     for site in site_names:
-        if site not in _sites:
-            continue
-        url, matcher = _sites[site]
-        found = ctx.cookies([url])
-        match = next((c for c in found if matcher(c)), None)
-        if not match:
-            names = ', '.join(c['name'] for c in found) or 'none'
-            errors[site] = (
-                f'Not logged into {site} (cookies found: {names}). '
-                f'Log into {url} in Firefox, quit Firefox, then re-run puppy auth.'
-            )
-        else:
-            cookies[site] = f"{match['name']}={match['value']}"
+        if site == 'curseforge':
+            found = {c['name']: c['value'] for c in ctx.cookies([_CF_URL])}
+            missing = [n for n in _CF_REQUIRED_COOKIES if n not in found]
+            if missing:
+                names = ', '.join(found.keys()) or 'none'
+                errors[site] = (
+                    f'Not logged into {site} (found: {names}, missing: {", ".join(missing)}). '
+                    f'Log into {_CF_URL} in Firefox, quit Firefox, then re-run puppy auth.'
+                )
+            else:
+                cookies[site] = '; '.join(f'{n}={found[n]}' for n in _CF_REQUIRED_COOKIES)
+        elif site == 'planetminecraft':
+            found = ctx.cookies([_PMC_URL])
+            match = next((c for c in found if 'autologin' in c['name'].lower()), None)
+            if not match:
+                names = ', '.join(c['name'] for c in found) or 'none'
+                errors[site] = (
+                    f'Not logged into {site} (cookies found: {names}). '
+                    f'Log into {_PMC_URL} in Firefox, quit Firefox, then re-run puppy auth.'
+                )
+            else:
+                cookies[site] = f"{match['name']}={match['value']}"
     return cookies, errors
 
 

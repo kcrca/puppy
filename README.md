@@ -5,6 +5,7 @@
 - **`--worker` option**: Remove (PU gone).
 - **`clean` subcommand**: Remove (PU gone).
 - **Manual cookie fallback**: Add instructions for users who can't use Firefox (DevTools steps for Chrome/Safari).
+- **Project creation**: Implement `puppy create` (or `puppy import`) to create/register a project on each site via API. CF uses `authors.curseforge.com/_api/` (inspect network traffic on CF creation form to find endpoint). Currently user must create projects manually on each site.
 
 ---
 

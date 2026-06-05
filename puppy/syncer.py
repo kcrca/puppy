@@ -2,6 +2,8 @@ import json
 import shutil
 from pathlib import Path
 
+import yaml
+
 from puppy.config import ConfigSynthesizer, _deep_merge, build_projects_context
 from puppy.core import Project
 from puppy.creator import (
@@ -11,11 +13,12 @@ from puppy.creator import (
     _resolve_optional_asset,
     _validate_square,
 )
+from puppy.errors import AuthExpiredError
 from puppy.images import copy_images, stage_image
 from puppy.publisher import upload_pack
 from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
-from puppy.sites import SITES, SiteVisitor
+from puppy.sites import CURSEFORGE, SITES, SiteVisitor
 from puppy.worker import run_worker
 
 
@@ -31,6 +34,7 @@ def run_push(
     force: bool,
     images: bool = True,
     verbosity: int,
+    auth: dict = None,
 ) -> None:
     config = dict(config)
     config['projects'] = build_projects_context(puppy_home)
@@ -58,8 +62,22 @@ def run_push(
     config = dict(config)
     config['description'] = []
 
-    _stage(project, config, icon, puppy_dir, worker_dir, site, descriptions, images=images)
-    _run_worker(worker_dir, verbosity)
+    if auth is None:
+        auth = _load_auth(puppy_home)
+    cf_token = auth.get('curseforge', {}).get('token')
+    visitor = SiteVisitor(site)
+    cf_id = config.get('curseforge', {}).get('id')
+    use_cf_native = CURSEFORGE in visitor and bool(cf_token) and bool(cf_id)
+
+    if use_cf_native:
+        _run_cf_native(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)
+
+    cf_only = use_cf_native and all(s is CURSEFORGE for s in visitor)
+    needs_worker = not cf_only or pack
+    if needs_worker:
+        _stage(project, config, icon, puppy_dir, worker_dir, site, descriptions, images=images)
+        if not cf_only:
+            _run_worker(worker_dir, verbosity)
 
     if pack:
         upload_pack(
@@ -74,6 +92,46 @@ def run_push(
 
     if verbosity >= 1:
         print(f'[{project.name}] push complete')
+
+
+def _load_auth(puppy_dir: Path) -> dict:
+    auth_path = puppy_dir / 'auth.yaml'
+    if not auth_path.exists():
+        return {}
+    return yaml.safe_load(auth_path.read_text()) or {}
+
+
+def _run_cf_native(
+    project: Project,
+    config: dict,
+    icon: Path,
+    puppy_dir: Path,
+    descriptions: dict,
+    auth: dict,
+    verbosity: int,
+    images: bool = True,
+) -> None:
+    project_id = config.get('curseforge', {}).get('id')
+    description = descriptions.get('curseforge', '')
+    images_source = config.get('images_source')
+    images_dir = Path(images_source) if images_source else puppy_dir / 'images'
+    image_list = config.get('images', []) if images else []
+
+    try:
+        CURSEFORGE.push(
+            project_id=project_id,
+            config=config,
+            description=description,
+            icon_path=icon,
+            logo_path=None,
+            banner_path=None,
+            image_list=image_list,
+            images_dir=images_dir,
+            auth=auth,
+            verbosity=verbosity,
+        )
+    except AuthExpiredError as e:
+        raise SystemExit(f'CurseForge auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site cf')
 
 
 def _stage(
