@@ -5,7 +5,7 @@ import yaml
 
 @pytest.fixture(autouse=True)
 def _no_dispatch(monkeypatch):
-    monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.syncer.worker_prep', lambda *a, **k: None)
     monkeypatch.setattr('puppy.runner._dispatch', lambda *a, **k: None)
 
 

@@ -269,7 +269,7 @@ def test_run_push_uses_native_path_when_cf_token_present(tmp_path, monkeypatch):
     (home / '.gitignore').write_text('auth.yaml\n')
     (home / 'puppy.yaml').write_text(yaml.dump({'projects': ['MyPack']}))
     (home / 'auth.yaml').write_text(yaml.dump({
-        'modrinth': 'token123',
+        'modrinth': {'token': 'token123'},
         'curseforge': {'token': 'cf456', 'cookie': 'CobaltSession=fake'},
     }))
     (project_dir / 'puppy.yaml').write_text(yaml.dump({
@@ -303,7 +303,7 @@ def test_run_push_uses_native_path_when_cf_token_present(tmp_path, monkeypatch):
 
     config = ConfigSynthesizer(home, project_dir).get_running_config()
     project = Project.from_config(project_dir, config, dry_run=True)
-    auth = {'curseforge': {'token': 'cf456', 'cookie': 'CobaltSession=fake'}, 'modrinth': 'token123'}
+    auth = {'curseforge': {'token': 'cf456', 'cookie': 'CobaltSession=fake'}, 'modrinth': {'token': 'token123'}}
 
     run_push(
         project=project,

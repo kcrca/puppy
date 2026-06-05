@@ -8,7 +8,8 @@ import yaml
 from puppy.artifacts import ArtifactFinder
 from puppy.core import Project
 from puppy.creator import _expand_versions
-from puppy.sites import SITES, SiteVisitor
+from puppy.errors import AuthExpiredError
+from puppy.sites import MODRINTH, SITES, SiteVisitor
 
 
 def upload_pack(
@@ -20,6 +21,7 @@ def upload_pack(
     version: str,
     force: bool,
     verbosity: int,
+    auth: dict = None,
 ) -> None:
     if not config.get('minecraft') and not config.get('versions'):
         raise SystemExit(
@@ -27,7 +29,8 @@ def upload_pack(
         )
     puppy_dir = project.puppy_dir
     zip_path = _resolve_zip(config, puppy_dir, version, project)
-    auth = _read_auth(puppy_dir)
+    if auth is None:
+        auth = _read_auth(puppy_dir)
 
     sites_to_upload = _sites_needing_upload(
         project, config, auth, zip_path, version, site, force, verbosity
@@ -39,12 +42,26 @@ def upload_pack(
             )
         return
 
-    _patch_project_json(worker_dir, project, config, sites_to_upload)
-    _stage(project, config, zip_path, worker_dir, version)
-    _run_worker(worker_dir, verbosity)
+    mr_token = auth.get('modrinth', {}).get('token', '')
+    native_mr = MODRINTH in sites_to_upload and bool(mr_token)
+    worker_sites = [s for s in sites_to_upload if not (s is MODRINTH and native_mr)]
 
-    for s in sites_to_upload:
-        s.post_upload(puppy_dir, version)
+    if native_mr:
+        if verbosity >= 1:
+            print(f'  [Modrinth] uploading version {version}')
+        mr_id = config.get('modrinth', {}).get('id') or config.get('modrinth', {}).get('slug')
+        try:
+            MODRINTH.upload_version(mr_id, auth, zip_path, version, config)
+        except AuthExpiredError as e:
+            raise SystemExit(f'Modrinth auth expired (HTTP {e.code}) — run: puppy auth --site modrinth')
+        MODRINTH.post_upload(puppy_dir, version)
+
+    if worker_sites:
+        _patch_project_json(worker_dir, project, config, worker_sites)
+        _stage(project, config, zip_path, worker_dir, version)
+        _run_worker(worker_dir, verbosity)
+        for s in worker_sites:
+            s.post_upload(puppy_dir, version)
 
 
 def _resolve_zip(config: dict, puppy_dir: Path, version: str, project: Project) -> Path:

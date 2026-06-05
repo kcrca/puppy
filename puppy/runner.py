@@ -1,6 +1,4 @@
-import json
 import shutil
-import subprocess
 import tempfile
 import webbrowser
 from pathlib import Path
@@ -17,6 +15,7 @@ from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
 from puppy.sites import SITES, SiteVisitor, _ALIASES
 from puppy.syncer import run_push
+from puppy.worker import worker_prep, write_auth, patch_settings
 
 
 WORKER_DIR = Path.home() / 'PackUploader'
@@ -70,35 +69,6 @@ def _determine_roots(directory: Path) -> tuple[Path, list[Path]]:
     )
 
 
-def _write_auth(worker_dir: Path, auth: dict) -> None:
-    (worker_dir / 'auth.json').write_text(json.dumps(auth, indent=2))
-
-
-def _patch_settings(worker_dir: Path, config: dict) -> None:
-    settings_path = worker_dir / 'settings.json'
-    settings = json.loads(settings_path.read_text())
-    settings['ewan'] = False
-    settings['templateDefaults'] = {}
-    for site in SITES:
-        site.apply_settings(settings, config.get(site.name, {}))
-    settings_path.write_text(json.dumps(settings, indent=2))
-
-
-def _worker_prep(worker_dir: Path, verbosity: int) -> None:
-    if not worker_dir.exists():
-        raise SystemExit(f'Worker directory not found: {worker_dir}')
-
-    def run(cmd: list[str]) -> None:
-        kwargs = {} if verbosity >= 2 else {'capture_output': True}
-        result = subprocess.run(cmd, cwd=worker_dir, **kwargs)
-        if result.returncode != 0:
-            raise SystemExit(f'Worker prep failed: {" ".join(cmd)}')
-
-    run(['git', 'reset', '--hard', 'HEAD'])
-    run(['git', 'clean', '-fd'])
-
-    if not (worker_dir / 'node_modules').exists():
-        run(['npm', 'install'])
 
 
 def run(
@@ -124,7 +94,7 @@ def run(
 
     if action == 'clean':
         check_preflight()
-        _worker_prep(worker_dir, verbosity)
+        worker_prep(worker_dir, verbosity)
         return
 
     if site:
@@ -175,9 +145,8 @@ def run(
             dry_run_projects.append(project)
         else:
             check_preflight()
-            _worker_prep(worker_dir, verbosity)
-            _write_auth(worker_dir, auth)
-            _patch_settings(worker_dir, config)
+            write_auth(worker_dir, auth)
+            patch_settings(worker_dir, config)
             _dispatch(
                 action,
                 project,
@@ -356,4 +325,4 @@ def _dispatch(
             auth=auth,
         )
     else:
-        raise NotImplementedError(f"action '{action}' not yet implemented")
+        raise NotImplementedError(f'{action}: unknown action')

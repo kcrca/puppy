@@ -18,8 +18,8 @@ from puppy.images import copy_images, stage_image
 from puppy.publisher import upload_pack
 from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
-from puppy.sites import CURSEFORGE, SITES, SiteVisitor
-from puppy.worker import run_worker
+from puppy.sites import CURSEFORGE, MODRINTH, SITES, SiteVisitor
+from puppy.worker import run_worker, worker_prep
 
 
 def run_push(
@@ -64,19 +64,29 @@ def run_push(
 
     if auth is None:
         auth = _load_auth(puppy_home)
-    cf_token = auth.get('curseforge', {}).get('token')
     visitor = SiteVisitor(site)
+
+    cf_token = auth.get('curseforge', {}).get('token')
     cf_id = config.get('curseforge', {}).get('id')
     use_cf_native = CURSEFORGE in visitor and bool(cf_token) and bool(cf_id)
 
+    mr_token = auth.get('modrinth', {}).get('token', '')
+    mr = config.get('modrinth', {})
+    mr_id = mr.get('id') or mr.get('slug')
+    use_mr_native = MODRINTH in visitor and bool(mr_token) and bool(mr_id)
+
     if use_cf_native:
         _run_cf_native(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)
+    if use_mr_native:
+        _run_mr_native(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)
 
-    cf_only = use_cf_native and all(s is CURSEFORGE for s in visitor)
-    needs_worker = not cf_only or pack
+    native_sites = {s for s, used in ((CURSEFORGE, use_cf_native), (MODRINTH, use_mr_native)) if used}
+    all_native = all(s in native_sites for s in visitor)
+    needs_worker = not all_native or pack
     if needs_worker:
+        worker_prep(worker_dir, verbosity)
         _stage(project, config, icon, puppy_dir, worker_dir, site, descriptions, images=images)
-        if not cf_only:
+        if not all_native:
             _run_worker(worker_dir, verbosity)
 
     if pack:
@@ -88,6 +98,7 @@ def run_push(
             version=version,
             force=force,
             verbosity=verbosity,
+            auth=auth,
         )
 
     if verbosity >= 1:
@@ -132,6 +143,40 @@ def _run_cf_native(
         )
     except AuthExpiredError as e:
         raise SystemExit(f'CurseForge auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site cf')
+
+
+def _run_mr_native(
+    project: Project,
+    config: dict,
+    icon: Path,
+    puppy_dir: Path,
+    descriptions: dict,
+    auth: dict,
+    verbosity: int,
+    images: bool = True,
+) -> None:
+    mr = config.get('modrinth', {})
+    project_id = mr.get('id') or mr.get('slug')
+    description = descriptions.get('modrinth', '')
+    images_source = config.get('images_source')
+    images_dir = Path(images_source) if images_source else puppy_dir / 'images'
+    image_list = config.get('images', []) if images else []
+
+    try:
+        MODRINTH.push(
+            project_id=project_id,
+            config=config,
+            description=description,
+            icon_path=icon,
+            logo_path=None,
+            banner_path=None,
+            image_list=image_list,
+            images_dir=images_dir,
+            auth=auth,
+            verbosity=verbosity,
+        )
+    except AuthExpiredError as e:
+        raise SystemExit(f'Modrinth auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site modrinth')
 
 
 def _stage(

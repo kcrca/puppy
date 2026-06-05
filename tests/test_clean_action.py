@@ -3,7 +3,7 @@ import subprocess
 
 import pytest
 
-from puppy.runner import _worker_prep
+from puppy.worker import worker_prep as _worker_prep
 
 
 @pytest.fixture

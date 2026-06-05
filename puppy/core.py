@@ -9,7 +9,11 @@ def _slugify(name: str) -> str:
 
 
 def project_source(project_root: Path) -> Path:
-    return Path(project_root)
+    p = Path(project_root)
+    sub = p / 'puppy'
+    if (sub / 'puppy.yaml').exists():
+        return sub
+    return p
 
 
 class Project:

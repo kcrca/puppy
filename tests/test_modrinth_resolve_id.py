@@ -49,7 +49,7 @@ def test_resolve_id_skipped_when_no_slug(fake_urlopen):
 def test_resolve_id_fetches_from_api(fake_urlopen):
     fake_urlopen['neon'] = {'id': 'abc123', 'slug': 'neon'}
     config = {'modrinth': {'slug': 'neon'}}
-    result = MODRINTH.resolve_id(config, {'modrinth': 'token'}, 0)
+    result = MODRINTH.resolve_id(config, {'modrinth': {'token': 'token'}}, 0)
     assert result['modrinth']['id'] == 'abc123'
     assert result['modrinth']['slug'] == 'neon'
 

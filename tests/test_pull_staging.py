@@ -37,7 +37,7 @@ class _FakeResponse:
 
 @pytest.fixture(autouse=True)
 def _fake_urlopen(monkeypatch):
-    monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.puller.worker_prep', lambda *a, **k: None)
     monkeypatch.setattr('puppy.puller.urllib.request.urlopen', lambda req, **kw: _FakeResponse())
 
 
@@ -73,19 +73,19 @@ def test_import_json_staged(import_env, run_puppy):
 
 
 def test_import_site_filter_nulls_others(import_env, run_puppy, monkeypatch):
-    def fake_run_mr(cmd, **kwargs):
+    def fake_run_cf(cmd, **kwargs):
         pd = import_env['worker'] / 'projects' / _PACK
         pd.mkdir(parents=True, exist_ok=True)
         (pd / 'project.json').write_text(
-            json.dumps({'config': {'name': 'NeonGlow'}, 'modrinth': {'id': 'abc123', 'slug': _PACK}})
+            json.dumps({'config': {'name': 'NeonGlow'}, 'curseforge': {'id': 111, 'slug': _PACK}})
         )
         return subprocess.CompletedProcess(cmd, 0)
 
-    monkeypatch.setattr('puppy.worker.subprocess.run', fake_run_mr)
-    run_puppy('pull', '--site', 'modrinth', '--worker', str(import_env['worker']))
+    monkeypatch.setattr('puppy.worker.subprocess.run', fake_run_cf)
+    run_puppy('pull', '--site', 'curseforge', '--worker', str(import_env['worker']))
     data = json.loads((import_env['worker'] / 'data' / 'import.json').read_text())
-    assert data['modrinth']['id'] == 'abc123'
-    assert data['curseforge']['id'] is None
+    assert data['curseforge']['id'] == 111
+    assert data['modrinth']['id'] is None
     assert data['planetminecraft']['id'] is None
 
 
@@ -102,16 +102,16 @@ def test_harvest_yaml_site_filter(project_env, worker_env, run_puppy, monkeypatc
     monkeypatch.setattr('puppy.worker.subprocess.run', lambda cmd, **kw: (
         _write_project_json(
             worker_env,
-            {'config': {'name': 'NeonGlow'}, 'modrinth': {'id': 'abc123', 'slug': _PACK}},
+            {'config': {'name': 'NeonGlow'}, 'curseforge': {'id': 111, 'slug': _PACK}},
         ) or subprocess.CompletedProcess(cmd, 0)
     ))
     (project_env['project'] / 'puppy.yaml').write_text(
-        yaml.dump({'name': 'NeonGlow', 'pack': _PACK, 'modrinth': {'id': 'abc123', 'slug': _PACK}})
+        yaml.dump({'name': 'NeonGlow', 'pack': _PACK, 'curseforge': {'id': 111, 'slug': _PACK}})
     )
-    run_puppy('pull', '--site', 'modrinth', '--worker', str(worker_env))
+    run_puppy('pull', '--site', 'curseforge', '--worker', str(worker_env))
     written = yaml.safe_load((project_env['project'] / 'puppy.yaml').read_text())
-    assert written.get('modrinth', {}).get('id') == 'abc123'
-    assert 'curseforge' not in written
+    assert written.get('curseforge', {}).get('id') == 111
+    assert 'modrinth' not in written
     assert 'planetminecraft' not in written
 
 

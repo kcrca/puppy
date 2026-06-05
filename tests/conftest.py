@@ -23,6 +23,21 @@ def _no_cf_native(monkeypatch):
     monkeypatch.setattr('puppy.syncer._run_cf_native', lambda *a, **k: None)
 
 
+@pytest.fixture(autouse=True)
+def _no_mr_native(monkeypatch):
+    monkeypatch.setattr('puppy.syncer._run_mr_native', lambda *a, **k: None)
+
+
+@pytest.fixture(autouse=True)
+def _no_mr_native_pull(monkeypatch):
+    monkeypatch.setattr('puppy.puller._run_mr_native_pull', lambda *a, **k: None)
+
+
+@pytest.fixture(autouse=True)
+def _no_mr_native_upload(monkeypatch):
+    monkeypatch.setattr('puppy.publisher.MODRINTH.upload_version', lambda *a, **k: None)
+
+
 @pytest.fixture
 def project_env(tmp_path, monkeypatch):
     """Creates the 'Global > Home > Project' structure from the spec."""
@@ -38,7 +53,7 @@ def project_env(tmp_path, monkeypatch):
     (home / 'auth.yaml').write_text(
         yaml.dump(
             {
-                'modrinth': 'token123',
+                'modrinth': {'token': 'token123'},
                 'curseforge': {'token': 'cf456', 'cookie': 'CobaltSession=fake'},
             }
         )
@@ -95,7 +110,7 @@ def push_env(project_env, worker_env, monkeypatch):
         )
     )
     Image.new('RGB', (64, 64), color='blue').save(source / 'icon.png')
-    monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.syncer.worker_prep', lambda *a, **k: None)
     monkeypatch.setattr('puppy.syncer._run_worker', lambda *a, **k: None)
     monkeypatch.setattr('puppy.runner.WORKER_DIR', worker_env)
     return {'worker': worker_env, **project_env}

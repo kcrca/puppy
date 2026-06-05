@@ -6,8 +6,9 @@ from pathlib import Path
 import yaml
 
 from puppy.core import Project
+from puppy.errors import AuthExpiredError
 from puppy.sites import CURSEFORGE, MODRINTH, SITES, SiteVisitor
-from puppy.worker import read_output, run_worker
+from puppy.worker import read_output, run_worker, worker_prep
 from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
 
 
@@ -22,13 +23,54 @@ def run_pull(
     verbosity: int,
 ) -> None:
     config = _resolve_ids(config, auth, site, verbosity)
-    _stage(project, config, worker_dir, site)
-    _clean_existing(project, worker_dir)
-    _run_worker(worker_dir, verbosity)
-    result_data = read_output(project, worker_dir)
-    _harvest(project, result_data, worker_dir, site, auth, images)
+    visitor = SiteVisitor(site)
+
+    mr_token = auth.get('modrinth', {}).get('token', '')
+    mr = config.get('modrinth', {})
+    mr_id = mr.get('id') or mr.get('slug')
+    use_mr_native = MODRINTH in visitor and bool(mr_token) and bool(mr_id)
+
+    all_native = use_mr_native and all(s is MODRINTH for s in visitor)
+
+    if all_native:
+        _run_mr_native_pull(project, config, auth, site, images, verbosity)
+    else:
+        worker_prep(worker_dir, verbosity)
+        _stage(project, config, worker_dir, site)
+        _clean_existing(project, worker_dir)
+        _run_worker(worker_dir, verbosity)
+        result_data = read_output(project, worker_dir)
+        _harvest(project, result_data, worker_dir, site, auth, images)
+
     if verbosity >= 1:
         print(f'[{project.name}] pull complete')
+
+
+def _run_mr_native_pull(
+    project: Project,
+    config: dict,
+    auth: dict,
+    site: str | None,
+    images: bool,
+    verbosity: int,
+) -> None:
+    mr = config.get('modrinth', {})
+    project_id = mr.get('id') or mr.get('slug')
+    puppy_dir = project.puppy_dir
+    do_images = images or not _has_image_info(puppy_dir, site)
+
+    try:
+        result_data = MODRINTH.pull(
+            project_id=project_id,
+            auth=auth,
+            puppy_dir=puppy_dir,
+            images=do_images,
+            verbosity=verbosity,
+        )
+    except AuthExpiredError as e:
+        raise SystemExit(f'Modrinth auth expired (HTTP {e.code}) — run: puppy auth --site modrinth')
+
+    _harvest_yaml(project, result_data, puppy_dir, site, do_images)
 
 
 def _resolve_ids(config: dict, auth: dict, site: str | None, verbosity: int) -> dict:
@@ -95,9 +137,18 @@ def _harvest_yaml(
     imported = result_data.get('config', {})
 
     # Scalars from imported config
-    for key in ('name', 'summary', 'video', 'github'):
+    for key in ('name', 'summary', 'license', 'optifine', 'video', 'github'):
         if imported.get(key) not in (None, '', [], False):
             config[key] = imported[key]
+
+    # Dict merges: only add non-null values, don't wipe existing keys
+    for key in ('links', 'socials'):
+        val = imported.get(key)
+        if val and isinstance(val, dict):
+            existing = config.setdefault(key, {})
+            for k, v in val.items():
+                if v:
+                    existing[k] = v
 
     if images and imported.get('images'):
         image_list = [
@@ -116,9 +167,13 @@ def _harvest_yaml(
     # Platform IDs/slugs and site-specific config
     for s in SiteVisitor(site):
         if s.name in result_data:
-            config.setdefault(s.name, {})
-            config[s.name]['id'] = result_data[s.name].get('id')
-            config[s.name]['slug'] = result_data[s.name].get('slug')
+            site_cfg = config.setdefault(s.name, {})
+            for k, v in result_data[s.name].items():
+                if v is not None:
+                    if k not in site_cfg and hasattr(site_cfg, 'insert'):
+                        site_cfg.insert(0, k, v)
+                    else:
+                        site_cfg[k] = v
         if s.name in imported:
             config.setdefault(s.name, {}).update(imported[s.name])
 
@@ -140,7 +195,7 @@ def _harvest_modrinth_description(
     project: Project, result_data: dict, auth: dict
 ) -> None:
     modrinth_id = result_data.get('modrinth', {}).get('id')
-    token = auth.get('modrinth')
+    token = auth.get('modrinth', {}).get('token', '')
     if not modrinth_id or not token:
         return
     req = urllib.request.Request(

@@ -10,7 +10,7 @@ _PACK = 'neonglow'
 
 @pytest.fixture(autouse=True)
 def _no_import(monkeypatch):
-    monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.syncer.worker_prep', lambda *a, **k: None)
     monkeypatch.setattr('puppy.creator.run_pull', lambda **k: None)
 
 

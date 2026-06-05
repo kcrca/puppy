@@ -14,7 +14,7 @@ _VERSION = '1.0.0'
 
 @pytest.fixture(autouse=True)
 def _no_run_worker(monkeypatch):
-    monkeypatch.setattr('puppy.runner._worker_prep', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.syncer.worker_prep', lambda *a, **k: None)
     monkeypatch.setattr('puppy.syncer._run_worker', lambda *a, **k: None)
 
 
@@ -76,7 +76,8 @@ def test_patch_project_json_all_sites(push_pack_env, run_puppy):
         (push_pack_env['worker'] / 'projects' / _PACK / 'project.json').read_text()
     )
     assert pj['curseforge']['id'] == 111
-    assert pj['modrinth']['id'] == 'abc123'
+    # MR is native — worker doesn't touch it, so id is nulled in project.json
+    assert pj['modrinth']['id'] is None
     assert pj['planetminecraft']['id'] == 999
 
 
