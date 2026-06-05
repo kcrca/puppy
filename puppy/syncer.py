@@ -18,7 +18,7 @@ from puppy.images import copy_images, stage_image
 from puppy.publisher import upload_pack
 from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
-from puppy.sites import CURSEFORGE, MODRINTH, SITES, SiteVisitor
+from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
 from puppy.worker import run_worker, worker_prep
 
 
@@ -75,12 +75,18 @@ def run_push(
     mr_id = mr.get('id') or mr.get('slug')
     use_mr_native = MODRINTH in visitor and bool(mr_token) and bool(mr_id)
 
+    pmc_cookie = auth.get('planetminecraft', '')
+    pmc_id = config.get('planetminecraft', {}).get('id')
+    use_pmc_native = PMC in visitor and bool(pmc_cookie) and bool(pmc_id)
+
     if use_cf_native:
         _run_cf_native(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)
     if use_mr_native:
         _run_mr_native(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)
+    if use_pmc_native:
+        _run_pmc_native(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)
 
-    native_sites = {s for s, used in ((CURSEFORGE, use_cf_native), (MODRINTH, use_mr_native)) if used}
+    native_sites = {s for s, used in ((CURSEFORGE, use_cf_native), (MODRINTH, use_mr_native), (PMC, use_pmc_native)) if used}
     all_native = all(s in native_sites for s in visitor)
     needs_worker = not all_native or pack
     if needs_worker:
@@ -177,6 +183,40 @@ def _run_mr_native(
         )
     except AuthExpiredError as e:
         raise SystemExit(f'Modrinth auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site modrinth')
+
+
+def _run_pmc_native(
+    project: Project,
+    config: dict,
+    icon: Path,
+    puppy_dir: Path,
+    descriptions: dict,
+    auth: dict,
+    verbosity: int,
+    images: bool = True,
+) -> None:
+    pmc = config.get('planetminecraft', {})
+    project_id = pmc.get('id')
+    description = descriptions.get('planetminecraft', '')
+    images_source = config.get('images_source')
+    images_dir = Path(images_source) if images_source else puppy_dir / 'images'
+    image_list = config.get('images', []) if images else []
+
+    try:
+        PMC.push(
+            project_id=project_id,
+            config=config,
+            description=description,
+            icon_path=icon,
+            logo_path=None,
+            banner_path=None,
+            image_list=image_list,
+            images_dir=images_dir,
+            auth=auth,
+            verbosity=verbosity,
+        )
+    except AuthExpiredError as e:
+        raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site pmc')
 
 
 def _stage(
