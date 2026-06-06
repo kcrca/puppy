@@ -216,7 +216,7 @@ Example: `sites: [cf, mr]`
 * `links:` — external URLs for the project (all optional):
   * `home: <url>` — project home page; maps to CF social `website` and PMC `website.link`
   * `source: <url>` — source repository; maps to CF source link and Modrinth `source_url`
-  * `issues: <url>` — issue tracker; maps to Modrinth `issues_url` (CF field TBD)
+  * `issues: <url>` — issue tracker; maps to Modrinth `issues_url`. CurseForge has no separate issues URL field — it derives issues from the source URL automatically.
   * `patreon: <url>`, `kofi: <url>`, `paypal: <url>`, `buyMeACoffee: <url>`, `github_sponsors: <url>`, `other: <url>` — donation links;
     CF receives the first one as `{type, value}`;
     Modrinth receives all as `donation.*` (with `github_sponsors` mapped to `github`)

@@ -6,8 +6,6 @@
 
 ## Unimplemented Features
 
-- **`links.issues` for CF**: Modrinth `issues_url` is already wired. Determine and wire the appropriate CF field.
-
 - **`planetminecraft.title` field**: PMC uses `name` as the project title, but users often want "Pack Name: Subtitle".
   Add `planetminecraft.title` to `puppy.yaml`; default to `name` so no breaking change.
 
