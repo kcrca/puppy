@@ -1,24 +1,21 @@
-# TODO (native branch)
-
-- **Installation**: Remove PackUploader requirement. Add: install Firefox, run `playwright install firefox`, run `puppy auth`.
-- **Authentication**: Replace PackUploader auth instructions with `puppy auth` flow. Note manual token steps for CF and MR.
-- **`--worker` option**: Remove (PU gone).
-- **`clean` subcommand**: Remove (PU gone).
-- **Manual cookie fallback**: Add instructions for users who can't use Firefox (DevTools steps for Chrome/Safari).
-- **Project creation**: Implement `puppy create` (or `puppy import`) to create/register a project on each site via API. CF uses `authors.curseforge.com/_api/` (inspect network traffic on CF creation form to find endpoint). Currently user must create projects manually on each site.
-
----
-
 # Introduction
 
-If you have a texture pack, and you want others to use it, you have to put it out there.
-Currently, there are three major sites for publishing packs: CurseForge, Modrinth, and Planet Minecraft
-(abbreviated here as CF, MR, and PMC).
-This creates a problem: How do you publish to all three sites without manually logging into each, pasting in the content, uploading the zip file, ...
+If you have a texture pack, mod, and/or world save, and you want others to use it, you have to put it out there.
+Currently, there are three major sites for publishing minecraft projects:
+[CurseForge](https://curseforge.com), [Modrinth](https://modrinth.com), and [Planet Minecraft](https://planetminecraft.com)
+(abbreviated here as **CF**, **MR**, and **PMC**).
+This creates a problem: How do you publish to all three sites without manually logging into each, pasting the same stuff in the content, uploading the zip file, ...
 
 Puppy helps you with all this.
 It can take your description, screenshots, zip files, icons, etc. and update all the sites with the same information in one command.
 It tries to require as little as possible from you to do the work.
+
+## Acknowledgements
+
+Puppy was originally a front end to a tool called [PackUploader](https://github.com/ewanhowell5195/PackUploader), by Ewan Howell,
+that deals exclusively with texture packs.
+I outgrew it, but it gave me both impetus and knowledge for writing puppy,
+and I am grateful for both.
 
 # Getting Started
 
@@ -26,17 +23,10 @@ It tries to require as little as possible from you to do the work.
 
 Puppy is written in Python (it's there in the name: "**p**ack **up**load in **py**thon").
 So you'll need Python, version 3.11 or higher.
+And of course you need puppy itself.
 
-You also need a tool called PackUploader.
-This is some really cool stuff that communicates with these sites, doing all the hard work.
-Puppy uses it as a communication worker for its site-specific work.
-So you need a copy, but you don't have to personally interact with it beyond installation.
-Typically this will live in your home folder (`~` on macOS/Linux, `%USERPROFILE%` on Windows — e.g. `C:\Users\YourName`).
-So go to your home folder, and then follow the [**Installation** instructions for PackUploader](https://github.com/ewanhowell5195/PackUploader#installation).
-Go on, we'll wait right here.
-
-Finally, you need puppy itself.
-The most isolated way to install it is to use pipx, which creates a run environment just for puppy without
+You can use `pip install puppy`, feel free.
+But I think the most isolated way to install it is to use pipx, which creates a run environment just for puppy without
 installing anything elsewhere.
 
 ```bash
@@ -47,7 +37,9 @@ pipx install git+https://github.com/kcrca/puppy
 
 ## Basic Puppy
 
-Now let's get to your specific pack.
+Now let's get to your specific project.
+We will start with texture packs, and then describe the changes to upload other kinds of projects.
+Most of the work will be the same, and most of the rest will be analogous.
 
 Suppose you have a pack called Neon, and you keep it in a git repository in your home directory.
 (We're going to be using Unix paths here, but this works on Windows, too.)
@@ -69,7 +61,7 @@ This creates a folder called `puppy`, and within it a few files:
     └── description.md              ← empty project description
 ```
 
-First, there is `auth.yaml` which has the login information for the sites.
+First, there is `auth.yaml` which has the security information for the sites.
 It is important that this not be in a public repo, so puppy requires it to be ignored by `.gitignore`.
 Then there is `puppy.yaml` which has the global configuration for the work you want puppy to do.
 
@@ -77,14 +69,42 @@ You may find the 'examples' folder useful, as it has an annotated `puppy.yaml` f
 
 ### Authentication (`auth.yaml`)
 
-Now we're going to send you right back to PackUploader for the [**Authentication** instructions](https://github.com/ewanhowell5195/PackUploader#authentication)
-***except*** that you need to put that information in `puppy/auth.yaml` instead.
-Of course, if you're not using a site, just don't change its data in `auth.yaml`.
+The different sites need different authentication setup, some combination of cookies and/or access tokens,
+all stored in `auth.yaml`.
+
+Puppy can help you get the cookies.
+It knows how to pull them from Firefox's saved state.
+Run Firefox and log in to Curseforge and PlanetMinecraft, then quit the browser.
+Then run `puppy auth` and it will copy the relevant cookies into `auth.yaml`.
+
+Curseforge and Modrinth require access tokens.
+You have to create these and put them in auth.yaml
+
+For Curseforge
+go to the [CurseForge API Token page](https://authors.curseforge.com/account/api-tokens).
+and create a token (or choose an existing one if you prefer).
+Copy that token, and paste it into `auth.yaml`, as in:
+
+```
+curseforge:
+    token: <paste token here>
+    cookie: <cookies from running "puppy auth">
+```
+
+The process is the same for Modrinth, except of course you use the 
+[Modrinth API Token page](https://modrinth.com/settings/pats),
+and in `auth.yaml`, it goes here:
+
+```
+modrinth:
+    token: <paste token here>
+```
 
 ### Settings (`puppy.yaml`)
 
 The file `puppy.yaml` contains global settings for the pack and the sites. Let's go through the fields:
 
+* `sites`: List of sites to use; if absent, all three sites are used.
 * `name`: Name of the pack.
 * `pack`: lowercase version of **name**, often used as a slug or part of a file path.
 * `version`: Current version of your pack.
@@ -510,7 +530,7 @@ Some of them only apply to some commands, but others apply universally.
 The overall syntax is:
 
 ```
-puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-p] [-f] [-I] [--no-open] [--worker PATH] [{push,create,pull,init,clean}] [project ...]
+puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-p] [-f] [-I] [--no-open] [{auth,push,create,pull,init}] [project ...]
 ```
 
 ## Global Options
@@ -520,11 +540,11 @@ puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-p] [-f] [-I]
 * **-vv**: Even more debug output.
 * **-d**, **--dir _PATH_**: Project directory (default: current working directory).
 * **-s**, **--site _SITENAME_**: Limit action to one or more sites (comma-separated). You can use the abbreviations "cf", "mr", and "pmc" for sites.
-* **--worker _PATH_**: PackUploader worker directory (default: `~/PackUploader`).
 
 ## Subcommands
 
 * **init**: Set up the puppy directory in the current directory, or **--dir** points.
+* **auth**: Fetch authorization cookies from a Firefox session.
 * **create**: Create project on the site(s). If run from a terminal, this will prompt for confirmation.
     * **-f**, **--force**: Skip the confirmation prompt.
 * **pull**: Pull data from the site(s). This will not overwrite existing images, but it will merge new data into yaml files.
@@ -536,7 +556,6 @@ puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-p] [-f] [-I]
     * **-V**, **--version _VERSION_**: Use this version, overriding other information.
     * **-n**, **--dry-run**: Create a pre-check HTML page, printing the URL and opening it.
     * **--no-open**: With `-n`, suppresses opening the file.
-* **clean**: Clean up the worker directory, resetting it back to its original state.
 
 ## Projects
 
@@ -557,14 +576,14 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 | `slug` | Default slug for all sites. Per-site `slug` overrides this. |
 | `version` | Version string used by `push`. Overridden by `-V` on the CLI. |
 | `summary` | One-line description shown in site search results. |
-| `github` | Source repository URL. Set automatically from `links.source`; used by PU for CF source link and Modrinth `source_url`/`issues_url`. Can be set directly to override. |
+| `github` | Source repository URL. Set automatically from `links.source`; used for CF source link and Modrinth `source_url`/`issues_url`. Can be set directly to override. |
 
 ## Pack Content
 
 | Field | Meaning |
 |---|---|
 | `icon` | Explicit path to the icon PNG. Discovered automatically (single `.png` in project dir, excluding `banner.png` and `logo.png`) if absent. Must be square. |
-| `banner` | Explicit path to the banner image (`banner.png` in project dir if absent). Staged to the worker as `thumbnail.png` (PU's name for it). |
+| `banner` | Explicit path to the banner image (`banner.png` in project dir if absent). |
 | `logo` | Explicit path to the logo image (`logo.png` in project dir if absent). Displayed at fixed aspect ratio (1280×256). |
 | `zip` | Explicit path to the zip artifact. Discovered automatically (single `.zip` in project dir) if absent. |
 | `optifine` | `true`/`false` — whether the pack requires OptiFine. Default `false`. |
@@ -594,8 +613,8 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 | `progress` | Completion percentage 0–100. Sets PMC `progress`. Ignored by CF and Modrinth. |
 | `license` | SPDX identifier (e.g. `CC-BY-4.0`). Sets CF `license` (last hyphen → space) and Modrinth `license` unchanged. Ignored by PMC. |
 | `links.home` | Project home page URL. Sets CF `socials.website` and PMC `website.link`. |
-| `links.source` | Source repository URL. Sets top-level `github` (used by PU for CF and Modrinth). |
-| `links.issues` | Issue tracker URL. Stored but not yet applied to any site (requires PU change). |
+| `links.source` | Source repository URL. Sets top-level `github` (used for CF and Modrinth). |
+| `links.issues` | Issue tracker URL. Stored but not yet applied to any site. |
 | `links.patreon` | Patreon donation URL. CF: first donation key wins as `{type, value}`. Modrinth: `donation.patreon`. |
 | `links.kofi` | Ko-fi donation URL. Same expansion as `patreon`. |
 | `links.paypal` | PayPal donation URL. Same expansion. |

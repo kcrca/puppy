@@ -1,3 +1,13 @@
+# TODO (native branch)
+
+- **Installation**: Remove PackUploader requirement. Add: install Firefox, run `playwright install firefox`, run `puppy auth`.
+- **Authentication**: Replace PackUploader auth instructions with `puppy auth` flow. Note manual token steps for CF and MR.
+- **`--worker` option**: Remove (PU gone).
+- **`clean` subcommand**: Remove (PU gone).
+- **`links.issues` support**: Now that PU is gone, wire `links.issues` to site-specific fields directly in puppy. Modrinth: `issues_url`. CF: determine appropriate field.
+- **Manual cookie fallback**: Add instructions for users who can't use Firefox (DevTools steps for Chrome/Safari).
+- **Project creation**: Implement `puppy create` (or `puppy import`) to create/register a project on each site via API. CF uses `authors.curseforge.com/_api/` (inspect network traffic on CF creation form to find endpoint). Currently user must create projects manually on each site.
+
 # Puppy — Outstanding Work
 
 ## Unimplemented Features
