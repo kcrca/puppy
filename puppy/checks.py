@@ -6,7 +6,7 @@ import yaml
 from puppy.sites import SiteVisitor
 
 
-REQUIRED_TOOLS = ['git', 'node', 'npm']
+REQUIRED_TOOLS = ['git']
 
 _AUTH_SHAPE = {
     'curseforge': {'token', 'cookie'},
@@ -20,8 +20,7 @@ def check_preflight() -> None:
     if missing:
         raise SystemExit(
             f'Missing required tools: {", ".join(missing)}\n'
-            'puppy requires git, node, and npm to run PackUploader.\n'
-            'Install Node.js from https://nodejs.org/ and git from https://git-scm.com/'
+            'Install git from https://git-scm.com/'
         )
 
 

@@ -30,7 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
         '--dry-run',
         action='store_true',
         dest='dry_run',
-        help='Run full pipeline and write payloads to debug/ without executing the worker.',
+        help='Run full pipeline without hitting APIs; write preview to temp dir.',
     )
 
     verbosity = parser.add_mutually_exclusive_group()
@@ -48,7 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
         action='store_const',
         const=2,
         dest='verbosity',
-        help='Raw worker stdout/stderr.',
+        help='Extra verbose output.',
     )
 
     parser.add_argument(
