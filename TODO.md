@@ -6,9 +6,6 @@
 
 ## Unimplemented Features
 
-- **`planetminecraft.title` field**: PMC uses `name` as the project title, but users often want "Pack Name: Subtitle".
-  Add `planetminecraft.title` to `puppy.yaml`; default to `name` so no breaking change.
-
 - **`convert` command**: Convert between description formats — `.bbcode` → `.md`, `.html` → `.md` — using existing transformers plus a well-respected HTML-to-Markdown library for the HTML case.
   Useful after importing a description manually from PMC or CurseForge.
 
@@ -25,8 +22,6 @@
   Add `--skip-auth-check` flag to bypass for unknown or non-existent VCS.
 
 ## UX
-
-- **Default verbosity**: Consider making `-v` the default since uploads take a while and silence is confusing.
 
 - **Manual cookie fallback**: Add instructions for users who can't use Firefox (DevTools steps for Chrome/Safari).
 

@@ -33,8 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
         help='Run full pipeline without hitting APIs; write preview to temp dir.',
     )
 
-    verbosity = parser.add_mutually_exclusive_group()
-    verbosity.add_argument(
+    parser.add_argument(
         '-q',
         '--quiet',
         action='store_const',
@@ -42,13 +41,6 @@ def build_parser() -> argparse.ArgumentParser:
         dest='verbosity',
         default=1,
         help='Suppress progress output.',
-    )
-    verbosity.add_argument(
-        '-vv',
-        action='store_const',
-        const=2,
-        dest='verbosity',
-        help='Extra verbose output.',
     )
 
     parser.add_argument(
