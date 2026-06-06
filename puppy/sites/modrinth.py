@@ -310,6 +310,58 @@ class ModrinthSite(Site):
         'other': ('other', 'Other'),
     }
 
+    def create(self, *, config: dict, auth: dict, verbosity: int = 0) -> dict:
+        mr = config.get('modrinth', {})
+        base_slug = mr.get('slug') or config.get('pack', '')
+        slug = base_slug
+        suffix = 0
+        while True:
+            try:
+                _mr_get(f'{_MR_API}/project/{slug}', auth)
+                suffix += 1
+                slug = f'{base_slug}-{suffix}'
+            except SiteError as e:
+                if e.code == 404:
+                    break
+                raise
+        if suffix and verbosity >= 1:
+            print(f'  [Modrinth] slug "{base_slug}" taken, using "{slug}"')
+
+        license_id = mr.get('license') or config.get('license') or 'LicenseRef-All-Rights-Reserved'
+        active_tags = [k for k, v in mr.get('tags', {}).items() if v]
+        links = config.get('links') or {}
+        socials = config.get('socials') or {}
+
+        project_data = {
+            'slug': slug,
+            'title': config.get('name', ''),
+            'description': config.get('summary', ''),
+            'categories': active_tags,
+            'additional_categories': [],
+            'client_side': 'required',
+            'server_side': 'unsupported',
+            'body': '',
+            'issues_url': links.get('issues') or None,
+            'source_url': links.get('source') or None,
+            'discord_url': socials.get('discord') or None,
+            'license_id': license_id,
+            'project_type': 'resourcepack',
+            'is_draft': True,
+            'initial_versions': [],
+        }
+        r = _mr_post_multipart(
+            f'{_MR_API}/project',
+            auth,
+            fields={'data': json.dumps(project_data)},
+            files=[],
+        )
+        if not isinstance(r, dict) or r.get('error'):
+            raise SystemExit(f'Modrinth project creation failed: {r}')
+
+        if verbosity >= 1:
+            print(f'  [Modrinth] project created: https://modrinth.com/project/{r["slug"]}')
+        return {'id': r['id'], 'slug': r['slug']}
+
     def upload_icon(self, project_id: str, auth: dict, icon_bytes: bytes) -> None:
         _mr_patch_raw(f'{_MR_API}/project/{project_id}/icon?ext=png', auth, icon_bytes, 'image/png')
 

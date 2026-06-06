@@ -165,6 +165,11 @@ _CF_SOCIAL_TYPES = {
     'tiktok': 11, 'pinterest': 12, 'github': 13, 'bluesky': 14,
 }
 
+_CF_CATEGORIES = {
+    '16x': 393, '32x': 394, '64x': 395, '128x': 396, '256x': 397,
+    '512x and Higher': 398, 'Data Packs': 5193, 'Font Packs': 5244,
+}
+
 # Maps SPDX license IDs to the keys PU's curseforge.js license map uses
 _SPDX_TO_PU_CF = {
     'CC0-1.0': 'Public Domain',
@@ -433,6 +438,75 @@ class CurseForgeSite(Site):
             fields={'metadata': json.dumps(metadata)},
             files=[('file', pack_path.name, artifact_bytes, 'application/zip')],
         )
+
+    def create(self, *, config: dict, auth: dict, icon_bytes: bytes, verbosity: int = 0) -> dict:
+        import time
+        h = self._cookie_headers(auth)
+
+        avatar_url = _cf_post_multipart(
+            f'{_CF_DASH}/projects/game/432/upload-avatar',
+            h,
+            fields={},
+            files=[('file', 'pack.png', icon_bytes, 'image/png')],
+        )
+        if not isinstance(avatar_url, str):
+            raise SystemExit(f'CurseForge icon upload failed: {avatar_url}')
+        if verbosity >= 1:
+            print('  [CurseForge] icon uploaded')
+
+        sc = config.get('curseforge', {})
+        main_cat = sc.get('mainCategory')
+        primary_cat_id = _CF_CATEGORIES.get(str(main_cat), 393) if main_cat else 393
+        license_name = sc.get('license') or config.get('license') or 'All Rights Reserved'
+        license_id = _CF_LICENSE_IDS.get(license_name, 1)
+
+        result = _cf_post_json(f'{_CF_DASH}/projects', h, {
+            'name': config.get('name', ''),
+            'avatarUrl': avatar_url,
+            'summary': config.get('summary', ''),
+            'description': 'placeholder',
+            'primaryCategoryId': primary_cat_id,
+            'subCategoryIds': [],
+            'allowComments': True,
+            'allowDistribution': False,
+            'gameId': 432,
+            'classId': 12,
+            'descriptionType': 1,
+            'licenseId': license_id,
+        })
+        if not isinstance(result, dict) or 'id' not in result:
+            raise SystemExit(f'CurseForge project creation failed: {result}')
+
+        project_id = result['id']
+        if verbosity >= 1:
+            print(f'  [CurseForge] project created (id={project_id}), waiting for slug...')
+        time.sleep(5)
+
+        project_data = _cf_get(f'{_CF_DASH}/projects/{project_id}', h) or {}
+        if not isinstance(project_data, dict):
+            project_data = {}
+        slug = project_data.get('slug', '')
+
+        result = {'id': project_id, 'slug': slug}
+        if project_data.get('primaryCategoryId') is not None:
+            result['mainCategory'] = project_data['primaryCategoryId']
+        license_id_inv = {v: k for k, v in _CF_LICENSE_IDS.items()}
+        harvested_license = license_id_inv.get(project_data.get('licenseId'))
+        if harvested_license:
+            result['license'] = harvested_license
+
+        social_inv = {v: k for k, v in _CF_SOCIAL_TYPES.items()}
+        socials = {
+            social_inv[link['type']]: link['url']
+            for link in (project_data.get('links') or [])
+            if link.get('type') in social_inv and link.get('url')
+        }
+        if socials:
+            result['socials'] = socials
+
+        if verbosity >= 1:
+            print(f'  [CurseForge] https://www.curseforge.com/minecraft/texture-packs/{slug}')
+        return result
 
     def push(
         self,

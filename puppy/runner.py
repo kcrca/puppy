@@ -13,6 +13,7 @@ from puppy.publisher import _resolve_zip
 from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
 from puppy.sites import SITES, SiteVisitor, _ALIASES
+from puppy.creator import run_create
 from puppy.syncer import run_push
 
 
@@ -276,7 +277,15 @@ def _dispatch(
     action, project, config, version, auth, puppy_home, site, pack, force, images, verbosity
 ):
     if action == 'create':
-        raise SystemExit('create is not yet implemented in native mode')
+        run_create(
+            project=project,
+            config=config,
+            puppy_home=puppy_home,
+            auth=auth,
+            site=site,
+            images=images,
+            verbosity=verbosity,
+        )
     elif action == 'pull':
         run_pull(
             project=project,

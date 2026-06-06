@@ -122,8 +122,9 @@ def _pmc_multipart(fields: list[tuple], files: list[tuple] = None) -> tuple[byte
     return b''.join(parts), boundary
 
 
-def _pmc_post(project_id, cookie: str, csrf: str, fields: list[tuple], files: list[tuple] = None) -> dict:
-    referrer = f'{_PMC_BASE}{_PMC_MANAGE}{project_id}/'
+def _pmc_post(project_id, cookie: str, csrf: str, fields: list[tuple], files: list[tuple] = None, referrer: str = None) -> dict:
+    if referrer is None:
+        referrer = f'{_PMC_BASE}{_PMC_MANAGE}{project_id}/'
     body, boundary = _pmc_multipart(fields, files)
     req = urllib.request.Request(
         _PMC_AJAX,
@@ -140,6 +141,24 @@ def _pmc_post(project_id, cookie: str, csrf: str, fields: list[tuple], files: li
         if e.code in (401, 403):
             raise AuthExpiredError(e.code, e.read().decode(errors='replace'))
         raise
+
+
+def _pmc_resolve_tag(resource_id: int, cookie: str, csrf: str, tag: str) -> str | None:
+    referrer = f'{_PMC_BASE}/account/manage/texture-packs/item/new'
+    fields = [
+        ('module', 'tools/tags'), ('target_type', 'resource'),
+        ('item_subject', '4'), ('target_id', str(resource_id)),
+        ('term', tag), ('action', 'tagAdd'),
+    ]
+    try:
+        result = _pmc_post(resource_id, cookie, csrf, fields, referrer=referrer)
+    except Exception:
+        return None
+    if result.get('status') != 'success':
+        return None
+    soup = BeautifulSoup(result.get('tag_html', ''), 'html.parser')
+    tag_el = soup.find(attrs={'data-tag-id': True})
+    return tag_el['data-tag-id'] if tag_el else None
 
 
 def _pmc_sync_gallery(
@@ -271,6 +290,136 @@ class PlanetMinecraftSite(Site):
         if not ref:
             return None
         return f'https://www.planetminecraft.com/texture-pack/{ref}/'
+
+    def create(
+        self,
+        *,
+        config: dict,
+        auth: dict,
+        image_list: list,
+        images_dir: Path,
+        verbosity: int = 0,
+    ) -> dict:
+        cookie = auth.get('planetminecraft', '')
+        sc = config.get('planetminecraft', {})
+
+        url = f'{_PMC_BASE}/account/manage/texture-packs/item/new'
+        req = urllib.request.Request(url, headers=_pmc_headers(cookie))
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                html = r.read().decode('utf-8', errors='replace')
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
+                raise AuthExpiredError(e.code, e.read().decode(errors='replace'))
+            raise
+
+        soup = BeautifulSoup(html, 'html.parser')
+        csrf_tag = soup.find(id='core-csrf-token')
+        if not csrf_tag or not csrf_tag.get('content'):
+            raise AuthExpiredError(401, 'PMC CSRF token not found — auth may have expired')
+        csrf = csrf_tag['content']
+
+        resource_id_tag = soup.find('input', {'name': 'resource_id'})
+        if not resource_id_tag:
+            raise SystemExit('PMC: could not find resource_id on item/new page')
+        resource_id = int(resource_id_tag['value'])
+
+        if verbosity >= 1:
+            print(f'  [PlanetMinecraft] new project slot: id={resource_id}')
+
+        hidden_names = ('member_id', 'subject_id', 'group', 'module', 'module_task')
+        hidden = {name: _pmc_scrape_hidden(soup, name) for name in hidden_names}
+
+        op1 = None
+        ver_select = soup.find('select', id='op1')
+        if ver_select:
+            ver_options = [
+                (opt['value'], opt.get_text(strip=True).replace('Java Edition ', ''))
+                for opt in ver_select.find_all('option')
+                if opt.get('value')
+            ]
+            ver_options = [(v, n) for v, n in ver_options if n not in ('Bedrock', 'Dungeons')]
+            mc_spec = config.get('versions', {}).get('planetminecraft') or config.get('minecraft')
+            if isinstance(mc_spec, dict) and mc_spec.get('type') == 'exact':
+                target = str(mc_spec.get('version', ''))
+                op1 = next((v for v, n in ver_options if n == target), ver_options[0][0] if ver_options else None)
+            elif isinstance(mc_spec, str):
+                op1 = next((v for v, n in ver_options if n == mc_spec), ver_options[0][0] if ver_options else None)
+            elif ver_options:
+                op1 = ver_options[0][0]
+
+        tag_ids = []
+        for tag in sc.get('tags', []):
+            tag_id = _pmc_resolve_tag(resource_id, cookie, csrf, str(tag))
+            if tag_id:
+                tag_ids.append(tag_id)
+                if verbosity >= 1:
+                    print(f'    resolved tag: {tag}')
+
+        if image_list:
+            if verbosity >= 1:
+                print(f'  [PlanetMinecraft] uploading gallery ({len(image_list)} images)')
+            empty_soup = BeautifulSoup('', 'html.parser')
+            _pmc_sync_gallery(resource_id, cookie, csrf, empty_soup, image_list, images_dir, verbosity)
+
+        mr = config.get('modrinth', {})
+        cf = config.get('curseforge', {})
+        mr_slug = mr.get('slug') or mr.get('id')
+        cf_slug = cf.get('slug')
+        if mr_slug:
+            download_url = f'https://modrinth.com/resourcepack/{mr_slug}'
+        elif cf_slug:
+            download_url = f'https://www.curseforge.com/minecraft/texture-packs/{cf_slug}'
+        else:
+            download_url = ''
+
+        category = _PMC_CATEGORIES.get(sc.get('category', ''), 27)
+        resolution = _PMC_RESOLUTIONS.get(int(sc.get('resolution', 16)), 1)
+        website = sc.get('website') or {}
+        video = sc.get('video') or config.get('video')
+
+        fields = [
+            ('member_id', hidden['member_id']),
+            ('resource_id', str(resource_id)),
+            ('subject_id', hidden['subject_id']),
+            ('group', hidden['group']),
+            ('module', hidden['module']),
+            ('module_task', hidden['module_task']),
+            ('server_id', ''),
+            ('title', config.get('name', '')),
+            ('op0', str(resolution)),
+            ('progress', str(sc.get('progress', 100))),
+            ('description', config.get('summary', '')),
+            ('wid1', '1'), ('wfile1', '1'),
+            ('wurl1', download_url), ('wtitle1', 'Download here'),
+            ('wid0', '0'), ('wfile0', '0'),
+            ('wurl0', website.get('link', '')), ('wtitle0', website.get('title', '')),
+            ('credit', sc.get('credit', '')),
+            ('item_tag', ''),
+            ('tag_ids', ','.join(tag_ids)),
+            ('allowcomments', '1'),
+            ('saved_data', ''),
+            ('folder_id[]', str(category)),
+        ]
+        if op1:
+            fields.append(('op1', op1))
+        if video:
+            fields.append(('youtube', str(video)))
+        for mod, on in (sc.get('modifies') or {}).items():
+            if on and mod in _PMC_MODIFIES:
+                fields.append(('folder_id[]', str(_PMC_MODIFIES[mod])))
+
+        result = _pmc_post(resource_id, cookie, csrf, fields)
+        if result.get('status') != 'success':
+            raise SystemExit(f'PMC project creation failed: {result}')
+
+        forward = result.get('forward', '')
+        parts = [p for p in forward.split('/') if p and p != 'texture-pack']
+        slug = parts[0] if parts else ''
+
+        if verbosity >= 1:
+            print(f'  [PlanetMinecraft] https://www.planetminecraft.com/texture-pack/{slug}/')
+        return {'id': resource_id, 'slug': slug}
 
     def push(
         self,
