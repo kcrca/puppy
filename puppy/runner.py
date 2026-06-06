@@ -6,7 +6,6 @@ from pathlib import Path
 from puppy.checks import check_auth, check_preflight
 from puppy.config import ConfigSynthesizer, _load_yaml, build_projects_context
 from puppy.core import Project
-from puppy.creator import run_create
 from puppy.puller import run_pull
 from puppy.init import run_init
 from puppy.preview import generate as generate_preview
@@ -15,10 +14,6 @@ from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
 from puppy.sites import SITES, SiteVisitor, _ALIASES
 from puppy.syncer import run_push
-from puppy.worker import worker_prep, write_auth, patch_settings
-
-
-WORKER_DIR = Path.home() / 'PackUploader'
 
 
 def _resolve_projects(puppy_home: Path) -> list[Path]:
@@ -84,17 +79,9 @@ def run(
     force: bool = False,
     images: bool = False,
     open_browser: bool = True,
-    worker: Path = None,
 ) -> None:
     if action == 'init':
         run_init(directory)
-        return
-
-    worker_dir = worker or WORKER_DIR
-
-    if action == 'clean':
-        check_preflight()
-        worker_prep(worker_dir, verbosity)
         return
 
     if site:
@@ -145,8 +132,6 @@ def run(
             dry_run_projects.append(project)
         else:
             check_preflight()
-            write_auth(worker_dir, auth)
-            patch_settings(worker_dir, config)
             _dispatch(
                 action,
                 project,
@@ -159,7 +144,6 @@ def run(
                 force,
                 images,
                 verbosity,
-                worker_dir,
             )
             after_push_messages += _collect_after_push(config, site)
 
@@ -289,32 +273,23 @@ def _collect_after_push(config: dict, site: str | None) -> list:
 
 
 def _dispatch(
-    action, project, config, version, auth, puppy_home, site, pack, force, images, verbosity, worker_dir
+    action, project, config, version, auth, puppy_home, site, pack, force, images, verbosity
 ):
-    if action == 'pull':
+    if action == 'create':
+        raise SystemExit('create is not yet implemented in native mode')
+    elif action == 'pull':
         run_pull(
             project=project,
             config=config,
             auth=auth,
-            worker_dir=worker_dir,
             site=site,
             images=images,
-            verbosity=verbosity,
-        )
-    elif action == 'create':
-        run_create(
-            project=project,
-            config=config,
-            auth=auth,
-            worker_dir=worker_dir,
-            site=site,
             verbosity=verbosity,
         )
     elif action == 'push':
         run_push(
             project=project,
             config=config,
-            worker_dir=worker_dir,
             puppy_home=puppy_home,
             site=site,
             version=version,

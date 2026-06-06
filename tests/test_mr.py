@@ -9,8 +9,8 @@ from PIL import Image
 
 from puppy.errors import AuthExpiredError, SiteError
 from puppy.sites import MODRINTH, _MR_API
-from puppy.syncer import _run_mr_native as _run_mr_native_real
-from puppy.puller import _run_mr_native_pull as _run_mr_native_pull_real
+from puppy.syncer import _run_mr as _run_mr_real
+from puppy.puller import _run_mr_pull as _run_mr_pull_real
 
 
 _AUTH = {'modrinth': {'token': 'test-token'}}
@@ -157,9 +157,9 @@ def test_upload_icon_non_401_raises_site_error():
     assert exc_info.value.code == 404
 
 
-# ── 5. Integration: run_push uses native path when MR token present ──────────
+# ── 5. Integration: run_push routes to MR when MR token present ──────────
 
-def test_run_push_uses_native_path_when_mr_token_present(tmp_path, monkeypatch):
+def test_run_push_when_mr_token_present(tmp_path, monkeypatch):
     root = tmp_path / 'neon'
     home = root / 'puppy'
     project_dir = home / 'MyPack'
@@ -178,20 +178,12 @@ def test_run_push_uses_native_path_when_mr_token_present(tmp_path, monkeypatch):
     }))
     Image.new('RGB', (64, 64), color='blue').save(project_dir / 'icon.png')
 
-    worker_dir = tmp_path / 'PackUploader'
-    worker_dir.mkdir()
-    (worker_dir / 'settings.json').write_text(json.dumps({
-        'ewan': False, 'modrinth': {}, 'curseforge': {}, 'planetminecraft': {},
-        'templateDefaults': {},
-    }))
+    mr_calls = []
 
-    mr_native_calls = []
+    def fake_mr(*args, **kwargs):
+        mr_calls.append(args)
 
-    def fake_mr_native(*args, **kwargs):
-        mr_native_calls.append(args)
-
-    monkeypatch.setattr('puppy.syncer._run_mr_native', fake_mr_native, raising=False)
-    monkeypatch.setattr('puppy.syncer._run_worker', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.syncer._run_mr', fake_mr, raising=False)
     monkeypatch.chdir(project_dir)
 
     from puppy.config import ConfigSynthesizer
@@ -205,7 +197,6 @@ def test_run_push_uses_native_path_when_mr_token_present(tmp_path, monkeypatch):
     run_push(
         project=project,
         config=config,
-        worker_dir=worker_dir,
         puppy_home=home,
         site='modrinth',
         version=None,
@@ -216,8 +207,8 @@ def test_run_push_uses_native_path_when_mr_token_present(tmp_path, monkeypatch):
         auth=auth,
     )
 
-    assert len(mr_native_calls) == 1
-    called_config = mr_native_calls[0][1]
+    assert len(mr_calls) == 1
+    called_config = mr_calls[0][1]
     assert called_config.get('modrinth', {}).get('id') == 'abc123'
 
 
@@ -250,7 +241,7 @@ def test_upload_version_sends_multipart_with_correct_fields(tmp_path):
     assert '"version_number": "1.0"' in body_text or '"version_number":"1.0"' in body_text
 
 
-def test_upload_version_uses_mr_native_in_push_pack(tmp_path, monkeypatch):
+def test_upload_version_in_push_pack(tmp_path, monkeypatch):
     root = tmp_path / 'neon'
     home = root / 'puppy'
     project_dir = home / 'MyPack'
@@ -270,19 +261,8 @@ def test_upload_version_uses_mr_native_in_push_pack(tmp_path, monkeypatch):
     with zipfile.ZipFile(zip_path, 'w') as z:
         z.writestr('pack.mcmeta', '{}')
 
-    worker_dir = tmp_path / 'PackUploader'
-    worker_dir.mkdir()
-    (worker_dir / 'settings.json').write_text(json.dumps({
-        'ewan': False, 'modrinth': {}, 'curseforge': {}, 'planetminecraft': {},
-        'templateDefaults': {},
-    }))
-
     upload_calls = []
     monkeypatch.setattr('puppy.publisher.MODRINTH.upload_version', lambda *a, **k: upload_calls.append(a))
-    monkeypatch.setattr('puppy.syncer.worker_prep', lambda *a, **k: None)
-    monkeypatch.setattr('puppy.syncer._run_worker', lambda *a, **k: None)
-    monkeypatch.setattr('puppy.publisher.subprocess.run',
-                        lambda cmd, **kw: __import__('subprocess').CompletedProcess(cmd, 0))
     monkeypatch.chdir(project_dir)
 
     from puppy.runner import run
@@ -295,7 +275,6 @@ def test_upload_version_uses_mr_native_in_push_pack(tmp_path, monkeypatch):
         version='1.0',
         pack=True,
         force=True,
-        worker=worker_dir,
     )
 
     assert len(upload_calls) == 1
@@ -360,7 +339,7 @@ def test_pull_downloads_gallery_images(tmp_path):
     assert (tmp_path / 'images' / 'img2.jpg').exists()
 
 
-def test_run_pull_uses_native_path_when_mr_token_present(tmp_path, monkeypatch):
+def test_run_pull_when_mr_token_present(tmp_path, monkeypatch):
     root = tmp_path / 'neon'
     home = root / 'puppy'
     project_dir = home / 'MyPack'
@@ -374,16 +353,9 @@ def test_run_pull_uses_native_path_when_mr_token_present(tmp_path, monkeypatch):
         'modrinth': {'id': 'abc123', 'slug': 'mypack'},
     }))
 
-    worker_dir = tmp_path / 'PackUploader'
-    worker_dir.mkdir()
-    (worker_dir / 'settings.json').write_text(json.dumps({
-        'ewan': False, 'modrinth': {}, 'curseforge': {}, 'planetminecraft': {},
-        'templateDefaults': {},
-    }))
+    pull_calls = []
 
-    native_calls = []
-
-    monkeypatch.setattr('puppy.puller._run_mr_native_pull', lambda *a, **k: native_calls.append(a))
+    monkeypatch.setattr('puppy.puller._run_mr_pull', lambda *a, **k: pull_calls.append(a))
     monkeypatch.chdir(project_dir)
 
     from puppy.config import ConfigSynthesizer
@@ -398,13 +370,12 @@ def test_run_pull_uses_native_path_when_mr_token_present(tmp_path, monkeypatch):
         project=project,
         config=config,
         auth=auth,
-        worker_dir=worker_dir,
         site='modrinth',
         images=False,
         verbosity=0,
     )
 
-    assert len(native_calls) == 1
+    assert len(pull_calls) == 1
 
 
 # ── push images / auth-expired ────────────────────────────────────────────────
@@ -416,9 +387,9 @@ def _mr_project(tmp_path):
     return p
 
 
-def test_run_mr_native_skips_gallery_when_images_false(tmp_path):
+def test_run_mr_skips_gallery_when_images_false(tmp_path):
     with patch('puppy.syncer.MODRINTH.push') as mock_push:
-        _run_mr_native_real(
+        _run_mr_real(
             project=_mr_project(tmp_path),
             config={'modrinth': {'id': 'abc'}, 'images': [{'file': 'img.jpg', 'description': ''}]},
             icon=tmp_path / 'icon.png',
@@ -431,10 +402,10 @@ def test_run_mr_native_skips_gallery_when_images_false(tmp_path):
     assert mock_push.call_args.kwargs['image_list'] == []
 
 
-def test_run_mr_native_passes_image_list_when_images_true(tmp_path):
+def test_run_mr_passes_image_list_when_images_true(tmp_path):
     img_list = [{'file': 'img.jpg', 'description': ''}]
     with patch('puppy.syncer.MODRINTH.push') as mock_push:
-        _run_mr_native_real(
+        _run_mr_real(
             project=_mr_project(tmp_path),
             config={'modrinth': {'id': 'abc'}, 'images': img_list},
             icon=tmp_path / 'icon.png',
@@ -447,10 +418,10 @@ def test_run_mr_native_passes_image_list_when_images_true(tmp_path):
     assert mock_push.call_args.kwargs['image_list'] == img_list
 
 
-def test_run_mr_native_auth_expired_raises_system_exit(tmp_path):
+def test_run_mr_auth_expired_raises_system_exit(tmp_path):
     with patch('puppy.syncer.MODRINTH.push', side_effect=AuthExpiredError(401, 'expired')):
         with pytest.raises(SystemExit, match='Modrinth auth expired'):
-            _run_mr_native_real(
+            _run_mr_real(
                 project=_mr_project(tmp_path),
                 config={'modrinth': {'id': 'abc'}},
                 icon=tmp_path / 'icon.png',
@@ -467,11 +438,11 @@ def _mr_pull_result():
     return {'config': {'name': 'T', 'summary': '', 'images': []}, 'modrinth': {'id': 'abc', 'slug': 'mypack'}}
 
 
-def test_run_mr_native_pull_images_forced_when_no_image_info(tmp_path):
+def test_run_mr_pull_images_forced_when_no_image_info(tmp_path):
     (tmp_path / 'puppy.yaml').write_text('name: T\npack: t\nmodrinth:\n  id: abc\n  slug: mypack\n')
     pull_calls = []
     with patch('puppy.puller.MODRINTH.pull', side_effect=lambda **kw: (pull_calls.append(kw), _mr_pull_result())[1]):
-        _run_mr_native_pull_real(
+        _run_mr_pull_real(
             project=_mr_project(tmp_path),
             config={'modrinth': {'id': 'abc', 'slug': 'mypack'}},
             auth=_AUTH,
@@ -482,12 +453,12 @@ def test_run_mr_native_pull_images_forced_when_no_image_info(tmp_path):
     assert pull_calls[0]['images'] is True
 
 
-def test_run_mr_native_pull_images_skipped_when_info_exists(tmp_path):
+def test_run_mr_pull_images_skipped_when_info_exists(tmp_path):
     (tmp_path / 'puppy.yaml').write_text('name: T\npack: t\nmodrinth:\n  id: abc\n  slug: mypack\n')
     (tmp_path / 'images.yaml').write_text('[]\n')
     pull_calls = []
     with patch('puppy.puller.MODRINTH.pull', side_effect=lambda **kw: (pull_calls.append(kw), _mr_pull_result())[1]):
-        _run_mr_native_pull_real(
+        _run_mr_pull_real(
             project=_mr_project(tmp_path),
             config={'modrinth': {'id': 'abc', 'slug': 'mypack'}},
             auth=_AUTH,
@@ -498,12 +469,12 @@ def test_run_mr_native_pull_images_skipped_when_info_exists(tmp_path):
     assert pull_calls[0]['images'] is False
 
 
-def test_run_mr_native_pull_images_true_fetches_even_when_info_exists(tmp_path):
+def test_run_mr_pull_images_true_fetches_even_when_info_exists(tmp_path):
     (tmp_path / 'puppy.yaml').write_text('name: T\npack: t\nmodrinth:\n  id: abc\n  slug: mypack\n')
     (tmp_path / 'images.yaml').write_text('[]\n')
     pull_calls = []
     with patch('puppy.puller.MODRINTH.pull', side_effect=lambda **kw: (pull_calls.append(kw), _mr_pull_result())[1]):
-        _run_mr_native_pull_real(
+        _run_mr_pull_real(
             project=_mr_project(tmp_path),
             config={'modrinth': {'id': 'abc', 'slug': 'mypack'}},
             auth=_AUTH,
@@ -514,10 +485,10 @@ def test_run_mr_native_pull_images_true_fetches_even_when_info_exists(tmp_path):
     assert pull_calls[0]['images'] is True
 
 
-def test_run_mr_native_pull_auth_expired_raises_system_exit(tmp_path):
+def test_run_mr_pull_auth_expired_raises_system_exit(tmp_path):
     with patch('puppy.puller.MODRINTH.pull', side_effect=AuthExpiredError(401, 'expired')):
         with pytest.raises(SystemExit, match='Modrinth auth expired'):
-            _run_mr_native_pull_real(
+            _run_mr_pull_real(
                 project=_mr_project(tmp_path),
                 config={'modrinth': {'id': 'abc', 'slug': 'mypack'}},
                 auth=_AUTH,
@@ -544,7 +515,6 @@ def test_upload_pack_mr_skips_when_already_current(tmp_path, monkeypatch):
     upload_pack(
         project=project,
         config=config,
-        worker_dir=tmp_path,
         site='modrinth',
         version='1.0',
         force=False,
@@ -571,7 +541,6 @@ def test_upload_pack_mr_auth_expired_raises_system_exit(tmp_path, monkeypatch):
         upload_pack(
             project=project,
             config=config,
-            worker_dir=tmp_path,
             site='modrinth',
             version='1.0',
             force=True,

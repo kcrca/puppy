@@ -48,9 +48,6 @@ def test_runner_prints_after_push(project_env, run_puppy, monkeypatch, capsys):
             'planetminecraft': {'slug': 'neonglow', 'after_push': 'Check PMC link'},
         })
     )
-    monkeypatch.setattr('puppy.syncer.worker_prep', lambda *a, **k: None)
-    monkeypatch.setattr('puppy.runner.write_auth', lambda *a, **k: None)
-    monkeypatch.setattr('puppy.runner.patch_settings', lambda *a, **k: None)
     monkeypatch.setattr('puppy.runner._dispatch', lambda *a, **k: None)
 
     run_puppy('push', '-s', 'planetminecraft')

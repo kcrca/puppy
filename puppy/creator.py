@@ -1,62 +1,9 @@
-import json
-import shutil
 from pathlib import Path
 
 from PIL import Image
 
 from puppy.core import Project
-from puppy.images import copy_images, stage_image
-from puppy.puller import run_pull
-from puppy.sites import SITES, SiteVisitor
-from puppy.worker import read_output, run_worker
-from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
-
-
-def run_create(
-    *,
-    project: Project,
-    config: dict,
-    auth: dict,
-    worker_dir: Path,
-    site: str | None,
-    verbosity: int,
-) -> None:
-    puppy_dir = project.puppy_dir
-    icon = _resolve_asset(config.get('icon'), puppy_dir, _find_icon, config)
-    zip_path = _resolve_asset(config.get('zip'), puppy_dir, _find_zip, config)
-    _validate_square(icon)
-    _stage(project, config, icon, zip_path, puppy_dir, worker_dir, site)
-    _run_worker(worker_dir, verbosity)
-    result_data = read_output(project, worker_dir)
-    updated_config = _harvest(project, result_data, site)
-    run_pull(
-        project=project,
-        config=updated_config,
-        auth=auth,
-        worker_dir=worker_dir,
-        site=site,
-        images=False,
-        verbosity=verbosity,
-    )
-    if verbosity >= 1:
-        print(f'[{project.name}] create complete')
-
-
-def _find_optional(name: str, puppy_dir: Path, config: dict) -> Path | None:
-    for base in (puppy_dir, Path(config['puppy'])):
-        p = base / name
-        if p.exists():
-            return p
-    return None
-
-
-def _resolve_optional_asset(explicit: str | None, default_name: str, puppy_dir: Path, config: dict) -> Path | None:
-    if explicit:
-        p = Path(explicit) if Path(explicit).is_absolute() else (puppy_dir / explicit).resolve()
-        if not p.exists():
-            raise SystemExit(f'Asset not found: {p}')
-        return p
-    return _find_optional(default_name, puppy_dir, config)
+from puppy.sites import SITES
 
 
 def _resolve_asset(explicit: str | None, puppy_dir: Path, discover_fn, config: dict = None) -> Path:
@@ -80,17 +27,6 @@ def _find_icon(puppy_dir: Path) -> Path:
         raise SystemExit(f'No icon PNG found in {puppy_dir}')
     raise SystemExit(
         f'Multiple PNG files in {puppy_dir} — ambiguous icon: {[p.name for p in pngs]}'
-    )
-
-
-def _find_zip(puppy_dir: Path) -> Path:
-    zips = list(puppy_dir.glob('*.zip'))
-    if len(zips) == 1:
-        return zips[0]
-    if not zips:
-        raise SystemExit(f'No ZIP file found in {puppy_dir}')
-    raise SystemExit(
-        f'Multiple ZIP files in {puppy_dir} — ambiguous artifact: {[p.name for p in zips]}'
     )
 
 
@@ -136,76 +72,3 @@ def _build_config(project: Project, config: dict) -> dict:
     }
 
 
-def _stage(
-    project: Project,
-    config: dict,
-    icon: Path,
-    zip_path: Path,
-    puppy_dir: Path,
-    worker_dir: Path,
-    site: str | None,
-) -> None:
-    cfg = _build_config(project, config)
-
-    # data/create/
-    data_dir = worker_dir / 'data' / 'create'
-    if data_dir.exists():
-        shutil.rmtree(data_dir)
-    data_dir.mkdir(parents=True)
-
-    (data_dir / 'create.json').write_text(json.dumps(cfg, indent=2))
-    stage_image(icon, data_dir / 'pack.png')
-    shutil.copy(zip_path, data_dir / 'pack.zip')
-
-    copy_images(config, puppy_dir, data_dir / 'images')
-
-    for src_name, dest_name, key in (('banner.png', 'thumbnail.png', 'banner'), ('logo.png', 'logo.png', 'logo')):
-        src = _resolve_optional_asset(config.get(key), src_name, puppy_dir, config)
-        if src:
-            shutil.copy(src, data_dir / dest_name)
-
-    # Pre-stage projects/{pack}/ so existing IDs are preserved
-    project_dir = worker_dir / 'projects' / project.pack
-    if project_dir.exists():
-        shutil.rmtree(project_dir)
-    project_dir.mkdir(parents=True)
-
-    visitor = SiteVisitor(site)
-    existing = {
-        s.name: {
-            'id': config.get(s.name, {}).get('id') if s in visitor
-                  else (config.get(s.name, {}).get('id') or '__skip__'),
-            'slug': config.get(s.name, {}).get('slug', 'my-project'),
-        }
-        for s in SITES
-    }
-    project_json = {'config': cfg, **existing}
-    (project_dir / 'project.json').write_text(json.dumps(project_json, indent=2))
-
-    stage_image(icon, project_dir / 'pack.png')
-    copy_images(config, puppy_dir, project_dir / 'images')
-
-    for optional in ('thumbnail.png', 'logo.png'):
-        src = _find_optional(optional, puppy_dir, config)
-        if src:
-            shutil.copy(src, project_dir / optional)
-
-
-def _run_worker(worker_dir: Path, verbosity: int) -> None:
-    run_worker('scripts/create.js', worker_dir, verbosity)
-
-
-def _harvest(project: Project, result_data: dict, site: str | None) -> dict:
-    puppy_yaml = project.puppy_dir / 'puppy.yaml'
-    config = load_puppy_yaml(puppy_yaml)
-
-    for s in SiteVisitor(site):
-        platform_data = result_data.get(s.name, {})
-        harvested_id = platform_data.get('id')
-        if harvested_id and harvested_id != '__skip__':
-            config.setdefault(s.name, {})
-            config[s.name]['id'] = harvested_id
-            config[s.name]['slug'] = platform_data.get('slug')
-
-    dump_puppy_yaml(config, puppy_yaml)
-    return config

@@ -1,5 +1,4 @@
 import argparse
-import sys
 from pathlib import Path
 
 from puppy.runner import run
@@ -15,7 +14,7 @@ def build_parser() -> argparse.ArgumentParser:
         'action',
         nargs='?',
         default='push',
-        choices=['push', 'create', 'pull', 'init', 'clean', 'auth'],
+        choices=['push', 'pull', 'init', 'auth', 'create'],
         help='Action to perform (default: push).',
     )
 
@@ -112,15 +111,6 @@ def build_parser() -> argparse.ArgumentParser:
         help='Do not open the dry-run preview in a browser.',
     )
 
-    parser.add_argument(
-        '--worker',
-        type=Path,
-        dest='worker',
-        default=None,
-        metavar='PATH',
-        help='PackUploader worker directory (default: ~/PackUploader).',
-    )
-
     return parser
 
 
@@ -135,11 +125,6 @@ def main(argv: list[str] = None) -> None:
         run_auth(site=args.site, directory=directory)
         return
 
-    if args.action == 'create' and not args.force and sys.stdin.isatty():
-        answer = input('Create new projects on sites? This cannot be undone. [y/N] ')
-        if not answer.strip().lower().startswith('y'):
-            raise SystemExit('Aborted.')
-
     run(
         action=args.action,
         directory=directory,
@@ -152,5 +137,4 @@ def main(argv: list[str] = None) -> None:
         force=args.force,
         images=args.images,
         open_browser=args.open_browser,
-        worker=args.worker,
     )

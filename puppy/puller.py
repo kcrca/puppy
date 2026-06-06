@@ -1,14 +1,10 @@
-import json
-import shutil
-import urllib.request
 from pathlib import Path
 
 import yaml
 
 from puppy.core import Project
 from puppy.errors import AuthExpiredError
-from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
-from puppy.worker import read_output, run_worker, worker_prep
+from puppy.sites import CURSEFORGE, MODRINTH, PMC, SiteVisitor
 from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
 
 
@@ -17,7 +13,6 @@ def run_pull(
     project: Project,
     config: dict,
     auth: dict,
-    worker_dir: Path,
     site: str | None,
     images: bool,
     verbosity: int,
@@ -28,40 +23,34 @@ def run_pull(
     mr_token = auth.get('modrinth', {}).get('token', '')
     mr = config.get('modrinth', {})
     mr_id = mr.get('id') or mr.get('slug')
-    use_mr_native = MODRINTH in visitor and bool(mr_token) and bool(mr_id)
-
     cf_token = auth.get('curseforge', {}).get('token')
     cf_cookie = auth.get('curseforge', {}).get('cookie')
     cf_id = config.get('curseforge', {}).get('id')
-    use_cf_native = CURSEFORGE in visitor and bool(cf_token) and bool(cf_cookie) and bool(cf_id)
-
     pmc_cookie = auth.get('planetminecraft', '')
     pmc_id = config.get('planetminecraft', {}).get('id')
-    use_pmc_native = PMC in visitor and bool(pmc_cookie) and bool(pmc_id)
 
-    native_sites = {s for s, used in ((MODRINTH, use_mr_native), (CURSEFORGE, use_cf_native), (PMC, use_pmc_native)) if used}
-    all_native = all(s in native_sites for s in visitor)
+    missing = []
+    if MODRINTH in visitor and mr_id and not mr_token:
+        missing.append(MODRINTH)
+    if CURSEFORGE in visitor and cf_id and not (cf_token and cf_cookie):
+        missing.append(CURSEFORGE)
+    if PMC in visitor and pmc_id and not pmc_cookie:
+        missing.append(PMC)
+    if missing:
+        raise SystemExit(f'Credentials missing for: {", ".join(s.label for s in missing)} — run: puppy auth')
 
-    if use_mr_native:
-        _run_mr_native_pull(project, config, auth, site, images, verbosity)
-    if use_cf_native:
-        _run_cf_native_pull(project, config, auth, site, images, verbosity)
-    if use_pmc_native:
-        _run_pmc_native_pull(project, config, auth, site, images, verbosity)
-
-    if not all_native:
-        worker_prep(worker_dir, verbosity)
-        _stage(project, config, worker_dir, site)
-        _clean_existing(project, worker_dir)
-        _run_worker(worker_dir, verbosity)
-        result_data = read_output(project, worker_dir)
-        _harvest(project, result_data, worker_dir, site, auth, images)
+    if MODRINTH in visitor and mr_id:
+        _run_mr_pull(project, config, auth, site, images, verbosity)
+    if CURSEFORGE in visitor and cf_id:
+        _run_cf_pull(project, config, auth, site, images, verbosity)
+    if PMC in visitor and pmc_id:
+        _run_pmc_pull(project, config, auth, site, images, verbosity)
 
     if verbosity >= 1:
         print(f'[{project.name}] pull complete')
 
 
-def _run_mr_native_pull(
+def _run_mr_pull(
     project: Project,
     config: dict,
     auth: dict,
@@ -88,7 +77,7 @@ def _run_mr_native_pull(
     _harvest_yaml(project, result_data, puppy_dir, site, do_images)
 
 
-def _run_cf_native_pull(
+def _run_cf_pull(
     project: Project,
     config: dict,
     auth: dict,
@@ -114,7 +103,7 @@ def _run_cf_native_pull(
     _harvest_yaml(project, result_data, puppy_dir, site, do_images)
 
 
-def _run_pmc_native_pull(
+def _run_pmc_pull(
     project: Project,
     config: dict,
     auth: dict,
@@ -146,52 +135,12 @@ def _resolve_ids(config: dict, auth: dict, site: str | None, verbosity: int) -> 
     return config
 
 
-def _stage(project: Project, config: dict, worker_dir: Path, site: str | None) -> None:
-    import_data: dict = {'id': project.pack}
-    visitor = SiteVisitor(site)
-    for s in SITES:
-        site_cfg = config.get(s.name, {})
-        import_data[s.name] = {
-            'id': visitor.id_or_skip(s, site_cfg.get('id')),
-            'slug': site_cfg.get('slug'),
-        }
-    data_dir = worker_dir / 'data'
-    data_dir.mkdir(parents=True, exist_ok=True)
-    (data_dir / 'import.json').write_text(json.dumps(import_data, indent=2))
-
-
-def _clean_existing(project: Project, worker_dir: Path) -> None:
-    existing = worker_dir / 'projects' / project.pack
-    if existing.exists():
-        shutil.rmtree(existing)
-
-
-def _run_worker(worker_dir: Path, verbosity: int) -> None:
-    run_worker('scripts/import.js', worker_dir, verbosity)
-
-
 def _has_image_info(puppy_dir: Path, site: str | None) -> bool:
     dirs = [puppy_dir] + [puppy_dir / s.name for s in SiteVisitor(site)]
     return any(
         (d / 'images.yaml').exists() or (d / 'images' / 'images.yaml').exists()
         for d in dirs
     )
-
-
-def _harvest(
-    project: Project, result_data: dict, worker_dir: Path, site: str | None,
-    auth: dict, images: bool,
-) -> None:
-    puppy_dir = project.puppy_dir
-    project_worker_dir = worker_dir / 'projects' / project.pack
-
-    do_images = images or not _has_image_info(puppy_dir, site)
-    _harvest_description(project, result_data, site, auth)
-    _harvest_yaml(project, result_data, puppy_dir, site, do_images)
-    if do_images:
-        _harvest_images(project_worker_dir, puppy_dir)
-        _harvest_icon(project_worker_dir, puppy_dir)
-        _harvest_special_images(project_worker_dir, puppy_dir)
 
 
 def _harvest_yaml(
@@ -247,81 +196,3 @@ def _harvest_yaml(
     dump_puppy_yaml(config, puppy_yaml)
 
 
-def _harvest_description(
-    project: Project, result_data: dict, site: str | None, auth: dict
-) -> None:
-    visitor = SiteVisitor(site)
-    for s in visitor:
-        if s is MODRINTH:
-            _harvest_modrinth_description(project, result_data, auth)
-        elif s is CURSEFORGE:
-            _harvest_cf_description(project, result_data, auth)
-
-
-def _harvest_modrinth_description(
-    project: Project, result_data: dict, auth: dict
-) -> None:
-    modrinth_id = result_data.get('modrinth', {}).get('id')
-    token = auth.get('modrinth', {}).get('token', '')
-    if not modrinth_id or not token:
-        return
-    req = urllib.request.Request(
-        f'https://api.modrinth.com/v2/project/{modrinth_id}',
-        headers={'Authorization': token},
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        data = json.loads(resp.read())
-    result_data.setdefault('modrinth', {})['slug'] = data['slug']
-    site_dir = project.puppy_dir / 'modrinth'
-    site_dir.mkdir(parents=True, exist_ok=True)
-    (site_dir / 'description.md').write_text(data['body'])
-
-
-def _harvest_cf_description(
-    project: Project, result_data: dict, auth: dict
-) -> None:
-    cf_id = result_data.get('curseforge', {}).get('id')
-    token = auth.get('curseforge', {}).get('token')
-    if not cf_id or not token:
-        return
-    req = urllib.request.Request(
-        f'https://api.curseforge.com/v1/mods/{cf_id}/description',
-        headers={'x-api-key': token},
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        data = json.loads(resp.read())
-    site_dir = project.puppy_dir / 'curseforge'
-    site_dir.mkdir(parents=True, exist_ok=True)
-    (site_dir / 'description.html').write_text(data['data'])
-
-
-def _harvest_icon(project_worker_dir: Path, puppy_dir: Path) -> None:
-    src = project_worker_dir / 'pack.png'
-    if not src.exists():
-        return
-    existing = [p for p in puppy_dir.iterdir() if p.suffix == '.png' and p.name not in ('banner.png', 'logo.png')]
-    if existing:
-        return
-    shutil.copy(src, puppy_dir / 'pack.png')
-
-
-def _harvest_special_images(project_worker_dir: Path, puppy_dir: Path) -> None:
-    for src_name, dest_name in (('thumbnail.png', 'banner.png'), ('logo.png', 'logo.png')):
-        src = project_worker_dir / src_name
-        dest = puppy_dir / dest_name
-        if src.exists() and not dest.exists():
-            shutil.copy(src, dest)
-
-
-def _harvest_images(project_worker_dir: Path, puppy_dir: Path) -> None:
-    src = project_worker_dir / 'images'
-    if not src.exists():
-        return
-    dest = puppy_dir / 'images'
-    dest.mkdir(parents=True, exist_ok=True)
-    for p in dest.iterdir():
-        if p.suffix != '.yaml':
-            p.unlink()
-    for img in src.iterdir():
-        clean_name = img.stem.strip('_') + img.suffix
-        shutil.copy(img, dest / clean_name)

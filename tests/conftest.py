@@ -1,4 +1,3 @@
-import json
 import pytest
 import puppy.__main__
 import yaml
@@ -19,47 +18,47 @@ def _no_preflight(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _no_cf_native(monkeypatch):
-    monkeypatch.setattr('puppy.syncer._run_cf_native', lambda *a, **k: None)
+def _no_cf_push(monkeypatch):
+    monkeypatch.setattr('puppy.syncer._run_cf', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
-def _no_mr_native(monkeypatch):
-    monkeypatch.setattr('puppy.syncer._run_mr_native', lambda *a, **k: None)
+def _no_mr_push(monkeypatch):
+    monkeypatch.setattr('puppy.syncer._run_mr', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
-def _no_mr_native_pull(monkeypatch):
-    monkeypatch.setattr('puppy.puller._run_mr_native_pull', lambda *a, **k: None)
+def _no_mr_pull(monkeypatch):
+    monkeypatch.setattr('puppy.puller._run_mr_pull', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
-def _no_cf_native_pull(monkeypatch):
-    monkeypatch.setattr('puppy.puller._run_cf_native_pull', lambda *a, **k: None)
+def _no_cf_pull(monkeypatch):
+    monkeypatch.setattr('puppy.puller._run_cf_pull', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
-def _no_mr_native_upload(monkeypatch):
+def _no_mr_upload(monkeypatch):
     monkeypatch.setattr('puppy.publisher.MODRINTH.upload_version', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
-def _no_cf_native_upload(monkeypatch):
+def _no_cf_upload(monkeypatch):
     monkeypatch.setattr('puppy.publisher.CURSEFORGE.upload_file', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
-def _no_pmc_native(monkeypatch):
-    monkeypatch.setattr('puppy.syncer._run_pmc_native', lambda *a, **k: None)
+def _no_pmc_push(monkeypatch):
+    monkeypatch.setattr('puppy.syncer._run_pmc', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
-def _no_pmc_native_pull(monkeypatch):
-    monkeypatch.setattr('puppy.puller._run_pmc_native_pull', lambda *a, **k: None)
+def _no_pmc_pull(monkeypatch):
+    monkeypatch.setattr('puppy.puller._run_pmc_pull', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
-def _no_pmc_native_upload(monkeypatch):
+def _no_pmc_upload(monkeypatch):
     monkeypatch.setattr('puppy.publisher.PMC.submit_log', lambda *a, **k: None)
 
 
@@ -90,38 +89,8 @@ def project_env(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def worker_env(tmp_path):
-    """Fake PackUploader directory with rich settings.json for hygiene/staging tests."""
-    d = tmp_path / 'PackUploader'
-    d.mkdir()
-    (d / 'settings.json').write_text(
-        json.dumps(
-            {
-                'ewan': True,
-                'modrinth': {
-                    'discord': 'https://discord.gg/someone',
-                    'donation': {'kofi': 'https://ko-fi.com/someone', 'paypal': None},
-                },
-                'curseforge': {
-                    'socials': {'discord': 'https://discord.gg/someone'},
-                    'donation': {'type': 'kofi', 'value': 'someone'},
-                },
-                'planetminecraft': {
-                    'website': {
-                        'link': 'https://someone.com/',
-                        'title': "Someone's site",
-                    }
-                },
-                'templateDefaults': {'discord': 'https://discord.gg/someone'},
-            }
-        )
-    )
-    return d
-
-
-@pytest.fixture
-def push_env(project_env, worker_env, monkeypatch):
-    """Project with icon + basic slugs, worker silenced, WORKER_DIR pointed at worker_env."""
+def push_env(project_env):
+    """Project with icon + basic slugs."""
     source = project_env['project']
     (source / 'puppy.yaml').write_text(
         yaml.dump(
@@ -135,10 +104,7 @@ def push_env(project_env, worker_env, monkeypatch):
         )
     )
     Image.new('RGB', (64, 64), color='blue').save(source / 'icon.png')
-    monkeypatch.setattr('puppy.syncer.worker_prep', lambda *a, **k: None)
-    monkeypatch.setattr('puppy.syncer._run_worker', lambda *a, **k: None)
-    monkeypatch.setattr('puppy.runner.WORKER_DIR', worker_env)
-    return {'worker': worker_env, **project_env}
+    return project_env
 
 
 @pytest.fixture

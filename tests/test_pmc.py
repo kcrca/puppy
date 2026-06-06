@@ -1,6 +1,5 @@
 import io
 import json
-import subprocess
 import zipfile
 import urllib.error
 from pathlib import Path
@@ -14,8 +13,8 @@ from PIL import Image
 from puppy.core import Project
 from puppy.errors import AuthExpiredError
 from puppy.sites import PMC
-from puppy.puller import _run_pmc_native_pull as _run_pmc_native_pull_real
-from puppy.syncer import _run_pmc_native as _run_pmc_native_real
+from puppy.puller import _run_pmc_pull as _run_pmc_pull_real
+from puppy.syncer import _run_pmc as _run_pmc_real
 
 
 _AUTH = {'planetminecraft': 'pmc_autologin=test-cookie'}
@@ -25,16 +24,12 @@ _VERSION = '1.0.0'
 
 
 @pytest.fixture
-def push_pack_env(project_env, worker_env, monkeypatch):
+def push_pack_env(project_env):
     source = project_env['project']
     Image.new('RGB', (64, 64), color='blue').save(source / 'icon.png')
     with zipfile.ZipFile(source / f'{_PACK}-{_VERSION}.zip', 'w') as z:
         z.writestr('pack.mcmeta', '{}')
-    monkeypatch.setattr(
-        'puppy.publisher.subprocess.run',
-        lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0),
-    )
-    return {**project_env, 'worker': worker_env}
+    return project_env
 
 _CSRF = 'csrf-token-abc'
 _EDIT_HTML = '''
@@ -298,9 +293,9 @@ def test_push_raises_system_exit_on_failure(tmp_path):
             )
 
 
-# ── 5. _run_pmc_native routing ───────────────────────────────────────────────
+# ── 5. _run_pmc routing ──────────────────────────────────────────────────────
 
-def test_run_push_uses_pmc_native_when_pmc_creds_present(push_env, run_puppy):
+def test_run_push_when_pmc_creds_present(push_env, run_puppy):
     import yaml as _yaml
     (push_env['project'] / 'puppy.yaml').write_text(
         _yaml.dump({
@@ -318,26 +313,26 @@ def test_run_push_uses_pmc_native_when_pmc_creds_present(push_env, run_puppy):
 
     called = []
     import puppy.syncer as syncer_mod
-    orig = syncer_mod._run_pmc_native
-    syncer_mod._run_pmc_native = lambda *a, **k: called.append(True)
+    orig = syncer_mod._run_pmc
+    syncer_mod._run_pmc = lambda *a, **k: called.append(True)
     try:
         run_puppy('push', '--site', 'pmc')
     finally:
-        syncer_mod._run_pmc_native = orig
+        syncer_mod._run_pmc = orig
 
     assert called
 
 
-def test_run_pmc_native_auth_expired_raises_system_exit(tmp_path):
+def test_run_pmc_auth_expired_raises_system_exit(tmp_path):
     project = Project(tmp_path, override_name='Pack', override_pack='pack')
     config = {'name': 'Pack', 'planetminecraft': {'id': _PROJECT_ID}}
 
     with patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
         with pytest.raises(SystemExit, match='PlanetMinecraft auth expired'):
-            _run_pmc_native_real(project, config, tmp_path / 'icon.png', tmp_path, {}, _AUTH, 0)
+            _run_pmc_real(project, config, tmp_path / 'icon.png', tmp_path, {}, _AUTH, 0)
 
 
-def test_run_pmc_native_skips_gallery_when_images_false(tmp_path):
+def test_run_pmc_skips_gallery_when_images_false(tmp_path):
     project = Project(tmp_path, override_name='Pack', override_pack='pack')
     config = {
         'name': 'Pack',
@@ -353,12 +348,12 @@ def test_run_pmc_native_skips_gallery_when_images_false(tmp_path):
         push_calls.append(kwargs['image_list'])
 
     with patch.object(PMC.__class__, 'push', fake_push):
-        _run_pmc_native_real(project, config, icon, tmp_path, {}, _AUTH, 0, images=False)
+        _run_pmc_real(project, config, icon, tmp_path, {}, _AUTH, 0, images=False)
 
     assert push_calls[0] == []
 
 
-def test_run_pmc_native_passes_image_list_when_images_true(tmp_path):
+def test_run_pmc_passes_image_list_when_images_true(tmp_path):
     project = Project(tmp_path, override_name='Pack', override_pack='pack')
     config = {
         'name': 'Pack',
@@ -374,7 +369,7 @@ def test_run_pmc_native_passes_image_list_when_images_true(tmp_path):
         push_calls.append(kwargs['image_list'])
 
     with patch.object(PMC.__class__, 'push', fake_push):
-        _run_pmc_native_real(project, config, icon, tmp_path, {}, _AUTH, 0, images=True)
+        _run_pmc_real(project, config, icon, tmp_path, {}, _AUTH, 0, images=True)
 
     assert push_calls[0] == config['images']
 
@@ -504,9 +499,9 @@ def test_pull_includes_project_id(tmp_path):
     assert result['planetminecraft']['id'] == _PROJECT_ID
 
 
-# ── 7. _run_pmc_native_pull routing ──────────────────────────────────────────
+# ── 7. _run_pmc_pull routing ─────────────────────────────────────────────────
 
-def test_run_pull_uses_pmc_native_when_pmc_creds_present(push_env, run_puppy):
+def test_run_pull_when_pmc_creds_present(push_env, run_puppy):
     import yaml as _yaml
     (push_env['project'] / 'puppy.yaml').write_text(
         _yaml.dump({
@@ -520,17 +515,17 @@ def test_run_pull_uses_pmc_native_when_pmc_creds_present(push_env, run_puppy):
 
     called = []
     import puppy.puller as puller_mod
-    orig = puller_mod._run_pmc_native_pull
-    puller_mod._run_pmc_native_pull = lambda *a, **k: called.append(True)
+    orig = puller_mod._run_pmc_pull
+    puller_mod._run_pmc_pull = lambda *a, **k: called.append(True)
     try:
         run_puppy('pull', '--site', 'pmc')
     finally:
-        puller_mod._run_pmc_native_pull = orig
+        puller_mod._run_pmc_pull = orig
 
     assert called
 
 
-def test_run_pmc_native_pull_images_forced_when_no_image_info(tmp_path):
+def test_run_pmc_pull_images_forced_when_no_image_info(tmp_path):
     project = Project(tmp_path, override_name='Pack', override_pack='pack')
     config = {'planetminecraft': {'id': _PROJECT_ID}}
 
@@ -541,13 +536,13 @@ def test_run_pmc_native_pull_images_forced_when_no_image_info(tmp_path):
         return {'config': {}, 'planetminecraft': {'id': project_id}}
 
     with patch.object(PMC.__class__, 'pull', fake_pull):
-        _run_pmc_native_pull_real(project, config, _AUTH, None, False, 0)
+        _run_pmc_pull_real(project, config, _AUTH, None, False, 0)
 
     # No images.yaml exists → images forced True
     assert pull_calls[0] is True
 
 
-def test_run_pmc_native_pull_images_skipped_when_info_exists(tmp_path):
+def test_run_pmc_pull_images_skipped_when_info_exists(tmp_path):
     project = Project(tmp_path, override_name='Pack', override_pack='pack')
     config = {'planetminecraft': {'id': _PROJECT_ID}}
     (tmp_path / 'images.yaml').write_text('[]')
@@ -559,12 +554,12 @@ def test_run_pmc_native_pull_images_skipped_when_info_exists(tmp_path):
         return {'config': {}, 'planetminecraft': {'id': project_id}}
 
     with patch.object(PMC.__class__, 'pull', fake_pull):
-        _run_pmc_native_pull_real(project, config, _AUTH, None, False, 0)
+        _run_pmc_pull_real(project, config, _AUTH, None, False, 0)
 
     assert pull_calls[0] is False
 
 
-def test_run_pmc_native_pull_images_true_fetches_even_when_info_exists(tmp_path):
+def test_run_pmc_pull_images_true_fetches_even_when_info_exists(tmp_path):
     project = Project(tmp_path, override_name='Pack', override_pack='pack')
     config = {'planetminecraft': {'id': _PROJECT_ID}}
     (tmp_path / 'images.yaml').write_text('[]')
@@ -576,18 +571,18 @@ def test_run_pmc_native_pull_images_true_fetches_even_when_info_exists(tmp_path)
         return {'config': {}, 'planetminecraft': {'id': project_id}}
 
     with patch.object(PMC.__class__, 'pull', fake_pull):
-        _run_pmc_native_pull_real(project, config, _AUTH, None, True, 0)
+        _run_pmc_pull_real(project, config, _AUTH, None, True, 0)
 
     assert pull_calls[0] is True
 
 
-def test_run_pmc_native_pull_auth_expired_raises_system_exit(tmp_path):
+def test_run_pmc_pull_auth_expired_raises_system_exit(tmp_path):
     project = Project(tmp_path, override_name='Pack', override_pack='pack')
     config = {'planetminecraft': {'id': _PROJECT_ID}}
 
     with patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
         with pytest.raises(SystemExit, match='PlanetMinecraft auth expired'):
-            _run_pmc_native_pull_real(project, config, _AUTH, None, False, 0)
+            _run_pmc_pull_real(project, config, _AUTH, None, False, 0)
 
 
 # ── 8. PMC.submit_log ────────────────────────────────────────────────────────
@@ -635,9 +630,9 @@ def test_submit_log_auth_expired_raises_system_exit():
             PMC.__class__.submit_log(PMC, _PROJECT_ID, _AUTH, '1.2.3', {})
 
 
-# ── 9. push --pack PMC native routing ────────────────────────────────────────
+# ── 9. push --pack PMC routing ───────────────────────────────────────────────
 
-def test_upload_pack_pmc_uses_native_when_pmc_creds_present(push_pack_env, run_puppy, monkeypatch):
+def test_upload_pack_pmc_when_pmc_creds_present(push_pack_env, run_puppy, monkeypatch):
     source = push_pack_env['project']
     (source / 'puppy.yaml').write_text(
         yaml.dump({
@@ -655,8 +650,7 @@ def test_upload_pack_pmc_uses_native_when_pmc_creds_present(push_pack_env, run_p
 
     called = []
     monkeypatch.setattr('puppy.publisher.PMC.submit_log', lambda *a, **k: called.append(True))
-    run_puppy('push', '--pack', '--force', '--version', '1.0.0',
-              '--worker', str(push_pack_env['worker']), '--site', 'pmc')
+    run_puppy('push', '--pack', '--force', '--version', '1.0.0', '--site', 'pmc')
     assert called
 
 
@@ -676,8 +670,7 @@ def test_upload_pack_pmc_skips_when_already_current(push_pack_env, run_puppy, mo
 
     called = []
     monkeypatch.setattr('puppy.publisher.PMC.submit_log', lambda *a, **k: called.append(True))
-    run_puppy('push', '--pack', '--version', '1.0.0',
-              '--worker', str(push_pack_env['worker']), '--site', 'pmc')
+    run_puppy('push', '--pack', '--version', '1.0.0', '--site', 'pmc')
     assert not called
 
 
@@ -696,6 +689,5 @@ def test_upload_pack_pmc_auth_expired_raises_system_exit(push_pack_env, run_pupp
         'puppy.publisher.PMC.submit_log',
         lambda *a, **k: (_ for _ in ()).throw(AuthExpiredError(401, 'Expired')),
     )
-    result = run_puppy('push', '--pack', '--force', '--version', '1.0.0',
-                       '--worker', str(push_pack_env['worker']), '--site', 'pmc')
+    result = run_puppy('push', '--pack', '--force', '--version', '1.0.0', '--site', 'pmc')
     assert result == 'PlanetMinecraft auth expired (HTTP 401) — run: puppy auth --site pmc'

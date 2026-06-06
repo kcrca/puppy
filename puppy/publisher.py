@@ -1,22 +1,17 @@
-import json
-import shutil
-import subprocess
 from pathlib import Path
 
 import yaml
 
 from puppy.artifacts import ArtifactFinder
 from puppy.core import Project
-from puppy.creator import _expand_versions
 from puppy.errors import AuthExpiredError
-from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
+from puppy.sites import CURSEFORGE, MODRINTH, PMC, SiteVisitor
 
 
 def upload_pack(
     *,
     project: Project,
     config: dict,
-    worker_dir: Path,
     site: str | None,
     version: str,
     force: bool,
@@ -43,23 +38,22 @@ def upload_pack(
         return
 
     mr_token = auth.get('modrinth', {}).get('token', '')
-    native_mr = MODRINTH in sites_to_upload and bool(mr_token)
-
     cf_token = auth.get('curseforge', {}).get('token', '')
-    native_cf = CURSEFORGE in sites_to_upload and bool(cf_token)
-
     pmc_cookie = auth.get('planetminecraft', '')
     pmc_id = config.get('planetminecraft', {}).get('id')
-    native_pmc = PMC in sites_to_upload and bool(pmc_cookie) and bool(pmc_id)
 
-    worker_sites = [
-        s for s in sites_to_upload
-        if not (s is MODRINTH and native_mr)
-        and not (s is CURSEFORGE and native_cf)
-        and not (s is PMC and native_pmc)
-    ]
+    missing = []
+    if MODRINTH in sites_to_upload and not mr_token:
+        missing.append(MODRINTH)
+    if CURSEFORGE in sites_to_upload and not cf_token:
+        missing.append(CURSEFORGE)
+    if PMC in sites_to_upload and not (pmc_cookie and pmc_id):
+        missing.append(PMC)
+    if missing:
+        labels = ', '.join(s.label for s in missing)
+        raise SystemExit(f'Credentials missing for pack upload: {labels} — run: puppy auth')
 
-    if native_mr:
+    if MODRINTH in sites_to_upload:
         if verbosity >= 1:
             print(f'  [Modrinth] uploading version {version}')
         mr_id = config.get('modrinth', {}).get('id') or config.get('modrinth', {}).get('slug')
@@ -69,7 +63,7 @@ def upload_pack(
             raise SystemExit(f'Modrinth auth expired (HTTP {e.code}) — run: puppy auth --site modrinth')
         MODRINTH.post_upload(puppy_dir, version)
 
-    if native_cf:
+    if CURSEFORGE in sites_to_upload:
         if verbosity >= 1:
             print(f'  [CurseForge] uploading version {version}')
         cf_id = config.get('curseforge', {}).get('id')
@@ -79,7 +73,7 @@ def upload_pack(
             raise SystemExit(f'CurseForge auth expired (HTTP {e.code}) — run: puppy auth --site cf')
         CURSEFORGE.post_upload(puppy_dir, version)
 
-    if native_pmc:
+    if PMC in sites_to_upload:
         if verbosity >= 1:
             print(f'  [PlanetMinecraft] submitting version log {version}')
         try:
@@ -87,13 +81,6 @@ def upload_pack(
         except AuthExpiredError as e:
             raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}) — run: puppy auth --site pmc')
         PMC.post_upload(puppy_dir, version)
-
-    if worker_sites:
-        _patch_project_json(worker_dir, project, config, worker_sites)
-        _stage(project, config, zip_path, worker_dir, version)
-        _run_worker(worker_dir, verbosity)
-        for s in worker_sites:
-            s.post_upload(puppy_dir, version)
 
 
 def _resolve_zip(config: dict, puppy_dir: Path, version: str, project: Project) -> Path:
@@ -145,43 +132,3 @@ def _sites_needing_upload(
             print(f'[{project.name}] {s}: already current, skipping')
     return result
 
-
-
-def _patch_project_json(
-    worker_dir: Path, project: Project, config: dict, sites_to_upload: list[str]
-) -> None:
-    path = worker_dir / 'projects' / project.pack / 'project.json'
-    data = json.loads(path.read_text())
-    data['config']['version'] = None  # bypass update.js same-version check
-    data['config']['versions'] = _expand_versions(config)
-    for s in SITES:
-        if s not in sites_to_upload:
-            data.setdefault(s.name, {})['id'] = None
-    path.write_text(json.dumps(data, indent=2))
-
-
-def _stage(
-    project: Project, config: dict, zip_path: Path, worker_dir: Path, version: str
-) -> None:
-    update_dir = worker_dir / 'data' / 'update'
-    if update_dir.exists():
-        shutil.rmtree(update_dir)
-    update_dir.mkdir(parents=True)
-    update_json = {
-        'id': project.pack,
-        'version': version,
-        'versions': _expand_versions(config),
-    }
-    (update_dir / 'update.json').write_text(json.dumps(update_json, indent=2))
-    shutil.copy(zip_path, update_dir / 'pack.zip')
-
-
-def _run_worker(worker_dir: Path, verbosity: int) -> None:
-    cmd = ['node', '--no-warnings', 'scripts/update.js']
-    kwargs: dict = {'cwd': worker_dir}
-    if verbosity < 2:
-        kwargs['capture_output'] = True
-    result = subprocess.run(cmd, **kwargs)
-    if result.returncode != 0:
-        detail = result.stderr.decode() if verbosity < 2 else ''
-        raise SystemExit(f'Worker upload failed\n{detail}'.strip())
