@@ -126,6 +126,7 @@ Puppy has the following actions:
 * **`-s/--site [sitename]`:** Limits action to one or more sites.
   Accepts a single name or a comma-separated list (e.g. `modrinth`, `cf,mr`).
   Site abbreviations are accepted (`cf`, `mr`, `pmc`).
+  When omitted, defaults to the `sites:` list in `puppy.yaml` if present, otherwise all three sites.
 * **`-V/--version [string]`:** Version string override.
   Falls back to `version` in `puppy.yaml`.
   Artifact matched via any `.zip` in `puppy/` whose filename ends with `[-_.]version.zip`.
@@ -218,6 +219,12 @@ All yaml values and path variables are available as arguments.
 
 **Recursive config expansion:** String values in the config that contain `{{ }}` expressions are themselves expanded through Jinja — repeatedly until stable.
 This means a config key can reference other config keys, projects variables, or file-inclusion variables, and those references will be fully resolved before they appear in the description.
+
+**`sites:`** — optional list of site names (or abbreviations) that this project publishes to.
+When present, commands that do not have an explicit `--site` flag operate only on the listed sites.
+When absent, all three sites are used.
+Can be set at the Puppy Home level to apply to all projects, or per-project to override.
+Example: `sites: [cf, mr]`
 
 **Standard config fields passed to the worker:**
 * `summary` — one-line project description shown in search results

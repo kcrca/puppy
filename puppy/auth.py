@@ -14,8 +14,21 @@ _ALL_SITES = {'curseforge', 'modrinth', 'planetminecraft'}
 _ALIASES = {'cf': 'curseforge', 'mr': 'modrinth', 'pmc': 'planetminecraft'}
 
 
-def _resolve_sites(site: str | None) -> list[str]:
+def _resolve_sites(site: str | None, puppy_home: Path | None = None) -> list[str]:
     if not site:
+        if puppy_home:
+            puppy_yaml = puppy_home / 'puppy.yaml'
+            if puppy_yaml.exists():
+                config = yaml.safe_load(puppy_yaml.read_text()) or {}
+                declared = config.get('sites')
+                if declared:
+                    result = []
+                    for s in declared:
+                        canonical = _ALIASES.get(str(s).strip(), str(s).strip())
+                        if canonical not in _ALL_SITES:
+                            raise SystemExit(f'Unknown site in sites: {s!r}. Choose from: cf, mr, pmc')
+                        result.append(canonical)
+                    return result
         return list(_ALL_SITES)
     result = []
     for s in site.split(','):
@@ -138,7 +151,7 @@ def _ensure_gitignored(puppy_home: Path) -> None:
 
 def run_auth(site: str | None, directory: Path) -> None:
     puppy_home = _find_puppy_home(directory)
-    site_names = _resolve_sites(site)
+    site_names = _resolve_sites(site, puppy_home)
     auth = _load_auth(puppy_home)
 
     cookie_sites = [s for s in site_names if s in _COOKIE_SITES]

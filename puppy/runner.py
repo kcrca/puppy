@@ -88,6 +88,11 @@ def run(
     if site:
         site = ','.join(_ALIASES.get(s.strip(), s.strip()) for s in site.split(','))
     puppy_home, projects = _determine_roots(directory)
+    if not site:
+        home_config = _load_yaml(puppy_home / 'puppy.yaml') or {}
+        declared = home_config.get('sites')
+        if declared:
+            site = ','.join(_ALIASES.get(str(s).strip(), str(s).strip()) for s in declared)
     auth = check_auth(puppy_home, site)
 
     dry_run_projects: list = []

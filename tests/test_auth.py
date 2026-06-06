@@ -31,12 +31,10 @@ def _ctx_mock(cf=CF_COOKIES, pmc=PMC_COOKIES):
 @pytest.fixture()
 def auth_run(tmp_path):
     """Returns a helper that calls run_auth with a mocked browser context."""
-    def _run(site=None, ctx=None, initial_auth=None):
+    def _run(site=None, ctx=None, initial_auth=None, puppy_yaml=None):
+        (tmp_path / 'puppy.yaml').write_text(puppy_yaml or '')
         if initial_auth:
-            (tmp_path / 'puppy.yaml').write_text('')
             (tmp_path / 'auth.yaml').write_text(yaml.dump(initial_auth))
-        else:
-            (tmp_path / 'puppy.yaml').write_text('')
 
         mock_ctx = ctx if ctx is not None else _ctx_mock()
         mock_p = MagicMock()
@@ -126,3 +124,41 @@ def test_gitignore_updated(auth_run, tmp_path):
     gitignore = tmp_path / '.gitignore'
     assert gitignore.exists()
     assert 'auth.yaml' in gitignore.read_text()
+
+
+def test_sites_field_limits_auth_when_no_site_arg(auth_run, tmp_path):
+    ctx = _ctx_mock(cf=CF_COOKIES, pmc=[])
+    auth, code = auth_run(ctx=ctx, puppy_yaml='sites: [cf]')
+    assert code == 0
+    assert auth.get('curseforge', {}).get('cookie')
+    assert 'planetminecraft' not in auth
+
+
+def test_sites_field_with_aliases(auth_run, tmp_path):
+    ctx = _ctx_mock(cf=CF_COOKIES, pmc=PMC_COOKIES)
+    auth, code = auth_run(ctx=ctx, puppy_yaml='sites: [cf, pmc]')
+    assert code == 0
+    assert auth.get('curseforge', {}).get('cookie')
+    assert auth.get('planetminecraft', {}).get('cookie')
+
+
+def test_site_arg_overrides_sites_field(auth_run, tmp_path):
+    ctx = _ctx_mock(cf=CF_COOKIES, pmc=[])
+    auth, code = auth_run(site='pmc', ctx=ctx, puppy_yaml='sites: [cf]')
+    assert code == 1
+    assert 'curseforge' not in auth
+
+
+def test_sites_field_absent_uses_all_sites(auth_run, tmp_path):
+    ctx = _ctx_mock(cf=CF_COOKIES, pmc=PMC_COOKIES)
+    auth, code = auth_run(ctx=ctx, puppy_yaml='')
+    assert code == 0
+    assert auth.get('curseforge', {}).get('cookie')
+    assert auth.get('planetminecraft', {}).get('cookie')
+
+
+def test_sites_field_token_warning_only_for_listed_sites(auth_run, capsys):
+    auth_run(puppy_yaml='sites: [pmc]')
+    out = capsys.readouterr().out
+    assert 'curseforge token not set' not in out
+    assert 'modrinth token not set' not in out
