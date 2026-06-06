@@ -276,6 +276,44 @@ def test_push_includes_modifies(tmp_path):
     assert b'34' in update_req.data   # gui
 
 
+def test_push_uses_planetminecraft_title_when_set(tmp_path):
+    icon = tmp_path / 'icon.png'
+    Image.new('RGB', (64, 64)).save(icon)
+    config = {
+        'name': 'CoolPack',
+        'title': 'CoolPack: Special Edition',
+        'planetminecraft': {'id': _PROJECT_ID},
+    }
+    with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
+        PMC.push(
+            project_id=_PROJECT_ID, config=config, description='',
+            icon_path=icon, logo_path=None, banner_path=None,
+            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+        )
+
+    update_req = mock_open.call_args_list[1][0][0]
+    assert b'CoolPack: Special Edition' in update_req.data
+    assert b'CoolPack\r\n' not in update_req.data
+
+
+def test_push_falls_back_to_name_when_title_absent(tmp_path):
+    icon = tmp_path / 'icon.png'
+    Image.new('RGB', (64, 64)).save(icon)
+    config = {
+        'name': 'CoolPack',
+        'planetminecraft': {'id': _PROJECT_ID},
+    }
+    with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
+        PMC.push(
+            project_id=_PROJECT_ID, config=config, description='',
+            icon_path=icon, logo_path=None, banner_path=None,
+            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+        )
+
+    update_req = mock_open.call_args_list[1][0][0]
+    assert b'CoolPack' in update_req.data
+
+
 def test_push_raises_system_exit_on_failure(tmp_path):
     icon = tmp_path / 'icon.png'
     Image.new('RGB', (64, 64)).save(icon)
