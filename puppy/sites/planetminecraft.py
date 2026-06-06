@@ -60,6 +60,17 @@ def _pmc_get_page(project_id, cookie: str) -> tuple[BeautifulSoup, str]:
     return soup, tag['content']
 
 
+def _pmc_url_to_filename(url: str) -> str:
+    stem = url.split('?')[0].rsplit('/', 1)[-1].rsplit('.', 1)[0]
+    if stem.endswith(('_s', '_l')):
+        stem = stem[:-2]
+    if '-' in stem:
+        prefix, rest = stem.split('-', 1)
+        if prefix.isdigit():
+            stem = rest
+    return stem.replace('-', '_')
+
+
 def _pmc_scrape_hidden(soup: BeautifulSoup, name: str) -> str:
     tag = soup.find('input', {'name': name})
     return tag['value'] if tag else ''
@@ -85,6 +96,14 @@ def _pmc_existing_images(soup: BeautifulSoup) -> list[dict]:
             'caption': tag.get('data-caption', ''),
         })
     return images
+
+
+def _pmc_download(url: str, dest: Path, cookie: str) -> None:
+    if not url.startswith('http'):
+        url = f'{_PMC_BASE}{url}'
+    req = urllib.request.Request(url, headers=_pmc_headers(cookie))
+    with urllib.request.urlopen(req, timeout=30) as r:
+        dest.write_bytes(r.read())
 
 
 def _pmc_multipart(fields: list[tuple], files: list[tuple] = None) -> tuple[bytes, bytes]:
@@ -346,3 +365,128 @@ class PlanetMinecraftSite(Site):
         result = _pmc_post(project_id, cookie, csrf, fields)
         if result.get('status') != 'success':
             raise SystemExit(f'PMC update failed: {result}')
+
+    def pull(
+        self,
+        project_id,
+        auth: dict,
+        puppy_dir: Path,
+        images: bool = True,
+        verbosity: int = 0,
+    ) -> dict:
+        cookie = auth.get('planetminecraft', '')
+
+        if verbosity >= 1:
+            print('  [PlanetMinecraft] fetching project page')
+        soup, _ = _pmc_get_page(project_id, cookie)
+
+        _CATEGORIES_INV = {v: k for k, v in _PMC_CATEGORIES.items()}
+        _RESOLUTIONS_INV = {v: k for k, v in _PMC_RESOLUTIONS.items()}
+
+        cat_sel = soup.find(attrs={'id': 'folder_id[]'})
+        cat_opt = cat_sel.find('option', selected=True) if cat_sel else None
+        category = _CATEGORIES_INV.get(int(cat_opt['value']), 'Other') if cat_opt else 'Other'
+
+        res_sel = soup.find('select', id='op0')
+        res_opt = res_sel.find('option', selected=True) if res_sel else None
+        resolution = _RESOLUTIONS_INV.get(int(res_opt['value']), 16) if res_opt else 16
+
+        progress_tag = soup.find(id='progress')
+        progress = int(progress_tag['value']) if progress_tag and progress_tag.get('value') else 100
+
+        credit_tag = soup.find('input', {'name': 'credit'})
+        credit = credit_tag['value'] if credit_tag else ''
+
+        modifies = {}
+        mod_container = soup.find(id='main_folder_modified')
+        if mod_container:
+            for item in mod_container.find_all(class_='folder-item'):
+                inp = item.find('input')
+                lbl = item.find('label')
+                if inp and lbl:
+                    key = lbl.get_text(strip=True).lower()
+                    modifies[key] = inp.has_attr('checked')
+
+        tags = []
+        tags_container = soup.find(id='item_tags')
+        if tags_container:
+            for tag in tags_container.find_all(class_='tag'):
+                text = tag.get_text(strip=True)
+                if text:
+                    tags.append(text)
+
+        name_tag = soup.find('input', {'name': 'title'})
+        name = name_tag['value'] if name_tag else ''
+
+        video_tag = soup.find('input', {'name': 'youtube'})
+        video = video_tag['value'] if video_tag and video_tag.get('value') else ''
+
+        image_items = []
+        for thumb in soup.select('.image_list > .thumbnail'):
+            url = thumb.get('data-full-filename', '')
+            caption = thumb.get('data-caption', '')
+            if not url:
+                continue
+            if caption == 'Project Thumbnail':
+                if images:
+                    dest = puppy_dir / 'banner.png'
+                    if not dest.exists():
+                        try:
+                            _pmc_download(url, dest, cookie)
+                        except Exception:
+                            if verbosity >= 1:
+                                print('    failed to download banner')
+                continue
+            if caption == 'Project Logo':
+                if images:
+                    dest = puppy_dir / 'logo.png'
+                    if not dest.exists():
+                        try:
+                            _pmc_download(url, dest, cookie)
+                        except Exception:
+                            if verbosity >= 1:
+                                print('    failed to download logo')
+                continue
+            parts = caption.split(' - ', 1)
+            description = parts[1] if len(parts) > 1 else ''
+            file = _pmc_url_to_filename(url)
+            image_items.append({'url': url, 'file': file, 'description': description})
+
+        if images and image_items:
+            images_dir = puppy_dir / 'images'
+            images_dir.mkdir(parents=True, exist_ok=True)
+            if verbosity >= 1:
+                print(f'  [PlanetMinecraft] downloading {len(image_items)} gallery images')
+            for item in image_items:
+                dest = images_dir / f'{item["file"]}.png'
+                try:
+                    _pmc_download(item['url'], dest, cookie)
+                except Exception:
+                    if verbosity >= 1:
+                        print(f'    failed to download: {item["file"]}')
+
+        image_entries = [{'file': item['file'], 'description': item['description']} for item in image_items]
+
+        pmc_result: dict = {'id': project_id}
+        if category:
+            pmc_result['category'] = category
+        if resolution:
+            pmc_result['resolution'] = resolution
+        pmc_result['progress'] = progress
+        if credit:
+            pmc_result['credit'] = credit
+        if modifies:
+            pmc_result['modifies'] = modifies
+        if tags:
+            pmc_result['tags'] = tags
+
+        config_result: dict = {'images': image_entries}
+        if name:
+            config_result['name'] = name
+        if video:
+            config_result['video'] = video
+
+        return {
+            'config': config_result,
+            'planetminecraft': pmc_result,
+        }

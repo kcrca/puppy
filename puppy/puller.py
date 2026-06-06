@@ -7,7 +7,7 @@ import yaml
 
 from puppy.core import Project
 from puppy.errors import AuthExpiredError
-from puppy.sites import CURSEFORGE, MODRINTH, SITES, SiteVisitor
+from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
 from puppy.worker import read_output, run_worker, worker_prep
 from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
 
@@ -35,13 +35,19 @@ def run_pull(
     cf_id = config.get('curseforge', {}).get('id')
     use_cf_native = CURSEFORGE in visitor and bool(cf_token) and bool(cf_cookie) and bool(cf_id)
 
-    native_sites = {s for s, used in ((MODRINTH, use_mr_native), (CURSEFORGE, use_cf_native)) if used}
+    pmc_cookie = auth.get('planetminecraft', '')
+    pmc_id = config.get('planetminecraft', {}).get('id')
+    use_pmc_native = PMC in visitor and bool(pmc_cookie) and bool(pmc_id)
+
+    native_sites = {s for s, used in ((MODRINTH, use_mr_native), (CURSEFORGE, use_cf_native), (PMC, use_pmc_native)) if used}
     all_native = all(s in native_sites for s in visitor)
 
     if use_mr_native:
         _run_mr_native_pull(project, config, auth, site, images, verbosity)
     if use_cf_native:
         _run_cf_native_pull(project, config, auth, site, images, verbosity)
+    if use_pmc_native:
+        _run_pmc_native_pull(project, config, auth, site, images, verbosity)
 
     if not all_native:
         worker_prep(worker_dir, verbosity)
@@ -104,6 +110,32 @@ def _run_cf_native_pull(
         )
     except AuthExpiredError as e:
         raise SystemExit(f'CurseForge auth expired (HTTP {e.code}) — run: puppy auth --site cf')
+
+    _harvest_yaml(project, result_data, puppy_dir, site, do_images)
+
+
+def _run_pmc_native_pull(
+    project: Project,
+    config: dict,
+    auth: dict,
+    site: str | None,
+    images: bool,
+    verbosity: int,
+) -> None:
+    pmc_id = config.get('planetminecraft', {}).get('id')
+    puppy_dir = project.puppy_dir
+    do_images = images or not _has_image_info(puppy_dir, site)
+
+    try:
+        result_data = PMC.pull(
+            project_id=pmc_id,
+            auth=auth,
+            puppy_dir=puppy_dir,
+            images=do_images,
+            verbosity=verbosity,
+        )
+    except AuthExpiredError as e:
+        raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}) — run: puppy auth --site pmc')
 
     _harvest_yaml(project, result_data, puppy_dir, site, do_images)
 

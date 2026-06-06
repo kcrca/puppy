@@ -11,6 +11,7 @@ from PIL import Image
 from puppy.core import Project
 from puppy.errors import AuthExpiredError
 from puppy.sites import PMC
+from puppy.puller import _run_pmc_native_pull as _run_pmc_native_pull_real
 from puppy.syncer import _run_pmc_native as _run_pmc_native_real
 
 
@@ -358,3 +359,214 @@ def test_run_pmc_native_passes_image_list_when_images_true(tmp_path):
         _run_pmc_native_real(project, config, icon, tmp_path, {}, _AUTH, 0, images=True)
 
     assert push_calls[0] == config['images']
+
+
+# ── 6. PMC.pull ───────────────────────────────────────────────────────────────
+
+_PULL_HTML = '''
+<meta id="core-csrf-token" content="csrf-token-abc">
+<input name="title" value="Test Pack">
+<input name="youtube" value="dQw4w9WgXcQ">
+<select id="folder_id[]"><option value="25" selected>Realistic</option></select>
+<select id="op0"><option value="1" selected>16x</option></select>
+<input id="progress" value="75">
+<input name="credit" value="Some Guy">
+<div id="main_folder_modified">
+  <div class="folder-item"><input type="checkbox" checked><label>Terrain</label></div>
+  <div class="folder-item"><input type="checkbox"><label>GUI</label></div>
+</div>
+<div id="item_tags">
+  <span class="tag">16x</span>
+  <span class="tag">fantasy</span>
+</div>
+<ul class="image_list">
+  <li class="thumbnail" data-full-filename="/files/123-cool-banner_s.jpg" data-caption="cool_banner - Cool banner"></li>
+  <li class="thumbnail" data-full-filename="/files/thumb.jpg" data-caption="Project Thumbnail"></li>
+  <li class="thumbnail" data-full-filename="/files/logo.jpg" data-caption="Project Logo"></li>
+</ul>
+'''
+
+
+def test_pull_scrapes_category_resolution_progress_credit(tmp_path):
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(_PULL_HTML)
+        result = PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False)
+
+    pmc = result['planetminecraft']
+    assert pmc['category'] == 'Realistic'
+    assert pmc['resolution'] == 16
+    assert pmc['progress'] == 75
+    assert pmc['credit'] == 'Some Guy'
+
+
+def test_pull_scrapes_modifies(tmp_path):
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(_PULL_HTML)
+        result = PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False)
+
+    modifies = result['planetminecraft']['modifies']
+    assert modifies['terrain'] is True
+    assert modifies['gui'] is False
+
+
+def test_pull_scrapes_tags(tmp_path):
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(_PULL_HTML)
+        result = PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False)
+
+    assert result['planetminecraft']['tags'] == ['16x', 'fantasy']
+
+
+def test_pull_scrapes_name_and_video(tmp_path):
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(_PULL_HTML)
+        result = PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False)
+
+    assert result['config']['name'] == 'Test Pack'
+    assert result['config']['video'] == 'dQw4w9WgXcQ'
+
+
+def test_pull_includes_image_entries_skipping_special(tmp_path):
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(_PULL_HTML)
+        result = PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False)
+
+    entries = result['config']['images']
+    assert len(entries) == 1
+    assert entries[0]['file'] == 'cool_banner'   # URL-derived: 123-cool-banner_s → cool_banner
+    assert entries[0]['description'] == 'Cool banner'
+
+
+def test_pull_downloads_images_and_thumbnail_and_logo(tmp_path):
+    img_bytes = b'FAKEIMG'
+    thumb_bytes = b'THUMB'
+    logo_bytes = b'LOGO'
+    responses = [
+        _make_response(_PULL_HTML),       # edit page
+        _make_response(thumb_bytes),      # Project Thumbnail → banner.png
+        _make_response(logo_bytes),       # Project Logo → logo.png
+        _make_response(img_bytes),        # gallery image
+    ]
+    with patch('urllib.request.urlopen', side_effect=responses):
+        PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=True, verbosity=0)
+
+    assert (tmp_path / 'banner.png').read_bytes() == thumb_bytes
+    assert (tmp_path / 'logo.png').read_bytes() == logo_bytes
+    assert (tmp_path / 'images' / 'cool_banner.png').read_bytes() == img_bytes
+
+
+def test_pull_skips_thumbnail_if_banner_exists(tmp_path):
+    (tmp_path / 'banner.png').write_bytes(b'EXISTING')
+    responses = [
+        _make_response(_PULL_HTML),
+        _make_response(b'LOGO'),    # logo download (thumbnail skipped)
+        _make_response(b'IMG'),     # gallery
+    ]
+    with patch('urllib.request.urlopen', side_effect=responses):
+        PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=True, verbosity=0)
+
+    assert (tmp_path / 'banner.png').read_bytes() == b'EXISTING'
+
+
+def test_pull_skips_download_when_images_false(tmp_path):
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(_PULL_HTML)
+        PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False)
+
+    assert not (tmp_path / 'images').exists()
+    assert not (tmp_path / 'banner.png').exists()
+    assert mock_open.call_count == 1
+
+
+def test_pull_includes_project_id(tmp_path):
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(_PULL_HTML)
+        result = PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False)
+
+    assert result['planetminecraft']['id'] == _PROJECT_ID
+
+
+# ── 7. _run_pmc_native_pull routing ──────────────────────────────────────────
+
+def test_run_pull_uses_pmc_native_when_pmc_creds_present(push_env, run_puppy):
+    import yaml as _yaml
+    (push_env['project'] / 'puppy.yaml').write_text(
+        _yaml.dump({
+            'name': 'NeonGlow', 'pack': 'neonglow',
+            'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
+        })
+    )
+    (push_env['home'] / 'auth.yaml').write_text(_yaml.dump({
+        'planetminecraft': 'pmc_autologin=test-cookie',
+    }))
+
+    called = []
+    import puppy.puller as puller_mod
+    orig = puller_mod._run_pmc_native_pull
+    puller_mod._run_pmc_native_pull = lambda *a, **k: called.append(True)
+    try:
+        run_puppy('pull', '--site', 'pmc')
+    finally:
+        puller_mod._run_pmc_native_pull = orig
+
+    assert called
+
+
+def test_run_pmc_native_pull_images_forced_when_no_image_info(tmp_path):
+    project = Project(tmp_path, override_name='Pack', override_pack='pack')
+    config = {'planetminecraft': {'id': _PROJECT_ID}}
+
+    pull_calls = []
+
+    def fake_pull(self, project_id, auth, puppy_dir, images, verbosity):
+        pull_calls.append(images)
+        return {'config': {}, 'planetminecraft': {'id': project_id}}
+
+    with patch.object(PMC.__class__, 'pull', fake_pull):
+        _run_pmc_native_pull_real(project, config, _AUTH, None, False, 0)
+
+    # No images.yaml exists → images forced True
+    assert pull_calls[0] is True
+
+
+def test_run_pmc_native_pull_images_skipped_when_info_exists(tmp_path):
+    project = Project(tmp_path, override_name='Pack', override_pack='pack')
+    config = {'planetminecraft': {'id': _PROJECT_ID}}
+    (tmp_path / 'images.yaml').write_text('[]')
+
+    pull_calls = []
+
+    def fake_pull(self, project_id, auth, puppy_dir, images, verbosity):
+        pull_calls.append(images)
+        return {'config': {}, 'planetminecraft': {'id': project_id}}
+
+    with patch.object(PMC.__class__, 'pull', fake_pull):
+        _run_pmc_native_pull_real(project, config, _AUTH, None, False, 0)
+
+    assert pull_calls[0] is False
+
+
+def test_run_pmc_native_pull_images_true_fetches_even_when_info_exists(tmp_path):
+    project = Project(tmp_path, override_name='Pack', override_pack='pack')
+    config = {'planetminecraft': {'id': _PROJECT_ID}}
+    (tmp_path / 'images.yaml').write_text('[]')
+
+    pull_calls = []
+
+    def fake_pull(self, project_id, auth, puppy_dir, images, verbosity):
+        pull_calls.append(images)
+        return {'config': {}, 'planetminecraft': {'id': project_id}}
+
+    with patch.object(PMC.__class__, 'pull', fake_pull):
+        _run_pmc_native_pull_real(project, config, _AUTH, None, True, 0)
+
+    assert pull_calls[0] is True
+
+
+def test_run_pmc_native_pull_auth_expired_raises_system_exit(tmp_path):
+    project = Project(tmp_path, override_name='Pack', override_pack='pack')
+    config = {'planetminecraft': {'id': _PROJECT_ID}}
+
+    with patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
+        with pytest.raises(SystemExit, match='PlanetMinecraft auth expired'):
+            _run_pmc_native_pull_real(project, config, _AUTH, None, False, 0)
