@@ -2,7 +2,6 @@
 
 ## Cleanup
 
-- **Remove `--worker` option and `clean` subcommand**: Both were PU-era; remove from CLI and any docs.
 - **Remove "e.g." and "i.e." from spec and code comments**: Replace with plain English ("for example", "that is").
 
 ## Unimplemented Features
