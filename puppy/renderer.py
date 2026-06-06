@@ -16,6 +16,23 @@ class _ErrorUndefined(Undefined):
         raise UndefinedError(f"unknown variable '{self._undefined_name}'")
 
 
+class _ImageMap:
+    """Wraps a {name: url} dict; returns '' for missing keys via attribute or item access."""
+    def __init__(self, urls: dict):
+        self._urls = urls
+
+    def __getattr__(self, name: str) -> str:
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return self._urls.get(name, '')
+
+    def __getitem__(self, key: str) -> str:
+        return self._urls.get(key, '')
+
+    def get(self, key: str, default: str = '') -> str:
+        return self._urls.get(key, default)
+
+
 def _read_file(path: str) -> str:
     return Path(path).read_text()
 
@@ -119,7 +136,7 @@ def _resolve_config_strings(ctx: dict, strict: bool = True) -> dict:
     raise SystemExit('Template expansion exceeded 20 iterations — possible circular reference in config')
 
 
-def render(text: str, config: dict, source: str = '<description>', *, site=None) -> str:
+def render(text: str, config: dict, source: str = '<description>', *, site=None, image_urls: dict = None) -> str:
     from puppy.searcher import ContentDiscovery
     tags = config.get('md_html_tags', DEFAULT_SHIELD_TAGS)
     ctx = dict(config)
@@ -134,6 +151,13 @@ def render(text: str, config: dict, source: str = '<description>', *, site=None)
         ctx = _pre_populate_files(text, ctx, discovery)
         del ctx['_site']
     ctx = _resolve_config_strings(ctx)
+    image_map = _ImageMap(image_urls or {})
+    ctx['images'] = image_map
+    if site:
+        _site = site
+        ctx['img'] = lambda name: _site.img_tag(image_map.get(name), name) if image_map.get(name) else ''
+    else:
+        ctx['img'] = lambda name: image_map.get(name)
     result = _env.from_string(text).render(ctx)
     if site:
         open_map, close_map = site.shield_tags(tags)

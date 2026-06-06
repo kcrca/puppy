@@ -422,6 +422,34 @@ class ModrinthSite(Site):
 
         _mr_patch_json(f'{_MR_API}/project/{project_id}', auth, body)
 
+    def img_tag(self, url: str, name: str) -> str:
+        return f'<img src="{url}" width="600" alt="{name}"><br><br>'
+
+    def upload_images(self, project_id: str, auth: dict, image_list: list, images_dir: Path, verbosity: int) -> dict[str, str]:
+        if not image_list:
+            return {}
+        images = []
+        for img_entry in image_list:
+            src = find_image(img_entry['file'], images_dir)
+            data = prepare_gallery_image(src, verbosity=verbosity)
+            images.append({
+                'filename': src.stem + '.jpg',
+                'data': data,
+                'mime_type': 'image/jpeg',
+                'featured': img_entry.get('featured', False),
+                'description': img_entry.get('description', ''),
+            })
+        if verbosity >= 1:
+            print(f'  [Modrinth] syncing gallery ({len(images)} images)')
+        self.sync_gallery(project_id, auth, images)
+        project = _mr_get(f'{_MR_API}/project/{project_id}', auth) or {}
+        gallery = project.get('gallery') or []
+        return {
+            Path(item['title']).stem: item.get('url', '')
+            for item in gallery
+            if item.get('title') and item.get('url')
+        }
+
     def push(
         self,
         *,

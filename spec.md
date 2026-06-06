@@ -4,16 +4,6 @@ If you have a texture or resource pack, keeping it nicely published on the major
 Currently there are three major sites for packs: [CurseForge](https://www.curseforge.com/), [Modrinth](https://modrinth.com/), and [Planet Minecraft](https://www.planetminecraft.com/).
 Keeping descriptions, images, captions, and the pack itself up to date in three places with three different languages (html, markdown, and bbcode) and structures... not so much fun.
 
-Currently there is one tool that manages this for you, [PackUploader](https://github.com/ewanhowell5195/PackUploader).
-PackUploader uses APIs when they exist, and web protocols where they don't.
-It handles a whole bunch of things automatically and nicely, but it has some downsides that are non-trivial to me.
-
-* Your project's publishing information is not stored with your pack, but inside PackUploader's own source, intermixing its own implementation and your project data.
-* Because of this, your information is not version controlled along with your pack (I'm assuming your pack is in git or some other VCS system).
-* Each site has its own source language, so to avoid duplication, your description has to be in variables or other files and included via templates into the three different languages.
-  For example, you can't just put in a link, you have put the url in a JSON file, and express it as a link in the three different languages.
-  Only text and a few font styles are portable.
-
 Puppy is designed to address these problems.
 It also simplifies some other things along the way.
 
@@ -48,7 +38,6 @@ For the `neon` pack that lives in your home directory (`~/neon`), the puppy-rela
   For multiple packs, each has its own subdirectory: `~/neon/puppy/neon/`, `~/neon/puppy/dark/`.
 * **Images:** `~/neon/puppy/images/` or `~/neon/puppy/images.yaml`
 * **Dry Run Output:** `{tempdir}/puppy/{pack}/` (used for `--dry-run`, wiped fresh each run)
-* **Worker Directory:** `~/PackUploader/` (the PackUploader repo — reset before each run; this can be overridden)
 
 Site-specific data is global if it is in the global home, or project specific if it is in the project home.
 
@@ -74,10 +63,6 @@ So if a single run of puppy talks to three sites about two packs, there will be 
   If only `pack` is provided, `name` is derived by the same casing rules.
   Both can be set explicitly.
 * **Auto-update:** Whenever a project is loaded for any action, if either `name` or `pack` was absent from `puppy.yaml`, the derived value is written back automatically.
-
-Puppy is a thin management layer for `PackUploader`.
-It handles staging, factory-resetting the worker, and dependency checks automatically.
-It then copies out any updates required into the puppy tree.
 
 ### Running Location
 For simplicity, puppy can be invoked from:
@@ -111,17 +96,16 @@ Puppy has the following actions:
 * **`create`:** Creates the pack project on each site, then automatically runs `pull` to harvest the site-assigned ID, slug, and any defaults back into `puppy.yaml`.
   Prompts for confirmation unless `-f/--force` is given.
   Per-site errors do not abort the other sites.
-* **`clean`:** Resets the PackUploader worker without pushing.
 
 ### Options & Flags
 * **`-n/--dry-run`:** Valid for `push`.
-  Executes the full pipeline without hitting APIs or running the worker.
+  Executes the full pipeline without hitting APIs.
   Writes a per-site preview to `{tempdir}/puppy/{pack}/index.html` — a tabbed HTML page showing rendered descriptions, project metadata, icon, and images for each site.
   Also writes per-site description files to `{tempdir}/puppy/{pack}/{site}/description.{ext}`.
   For sites whose native format is not Markdown but whose source is Markdown (e.g. CurseForge, Planet Minecraft), also writes `description.md` alongside the native file.
   Prints the `file://` URL and opens it in the default browser automatically.
 * **`--no-open`:** Suppress the automatic browser open after a dry run.
-* **`-v` / `-vv`:** High-level progress (`-v`) or raw worker stdout/stderr (`-vv`).
+* **`-v`:** High-level progress.
 * **`-d/--dir [path]`:** Sets working directory. Defaults to CWD.
 * **`-s/--site [sitename]`:** Limits action to one or more sites.
   Accepts a single name or a comma-separated list (e.g. `modrinth`, `cf,mr`).
@@ -140,7 +124,6 @@ Puppy has the following actions:
 * **`-f/--force`:** Valid for `push` and `create`.
   With `push -p`, bypasses skip logic and uploads unconditionally on all sites.
   With `create`, skips the confirmation prompt.
-* **`--worker [path]`:** PackUploader worker directory. Defaults to `~/PackUploader`.
 * **`-I/--images`:** Controls image gallery handling.
   For `push`: include the image gallery in the upload (default: no images).
   For `pull`: download the image gallery and icon (`pack.png`) from the site.
@@ -172,7 +155,7 @@ Everything else (strings, numbers, booleans, lists) overwrites.
 `auth.yaml` stores API credentials and must never be committed.
 Puppy exits with a fatal error if `auth.yaml` does not exist or is not listed in `puppy/.gitignore`.
 
-Structure mirrors PackUploader's `auth.json`:
+Structure:
 ```yaml
 curseforge:
   token: ...
@@ -226,14 +209,14 @@ When absent, all three sites are used.
 Can be set at the Puppy Home level to apply to all projects, or per-project to override.
 Example: `sites: [cf, mr]`
 
-**Standard config fields passed to the worker:**
+**Standard config fields:**
 * `summary` — one-line project description shown in search results
 * `optifine: true/false` — whether the pack requires [OptiFine](https://optifine.net/) (default false)
 * `video: <youtube-id>` — a youtube ID for an associated video (default none)
 * `links:` — external URLs for the project (all optional):
   * `home: <url>` — project home page; maps to CF social `website` and PMC `website.link`
-  * `source: <url>` — source repository; maps to `github` internally, which PU uses for CF source link and Modrinth `source_url`/`issues_url`
-  * `issues: <url>` — issue tracker; stored but not yet applied (requires PU to expose a separate `issues_url` setting)
+  * `source: <url>` — source repository; maps to CF source link and Modrinth `source_url`
+  * `issues: <url>` — issue tracker; maps to Modrinth `issues_url` (CF field TBD)
   * `patreon: <url>`, `kofi: <url>`, `paypal: <url>`, `buyMeACoffee: <url>`, `github_sponsors: <url>`, `other: <url>` — donation links;
     CF receives the first one as `{type, value}`;
     Modrinth receives all as `donation.*` (with `github_sponsors` mapped to `github`)
@@ -252,8 +235,33 @@ Example: `sites: [cf, mr]`
   Override with `logo: <path>` in `puppy.yaml` to point at an external file.
 
 **Image entry flags** (in `images.yaml`):
-* `embed: true` — image is embedded in the description body
 * `featured: true` — image is promoted as a featured/highlighted gallery image on supporting sites
+
+### Referencing Gallery Images in Descriptions
+
+When `-I/--images` is active on `push`, puppy uploads gallery images to each site **before** rendering descriptions, so CDN URLs are available as Jinja variables.
+Two helpers are injected into the template context:
+
+* **`images`** — a mapping from image name (stem without extension) to CDN URL for that site.
+  `{{ images.banner }}` → the CDN URL of `banner.jpg`/`banner.png` after upload.
+  Returns `''` for unknown names (no error).
+
+* **`img(name)`** — emits site-appropriate markup for the named image:
+  * CurseForge / Modrinth: `<img src="…" width="600" alt="…"><br>`
+  * Planet Minecraft: `[img width=600]…[/img]`
+  Returns `''` if the name is not in the uploaded set.
+
+Example (description.md):
+```markdown
+{{ img('banner') }}
+
+Here is a closer look:
+
+{{ img('screenshot1') }}
+```
+
+The same source file works on all three sites — each renders the correct markup for its platform.
+When running without `-I`, `images.*` returns `''` for every name and `img()` returns `''`, so descriptions render cleanly in dry-run and text-only pushes.
 
 ### Path Resolution Rules
 * **Internal Files:** Follow the file cascade (section 5.2).
@@ -284,15 +292,7 @@ If the file cannot be found or converted, Puppy exits with an error.
 ## Operational Logic
 
 ### Security & Auth Protocol
-* Puppy reads `{{puppy}}/auth.yaml` and writes it to `~/PackUploader/auth.json` before each worker run.
 * **Hard Block:** If `auth.yaml` does not exist or is not listed in `{{puppy}}/.gitignore`, Puppy exits immediately.
-
-### Pre-Flight & Worker Hygiene
-* **Dependency Check:** Verifies `git`, `node`, and `npm` are in PATH.
-* **Worker Reset:** Runs `git reset --hard HEAD` and `git clean -fd` in `~/PackUploader/` before each run.
-* **Settings Patch:** Sets `ewan: false` in `~/PackUploader/settings.json` after reset (the repo default enables ewanhowell.com-specific behaviour that is not applicable outside that context).
-* **NPM Install:** If `~/PackUploader/node_modules/` is missing, runs `npm install` automatically.
-* **Worker invocation:** `node --no-warnings scripts/{action}.js` run from `~/PackUploader/`.
 
 ### Multi-Project Iteration
 If there is a `projects` field in {{puppy}}/puppy.yaml, puppy iterates through these sequentially, unless specific projects are given on the command line.
@@ -599,54 +599,3 @@ The mapping is:
 | ` ```fenced``` ` | `[CODE]fenced[/CODE]` | uppercase tag |
 | Soft line break | space (not `\n`) | |
 
----
-
-## Appendix C: How Puppy Uses PackUploader
-
-Puppy implements its actions by staging data into a [PackUploader](https://github.com/ewanhowell5195/PackUploader) worker directory and invoking its scripts.
-This appendix documents the interface between the two tools.
-
-### Worker Directory Layout
-
-Before each run puppy resets the worker (`git reset --hard HEAD && git clean -fd`) and writes:
-
-```
-~/PackUploader/
-├── auth.json                       ← credentials, written from auth.yaml
-├── settings.json                   ← patched to set ewan: false
-├── data/
-│   ├── details.json                ← push: {id, images, live}
-│   ├── import.json                 ← pull: per-site IDs and slugs
-│   └── create.json                 ← create: name, summary, icon path
-└── projects/
-    └── {pack}/
-        ├── project.json            ← full config + per-site IDs/slugs
-        ├── pack.png                ← icon (always PNG, square)
-        ├── banner.png           ← optional banner image
-        ├── logo.png                ← optional logo
-        ├── images/                 ← gallery images (always PNG)
-        └── templates/
-            ├── modrinth.md         ← rendered description + {{ images }}
-            ├── curseforge.html
-            └── planetminecraft.bbcode
-```
-
-### Description Templates
-
-For each site, puppy writes `templates/{site}.{ext}` containing the rendered description body followed by `\n\n{{ images }}\n`.
-The worker substitutes `{{ images }}` with the formatted image gallery before uploading.
-If no description was found in the cascade, a minimal `{{ description }}\n\n{{ images }}\n` template is written instead.
-
-### Scripts Invoked
-
-| Action | Script |
-|---|---|
-| `push` | `scripts/details.js` |
-| `pull` | `scripts/import.js` |
-| `create` | `scripts/create.js` |
-
-All scripts are run as `node --no-warnings scripts/{action}.js` from the worker directory.
-
-### Output
-
-After each script run, puppy reads `projects/{pack}/project.json` back from the worker directory to harvest updated IDs, slugs, and metadata.

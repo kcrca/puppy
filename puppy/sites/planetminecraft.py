@@ -421,6 +421,32 @@ class PlanetMinecraftSite(Site):
             print(f'  [PlanetMinecraft] https://www.planetminecraft.com/texture-pack/{slug}/')
         return {'id': resource_id, 'slug': slug}
 
+    def img_tag(self, url: str, name: str) -> str:
+        return f'[img width=600]{url}[/img]'
+
+    def upload_images(self, project_id, auth: dict, image_list: list, images_dir: Path, verbosity: int) -> dict[str, str]:
+        if not image_list:
+            return {}
+        cookie = auth.get('planetminecraft', '')
+        soup, csrf = _pmc_get_page(project_id, cookie)
+        if verbosity >= 1:
+            print(f'  [PlanetMinecraft] syncing gallery ({len(image_list)} images)')
+        _pmc_sync_gallery(project_id, cookie, csrf, soup, image_list, images_dir, verbosity)
+        soup2, _ = _pmc_get_page(project_id, cookie)
+        desired = {img.get('file', '') for img in image_list}
+        result = {}
+        for thumb in soup2.select('.image_list > .thumbnail'):
+            url = thumb.get('data-full-filename', '')
+            caption = thumb.get('data-caption', '')
+            if not url or caption in ('Project Thumbnail', 'Project Logo'):
+                continue
+            title = caption.split(' - ')[0]
+            if title in desired:
+                full_url = f'{_PMC_BASE}{url}' if not url.startswith('http') else url
+                stem = Path(title).stem if '.' in title else title
+                result[stem] = full_url
+        return result
+
     def push(
         self,
         *,

@@ -36,25 +36,6 @@ def run_push(
     icon = _resolve_asset(config.get('icon'), puppy_dir, _find_icon, config)
     _validate_square(icon)
 
-    discovery = ContentDiscovery(puppy_home, project.root)
-    descriptions: dict[str, str] = {}
-    for s in SiteVisitor(site):
-        site_config = ConfigSynthesizer(
-            puppy_home, project.root, site=s
-        ).get_running_config()
-        site_config['projects'] = config['projects']
-        if s.name in site_config:
-            config = _deep_merge(config, {s.name: site_config[s.name]})
-        body, source = discovery.find_description(site=s)
-        if body:
-            rendered = render(body, site_config, source=str(source), site=s)
-            if source and source.suffix == '.md':
-                rendered = s.convert_md(rendered)
-            descriptions[s.name] = rendered
-
-    config = dict(config)
-    config['description'] = []
-
     if auth is None:
         auth = _load_auth(puppy_home)
     visitor = SiteVisitor(site)
@@ -66,6 +47,45 @@ def run_push(
     mr_id = mr.get('id') or mr.get('slug')
     pmc_cookie = auth.get('planetminecraft', '')
     pmc_id = config.get('planetminecraft', {}).get('id')
+
+    # Upload gallery images before rendering so CDN URLs can be referenced in descriptions
+    images_source = config.get('images_source')
+    images_dir = Path(images_source) if images_source else puppy_dir / 'images'
+    image_list = config.get('images', []) if images else []
+    image_urls_by_site: dict[str, dict[str, str]] = {}
+    if image_list:
+        if CURSEFORGE in visitor and cf_id:
+            image_urls_by_site['curseforge'] = CURSEFORGE.upload_images(
+                cf_id, auth, image_list, images_dir, verbosity
+            )
+        if MODRINTH in visitor and mr_id:
+            image_urls_by_site['modrinth'] = MODRINTH.upload_images(
+                mr_id, auth, image_list, images_dir, verbosity
+            )
+        if PMC in visitor and pmc_id:
+            image_urls_by_site['planetminecraft'] = PMC.upload_images(
+                pmc_id, auth, image_list, images_dir, verbosity
+            )
+
+    discovery = ContentDiscovery(puppy_home, project.root)
+    descriptions: dict[str, str] = {}
+    for s in SiteVisitor(site):
+        site_config = ConfigSynthesizer(
+            puppy_home, project.root, site=s
+        ).get_running_config()
+        site_config['projects'] = config['projects']
+        if s.name in site_config:
+            config = _deep_merge(config, {s.name: site_config[s.name]})
+        body, source = discovery.find_description(site=s)
+        if body:
+            rendered = render(body, site_config, source=str(source), site=s,
+                              image_urls=image_urls_by_site.get(s.name))
+            if source and source.suffix == '.md':
+                rendered = s.convert_md(rendered)
+            descriptions[s.name] = rendered
+
+    config = dict(config)
+    config['description'] = []
 
     missing = []
     if CURSEFORGE in visitor and cf_id and not cf_token:

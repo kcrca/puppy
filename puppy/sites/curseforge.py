@@ -508,6 +508,33 @@ class CurseForgeSite(Site):
             print(f'  [CurseForge] https://www.curseforge.com/minecraft/texture-packs/{slug}')
         return result
 
+    def img_tag(self, url: str, name: str) -> str:
+        return f'<img src="{url}" width="600" alt="{name}"><br>'
+
+    def upload_images(self, project_id, auth: dict, image_list: list, images_dir: Path, verbosity: int) -> dict[str, str]:
+        if not image_list:
+            return {}
+        images = []
+        for img_entry in image_list:
+            src = find_image(img_entry['file'], images_dir)
+            data = prepare_gallery_image(src, verbosity=verbosity)
+            images.append({
+                'filename': src.stem + '.jpg',
+                'data': data,
+                'mime_type': 'image/jpeg',
+            })
+        if verbosity >= 1:
+            print(f'  [CurseForge] syncing gallery ({len(images)} images)')
+        self.sync_gallery(project_id, auth, images)
+        h = self._cookie_headers(auth)
+        params = urllib.parse.urlencode({'filter': '{}', 'range': '[0,24]', 'sort': '["id","DESC"]'})
+        gallery = _cf_get(f'{_CF_DASH}/image-attachments/image/{project_id}?{params}', h) or []
+        return {
+            Path(item['title']).stem: item.get('imageUrl', '')
+            for item in gallery
+            if item.get('title') and item.get('imageUrl')
+        }
+
     def push(
         self,
         *,

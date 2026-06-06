@@ -49,5 +49,18 @@ class Site:
     def init_template(self) -> tuple[str, str]:
         raise NotImplementedError
 
+    def img_tag(self, url: str, name: str) -> str:
+        return f'<img src="{url}" alt="{name}">'
+
+    def upload_images(
+        self,
+        project_id,
+        auth: dict,
+        image_list: list,
+        images_dir: Path,
+        verbosity: int,
+    ) -> dict[str, str]:
+        return {}
+
     def url_for(self, site_config: dict) -> str | None:
         raise NotImplementedError
