@@ -58,6 +58,11 @@ def _no_pmc_native_pull(monkeypatch):
     monkeypatch.setattr('puppy.puller._run_pmc_native_pull', lambda *a, **k: None)
 
 
+@pytest.fixture(autouse=True)
+def _no_pmc_native_upload(monkeypatch):
+    monkeypatch.setattr('puppy.publisher.PMC.submit_log', lambda *a, **k: None)
+
+
 @pytest.fixture
 def project_env(tmp_path, monkeypatch):
     """Creates the 'Global > Home > Project' structure from the spec."""

@@ -1,10 +1,13 @@
 import io
 import json
+import subprocess
+import zipfile
 import urllib.error
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import yaml
 from bs4 import BeautifulSoup
 from PIL import Image
 
@@ -17,6 +20,21 @@ from puppy.syncer import _run_pmc_native as _run_pmc_native_real
 
 _AUTH = {'planetminecraft': 'pmc_autologin=test-cookie'}
 _PROJECT_ID = 999
+_PACK = 'neonglow'
+_VERSION = '1.0.0'
+
+
+@pytest.fixture
+def push_pack_env(project_env, worker_env, monkeypatch):
+    source = project_env['project']
+    Image.new('RGB', (64, 64), color='blue').save(source / 'icon.png')
+    with zipfile.ZipFile(source / f'{_PACK}-{_VERSION}.zip', 'w') as z:
+        z.writestr('pack.mcmeta', '{}')
+    monkeypatch.setattr(
+        'puppy.publisher.subprocess.run',
+        lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0),
+    )
+    return {**project_env, 'worker': worker_env}
 
 _CSRF = 'csrf-token-abc'
 _EDIT_HTML = '''
@@ -570,3 +588,114 @@ def test_run_pmc_native_pull_auth_expired_raises_system_exit(tmp_path):
     with patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
         with pytest.raises(SystemExit, match='PlanetMinecraft auth expired'):
             _run_pmc_native_pull_real(project, config, _AUTH, None, False, 0)
+
+
+# ── 8. PMC.submit_log ────────────────────────────────────────────────────────
+
+def test_submit_log_posts_correct_fields():
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.side_effect = [
+            _make_response(_EDIT_HTML),
+            _make_response({'status': 'success'}),
+        ]
+        real_submit = PMC.__class__.submit_log
+        real_submit(PMC, _PROJECT_ID, _AUTH, '1.2.3', {'changelog': 'New stuff'})
+
+    log_req = mock_open.call_args_list[1][0][0]
+    assert b'log_title' in log_req.data
+    assert b'1.2.3' in log_req.data
+    assert b'New stuff' in log_req.data
+    assert b'public/resource/manage' in log_req.data
+    assert b'SAVE LOG' in log_req.data
+
+
+def test_submit_log_raises_on_failure():
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.side_effect = [
+            _make_response(_EDIT_HTML),
+            _make_response({'status': 'error', 'feedback': 'unknown error'}),
+        ]
+        with pytest.raises(SystemExit, match='failed to submit version log'):
+            PMC.__class__.submit_log(PMC, _PROJECT_ID, _AUTH, '1.2.3', {})
+
+
+def test_submit_log_raises_rate_limit_message():
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.side_effect = [
+            _make_response(_EDIT_HTML),
+            _make_response({'status': 'error', 'feedback': 'Hit current daily update limit'}),
+        ]
+        with pytest.raises(SystemExit, match='daily update limit'):
+            PMC.__class__.submit_log(PMC, _PROJECT_ID, _AUTH, '1.2.3', {})
+
+
+def test_submit_log_auth_expired_raises_system_exit():
+    with patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
+        with pytest.raises(AuthExpiredError):
+            PMC.__class__.submit_log(PMC, _PROJECT_ID, _AUTH, '1.2.3', {})
+
+
+# ── 9. push --pack PMC native routing ────────────────────────────────────────
+
+def test_upload_pack_pmc_uses_native_when_pmc_creds_present(push_pack_env, run_puppy, monkeypatch):
+    source = push_pack_env['project']
+    (source / 'puppy.yaml').write_text(
+        yaml.dump({
+            'name': 'NeonGlow', 'pack': 'neonglow', 'minecraft': '1.20',
+            'curseforge': {'id': 111, 'slug': 'neonglow'},
+            'modrinth': {'id': 'abc123', 'slug': 'neonglow'},
+            'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
+        })
+    )
+    (push_pack_env['home'] / 'auth.yaml').write_text(yaml.dump({
+        'modrinth': {'token': 'token123'},
+        'curseforge': {'token': 'cf456', 'cookie': 'CobaltSession=fake'},
+        'planetminecraft': 'pmc_autologin=test-cookie',
+    }))
+
+    called = []
+    monkeypatch.setattr('puppy.publisher.PMC.submit_log', lambda *a, **k: called.append(True))
+    run_puppy('push', '--pack', '--force', '--version', '1.0.0',
+              '--worker', str(push_pack_env['worker']), '--site', 'pmc')
+    assert called
+
+
+def test_upload_pack_pmc_skips_when_already_current(push_pack_env, run_puppy, monkeypatch):
+    source = push_pack_env['project']
+    (source / 'puppy.yaml').write_text(
+        yaml.dump({
+            'name': 'NeonGlow', 'pack': 'neonglow', 'minecraft': '1.20',
+            'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
+        })
+    )
+    (push_pack_env['home'] / 'auth.yaml').write_text(yaml.dump({
+        'planetminecraft': 'pmc_autologin=test-cookie',
+    }))
+    state = {'planetminecraft': {'version': '1.0.0'}}
+    (source / '.publish_state.yaml').write_text(yaml.dump(state))
+
+    called = []
+    monkeypatch.setattr('puppy.publisher.PMC.submit_log', lambda *a, **k: called.append(True))
+    run_puppy('push', '--pack', '--version', '1.0.0',
+              '--worker', str(push_pack_env['worker']), '--site', 'pmc')
+    assert not called
+
+
+def test_upload_pack_pmc_auth_expired_raises_system_exit(push_pack_env, run_puppy, monkeypatch):
+    source = push_pack_env['project']
+    (source / 'puppy.yaml').write_text(
+        yaml.dump({
+            'name': 'NeonGlow', 'pack': 'neonglow', 'minecraft': '1.20',
+            'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
+        })
+    )
+    (push_pack_env['home'] / 'auth.yaml').write_text(yaml.dump({
+        'planetminecraft': 'pmc_autologin=test-cookie',
+    }))
+    monkeypatch.setattr(
+        'puppy.publisher.PMC.submit_log',
+        lambda *a, **k: (_ for _ in ()).throw(AuthExpiredError(401, 'Expired')),
+    )
+    result = run_puppy('push', '--pack', '--force', '--version', '1.0.0',
+                       '--worker', str(push_pack_env['worker']), '--site', 'pmc')
+    assert result == 'PlanetMinecraft auth expired (HTTP 401) — run: puppy auth --site pmc'

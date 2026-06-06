@@ -9,7 +9,7 @@ from puppy.artifacts import ArtifactFinder
 from puppy.core import Project
 from puppy.creator import _expand_versions
 from puppy.errors import AuthExpiredError
-from puppy.sites import CURSEFORGE, MODRINTH, SITES, SiteVisitor
+from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
 
 
 def upload_pack(
@@ -48,9 +48,15 @@ def upload_pack(
     cf_token = auth.get('curseforge', {}).get('token', '')
     native_cf = CURSEFORGE in sites_to_upload and bool(cf_token)
 
+    pmc_cookie = auth.get('planetminecraft', '')
+    pmc_id = config.get('planetminecraft', {}).get('id')
+    native_pmc = PMC in sites_to_upload and bool(pmc_cookie) and bool(pmc_id)
+
     worker_sites = [
         s for s in sites_to_upload
-        if not (s is MODRINTH and native_mr) and not (s is CURSEFORGE and native_cf)
+        if not (s is MODRINTH and native_mr)
+        and not (s is CURSEFORGE and native_cf)
+        and not (s is PMC and native_pmc)
     ]
 
     if native_mr:
@@ -72,6 +78,15 @@ def upload_pack(
         except AuthExpiredError as e:
             raise SystemExit(f'CurseForge auth expired (HTTP {e.code}) — run: puppy auth --site cf')
         CURSEFORGE.post_upload(puppy_dir, version)
+
+    if native_pmc:
+        if verbosity >= 1:
+            print(f'  [PlanetMinecraft] submitting version log {version}')
+        try:
+            PMC.submit_log(pmc_id, auth, version, config)
+        except AuthExpiredError as e:
+            raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}) — run: puppy auth --site pmc')
+        PMC.post_upload(puppy_dir, version)
 
     if worker_sites:
         _patch_project_json(worker_dir, project, config, worker_sites)

@@ -490,3 +490,25 @@ class PlanetMinecraftSite(Site):
             'config': config_result,
             'planetminecraft': pmc_result,
         }
+
+    def submit_log(self, project_id, auth: dict, version: str, config: dict) -> None:
+        cookie = auth.get('planetminecraft', '')
+        soup, csrf = _pmc_get_page(project_id, cookie)
+        member_id = _pmc_scrape_hidden(soup, 'member_id')
+        changelog = config.get('changelog', '')
+        fields = [
+            ('log_title', f'Update v{version}'),
+            ('content', changelog),
+            ('module', 'public/resource/manage'),
+            ('module_plugin', 'log'),
+            ('module_plugin_task', 'create'),
+            ('submit_log', 'SAVE LOG'),
+            ('member_id', member_id),
+            ('resource_id', str(project_id)),
+        ]
+        result = _pmc_post(project_id, cookie, csrf, fields)
+        if result.get('status') != 'success':
+            feedback = result.get('feedback', '')
+            if 'daily update limit' in feedback:
+                raise SystemExit('PMC: daily update limit reached — try again tomorrow')
+            raise SystemExit(f'PMC: failed to submit version log: {result}')
