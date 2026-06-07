@@ -5,7 +5,7 @@ from puppy.renderer import _SiteProxy
 @pytest.fixture
 def proxy():
     data = {
-        'modrinth': {'url': 'https://modrinth.com/mod/mypack', 'type': 'mod'},
+        'modrinth': {'url': 'https://modrinth.com/mod/mypack', 'id': 'abc123'},
         'curseforge': {'url': 'https://curseforge.com/mypack'},
     }
     return data, lambda site: _SiteProxy(data, site)
@@ -26,8 +26,8 @@ def test_site_neutral_resolves_to_current_site(proxy):
 
 def test_site_neutral_non_url_attr(proxy):
     _, make = proxy
-    assert make('modrinth').type == 'mod'
-    assert make('curseforge').type == ''  # curseforge has no 'type'
+    assert make('modrinth').id == 'abc123'
+    assert make('curseforge').id == ''  # curseforge has no 'id'
 
 
 def test_missing_site_returns_empty_string(proxy):

@@ -20,13 +20,13 @@ def test_unknown_site_in_visitor_raises():
 
 
 def test_unsupported_project_type_filters_all_sites():
-    visitor = SiteVisitor(project_type='mod')
+    visitor = SiteVisitor(project_type='plugin')
     assert list(visitor) == []
 
 
 def test_unsupported_project_type_with_explicit_site_raises():
     try:
-        SiteVisitor('mr', project_type='mod')
+        SiteVisitor('cf', project_type='mod')
         assert False, 'expected SystemExit'
     except SystemExit as e:
         assert 'do not support' in str(e)

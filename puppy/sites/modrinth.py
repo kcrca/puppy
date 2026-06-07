@@ -16,6 +16,15 @@ from puppy.sites.base import Site
 _MR_API = 'https://api.modrinth.com/v2'
 _MR_UA = 'puppy/1.0'
 
+_MR_TYPE_MAP = {
+    'pack': 'resourcepack',
+    'mod': 'mod',
+    'modpack': 'modpack',
+    'shader': 'shader',
+    'world': 'world',
+    'datapack': 'datapack',
+}
+
 
 def _mr_headers(auth: dict, extra: dict = None) -> dict:
     h = {'User-Agent': _MR_UA}
@@ -172,7 +181,7 @@ class ModrinthSite(Site):
     label = 'Modrinth'
     template_ext = '.md'
     desc_exts = ['.md']
-    supported_types = frozenset({'pack'})
+    supported_types = frozenset(_MR_TYPE_MAP)
 
     def apply_neutral(self, config: dict) -> None:
         resolution = config.get('resolution')
@@ -612,5 +621,5 @@ class ModrinthSite(Site):
         ref = site_config.get('slug') or site_config.get('id')
         if not ref:
             return None
-        site_type = site_config.get('type', 'resourcepack')
-        return f'https://modrinth.com/{site_type}/{ref}'
+        mr_type = _MR_TYPE_MAP.get(site_config.get('project_type', 'pack'), 'resourcepack')
+        return f'https://modrinth.com/{mr_type}/{ref}'

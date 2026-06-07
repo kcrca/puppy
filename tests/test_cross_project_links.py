@@ -8,7 +8,7 @@ def test_sibling_project_url_injection(project_env, run_puppy):
     emerald_root = project_env['home'] / 'Emerald'
     emerald_root.mkdir(parents=True)
     (emerald_root / 'puppy.yaml').write_text(
-        yaml.dump({'pack': 'emerald', 'modrinth': {'slug': 'emerald-pack', 'type': 'resourcepack'}})
+        yaml.dump({'pack': 'emerald', 'modrinth': {'slug': 'emerald-pack'}})
     )
 
     (project_env['home'] / 'puppy.yaml').write_text(

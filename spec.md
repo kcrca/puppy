@@ -1,8 +1,8 @@
 # Puppy Design Specification
 
-If you have a texture or resource pack, keeping it nicely published on the major platforms is a significant job.
-Currently there are three major sites for packs: [CurseForge](https://www.curseforge.com/), [Modrinth](https://modrinth.com/), and [Planet Minecraft](https://www.planetminecraft.com/).
-Keeping descriptions, images, captions, and the pack itself up to date in three places with three different languages (html, markdown, and bbcode) and structures... not so much fun.
+If you have a Minecraft project — a texture pack, mod, world, or other — keeping it nicely published on the major platforms is a significant job.
+The three major sites are [CurseForge](https://www.curseforge.com/), [Modrinth](https://modrinth.com/), and [Planet Minecraft](https://www.planetminecraft.com/).
+Keeping descriptions, images, captions, and the project itself up to date in three places with three different languages (html, markdown, and bbcode) and structures... not so much fun.
 
 Puppy is designed to address these problems.
 It also simplifies some other things along the way.
@@ -107,7 +107,7 @@ Puppy has the following actions:
   For sites whose native format is not Markdown but whose source is Markdown (e.g. CurseForge, Planet Minecraft), also writes `description.md` alongside the native file.
   Prints the `file://` URL and opens it in the default browser automatically.
 * **`--no-open`:** Suppress the automatic browser open after a dry run.
-* **`-v`:** High-level progress.
+* **`-q/--quiet`:** Suppress progress output (default is verbose).
 * **`-d/--dir [path]`:** Sets working directory. Defaults to CWD.
 * **`-s/--site [sitename]`:** Limits action to one or more sites.
   Accepts a single name or a comma-separated list (e.g. `modrinth`, `cf,mr`).
@@ -341,7 +341,7 @@ CF encodes client/server environment as special entries in its game version ID l
 * **Cross-Linking:** Puppy pre-scans all sibling projects in `puppy_home`, injecting a `projects` dict into the Jinja context.
   Each entry is keyed by `pack` slug and contains per-site sub-objects (e.g. `{{ projects.other.modrinth.url }}`).
   URLs are built from `slug` if available, falling back to `id`.
-  The Modrinth URL path segment defaults to `mod`; set `modrinth.type` (e.g. `resourcepack`, `modpack`) to override.
+  The Modrinth URL path segment is derived from `project_type` (e.g. `pack` → `resourcepack`, `mod` → `mod`, `modpack` → `modpack`).
 * **External Projects (`linked_projects`):** Projects outside the current Puppy Home can be added to the `projects` context via `linked_projects` in the global `puppy.yaml`.
   Each entry follows the same per-site structure as a normal project.
   A top-level `slug` key serves as the default slug for all sites, overridden by any per-site `slug`.
@@ -438,7 +438,6 @@ curseforge:
 modrinth:
   id: AbCdEfGh
   slug: neonglow
-  type: resourcepack
 planetminecraft:
   id: 1234567
   slug: neonglow-texture-pack
@@ -455,7 +454,6 @@ curseforge:
 modrinth:
   id: BcDeFgHi
   slug: darkneon
-  type: resourcepack
 planetminecraft:
   id: 2345678
   slug: darkneon-texture-pack
