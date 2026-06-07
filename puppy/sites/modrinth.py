@@ -19,7 +19,6 @@ _MR_UA = 'puppy/1.0'
 _MR_TYPE_MAP = {
     'pack': 'resourcepack',
     'mod': 'mod',
-    'modpack': 'modpack',
     'shader': 'shader',
     'world': 'world',
     'datapack': 'datapack',

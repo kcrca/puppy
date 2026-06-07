@@ -176,14 +176,18 @@ _CF_ENV_SERVER = 9639
 _CF_CLASS_IDS = {
     'pack': 12,
     'mod': 6,
-    'modpack': 4471,
+    'world': 17,
+}
+
+_CF_DEFAULT_CATEGORIES = {
+    'pack': 393,   # 16x resolution
+    'mod': 425,    # Miscellaneous
     'world': 17,
 }
 
 _CF_URL_SEGMENTS = {
     'pack': 'texture-packs',
     'mod': 'mc-mods',
-    'modpack': 'modpacks',
     'world': 'worlds',
 }
 
@@ -491,7 +495,16 @@ class CurseForgeSite(Site):
         project_type = config.get('project_type', 'pack')
         class_id = _CF_CLASS_IDS.get(project_type, 12)
         main_cat = sc.get('mainCategory')
-        primary_cat_id = _CF_CATEGORIES.get(str(main_cat), 393) if main_cat else 393
+        if main_cat is not None:
+            cat_str = str(main_cat)
+            if cat_str in _CF_CATEGORIES:
+                primary_cat_id = _CF_CATEGORIES[cat_str]
+            elif cat_str.isdigit():
+                primary_cat_id = int(cat_str)
+            else:
+                raise SystemExit(f'Unknown curseforge.mainCategory: {main_cat!r}')
+        else:
+            primary_cat_id = _CF_DEFAULT_CATEGORIES.get(project_type, 393)
         license_name = sc.get('license') or config.get('license') or 'All Rights Reserved'
         license_id = _CF_LICENSE_IDS.get(license_name, 1)
 

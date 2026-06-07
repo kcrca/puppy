@@ -17,6 +17,8 @@
 
 - **Non-pack project types**: Set up for at least some kinds of non-pack projects, like worlds.
 
+- **Modpack support (maybe, maybe never)**: Modpacks involve distinct upload formats (`.mrpack`, CF modpack zip) that differ significantly from mods and resource packs.
+
 - **Handle other VCS systems**: Currently assumes git for the auth.yaml gitignore check.
   Should detect Mercurial, SVN, etc., or gracefully handle non-VCS directories.
   Add `--skip-auth-check` flag to bypass for unknown or non-existent VCS.

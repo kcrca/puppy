@@ -296,8 +296,8 @@ def test_url_for_uses_project_type_segment():
         'https://www.curseforge.com/minecraft/mc-mods/my-mod'
     assert CURSEFORGE.url_for({'slug': 'my-pack', 'project_type': 'pack'}) == \
         'https://www.curseforge.com/minecraft/texture-packs/my-pack'
-    assert CURSEFORGE.url_for({'slug': 'my-modpack', 'project_type': 'modpack'}) == \
-        'https://www.curseforge.com/minecraft/modpacks/my-modpack'
+    assert CURSEFORGE.url_for({'slug': 'my-world', 'project_type': 'world'}) == \
+        'https://www.curseforge.com/minecraft/worlds/my-world'
 
 
 # ── 5. update_details ────────────────────────────────────────────────────────
