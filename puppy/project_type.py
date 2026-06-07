@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from typing import NamedTuple
+
 _UNIVERSAL = frozenset({'license', 'title', 'links', 'after_push'})
 _PACK_ONLY = frozenset({'resolution', 'progress'})
 _MOD_ONLY = frozenset({'client_side', 'server_side', 'loaders'})
 _ALL_NEUTRAL = _UNIVERSAL | _PACK_ONLY | _MOD_ONLY
 
 
-class ProjectType:
+class ProjectInfo(NamedTuple):
     name: str
     valid_neutral_fields: frozenset[str]
     supported_site_names: frozenset[str]
@@ -22,28 +24,10 @@ class ProjectType:
         return config
 
 
-class _Pack(ProjectType):
-    name = 'pack'
-    valid_neutral_fields = _UNIVERSAL | _PACK_ONLY
-    supported_site_names = frozenset({'curseforge', 'modrinth', 'planetminecraft'})
+PACK = ProjectInfo('pack', _UNIVERSAL | _PACK_ONLY, frozenset({'curseforge', 'modrinth', 'planetminecraft'}))
+MOD = ProjectInfo('mod', _UNIVERSAL | _MOD_ONLY, frozenset({'curseforge', 'modrinth'}))
+WORLD = ProjectInfo('world', _UNIVERSAL, frozenset({'curseforge', 'modrinth'}))
 
-
-class _Mod(ProjectType):
-    name = 'mod'
-    valid_neutral_fields = _UNIVERSAL | _MOD_ONLY
-    supported_site_names = frozenset({'curseforge', 'modrinth'})
-
-
-class _World(ProjectType):
-    name = 'world'
-    valid_neutral_fields = _UNIVERSAL
-    supported_site_names = frozenset({'curseforge', 'modrinth'})
-
-
-PACK = _Pack()
-MOD = _Mod()
-WORLD = _World()
-
-PROJECT_TYPES: dict[str, ProjectType] = {
+PROJECT_TYPES: dict[str, ProjectInfo] = {
     t.name: t for t in [PACK, MOD, WORLD]
 }
