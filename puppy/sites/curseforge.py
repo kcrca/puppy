@@ -39,6 +39,18 @@ def _cf_resolve_game_version_ids(version_strings: list[str], auth: dict) -> list
     return ids
 
 
+def _cf_resolve_category_ids(names: list) -> tuple[int | None, list[int]]:
+    ids = []
+    for name in names:
+        s = str(name)
+        cid = _CF_CATEGORIES_LOWER.get(s.lower()) or (int(s) if s.isdigit() else None)
+        if cid is not None:
+            ids.append(cid)
+        else:
+            raise SystemExit(f'Unknown curseforge category: {name!r}')
+    return (ids[0] if ids else None, ids[1:])
+
+
 def _cf_headers(extra: dict) -> dict:
     return {
         'User-Agent': _CF_UA,
@@ -168,7 +180,10 @@ _CF_SOCIAL_TYPES = {
 _CF_CATEGORIES = {
     '16x': 393, '32x': 394, '64x': 395, '128x': 396, '256x': 397,
     '512x and Higher': 398, 'Data Packs': 5193, 'Font Packs': 5244,
+    'Adventure': 248, 'Creation': 249, 'Game Map': 250, 'Parkour': 251,
+    'Puzzle': 252, 'Survival': 253, 'Modded World': 4464,
 }
+_CF_CATEGORIES_LOWER = {k.lower(): v for k, v in _CF_CATEGORIES.items()}
 
 _CF_ENV_CLIENT = 9638
 _CF_ENV_SERVER = 9639
@@ -255,7 +270,10 @@ class CurseForgeSite(Site):
 
     def preview_rows(self, sc: dict) -> list[tuple[str, str]]:
         rows = []
-        if sc.get('mainCategory'):
+        if sc.get('category'):
+            raw = sc['category']
+            rows.append(('Category', ', '.join([raw] if isinstance(raw, str) else raw)))
+        elif sc.get('mainCategory'):
             rows.append(('Main Category', str(sc['mainCategory'])))
         extra = {k: v for k, v in sc.get('additionalCategories', {}).items() if v}
         if extra:
@@ -381,6 +399,12 @@ class CurseForgeSite(Site):
         socials = sc.get('socials') or {}
         donation = sc.get('donation') or {}
         dtype = donation.get('type', 'none')
+        raw_cat = sc.get('category')
+        if raw_cat is not None:
+            cat_list = [raw_cat] if isinstance(raw_cat, str) else list(raw_cat)
+            primary_from_cat, sub_cat_ids = _cf_resolve_category_ids(cat_list)
+        else:
+            primary_from_cat, sub_cat_ids = None, []
         details = {
             'name': sc.get('name', ''),
             'slug': sc.get('slug', ''),
@@ -390,14 +414,14 @@ class CurseForgeSite(Site):
             'avatarUrl': avatar_url or '',
             'donationTypeId': _CF_DONATION_TYPES.get(dtype, -1),
             'donationIdentifier': '' if dtype == 'none' else donation.get('value', ''),
-            'subCategoryIds': [],
+            'subCategoryIds': sub_cat_ids,
             'links': [
                 {'type': _CF_SOCIAL_TYPES[k], 'url': v}
                 for k, v in socials.items()
                 if v and k in _CF_SOCIAL_TYPES
             ],
         }
-        primary = sc.get('mainCategory')
+        primary = primary_from_cat if primary_from_cat is not None else sc.get('mainCategory')
         if primary is not None:
             details['primaryCategoryId'] = primary
         _cf_put_json(f'{_CF_DASH}/projects/{project_id}/update-details', h, details)
@@ -493,17 +517,25 @@ class CurseForgeSite(Site):
         sc = config.get('curseforge', {})
         project_type = config.get('project_type', 'pack')
         class_id = _CF_CLASS_IDS.get(project_type, 12)
-        main_cat = sc.get('mainCategory')
-        if main_cat is not None:
-            cat_str = str(main_cat)
-            if cat_str in _CF_CATEGORIES:
-                primary_cat_id = _CF_CATEGORIES[cat_str]
-            elif cat_str.isdigit():
-                primary_cat_id = int(cat_str)
-            else:
-                raise SystemExit(f'Unknown curseforge.mainCategory: {main_cat!r}')
+        raw_cat = sc.get('category')
+        if raw_cat is not None:
+            cat_list = [raw_cat] if isinstance(raw_cat, str) else list(raw_cat)
+            primary_cat_id, sub_cat_ids = _cf_resolve_category_ids(cat_list)
+            if primary_cat_id is None:
+                primary_cat_id = _CF_DEFAULT_CATEGORIES.get(project_type, 393)
         else:
-            primary_cat_id = _CF_DEFAULT_CATEGORIES.get(project_type, 393)
+            sub_cat_ids = []
+            main_cat = sc.get('mainCategory')
+            if main_cat is not None:
+                cat_str = str(main_cat)
+                if cat_str in _CF_CATEGORIES:
+                    primary_cat_id = _CF_CATEGORIES[cat_str]
+                elif cat_str.isdigit():
+                    primary_cat_id = int(cat_str)
+                else:
+                    raise SystemExit(f'Unknown curseforge.mainCategory: {main_cat!r}')
+            else:
+                primary_cat_id = _CF_DEFAULT_CATEGORIES.get(project_type, 393)
         license_name = sc.get('license') or config.get('license') or 'All Rights Reserved'
         license_id = _CF_LICENSE_IDS.get(license_name, 1)
 
@@ -513,7 +545,7 @@ class CurseForgeSite(Site):
             'summary': config.get('summary', ''),
             'description': 'placeholder',
             'primaryCategoryId': primary_cat_id,
-            'subCategoryIds': [],
+            'subCategoryIds': sub_cat_ids,
             'allowComments': True,
             'allowDistribution': False,
             'gameId': 432,

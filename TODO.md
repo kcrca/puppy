@@ -22,6 +22,10 @@
 - **Modrinth world support**: MR does not yet have a `world` project type (feature request filed Dec 2025, no milestone).
   `_MR_TYPE_MAP` and `WORLD` already exclude MR; re-add `modrinth` to `WORLD.supported_site_names` once MR ships the type.
 
+- **Modrinth resolution field**: Replace the current per-tier boolean approach (`16x: true`, `32x: false`, etc.) with a single `modrinth.resolution` field that accepts one value or a list.
+  If not present, infer from neutral `resolution`.
+  If present and the neutral `resolution` value is not in the list, warn ("adding 16x from neutral resolution") and add it.
+
 - **Mod specialized metadata per site**: Survey what mod-specific fields each site supports beyond the current neutral fields (`loaders`, `client_side`, `server_side`).
   Check CF mod subcategories (IDs for Technology, Magic, Adventure, etc.), MR mod categories, and any mod-only API fields on either site.
 
