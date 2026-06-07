@@ -26,7 +26,7 @@ def test_unsupported_project_type_filters_all_sites():
 
 def test_unsupported_project_type_with_explicit_site_raises():
     try:
-        SiteVisitor('cf', project_type='mod')
+        SiteVisitor('pmc', project_type='mod')
         assert False, 'expected SystemExit'
     except SystemExit as e:
         assert 'do not support' in str(e)

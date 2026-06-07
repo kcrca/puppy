@@ -10,8 +10,8 @@ It also simplifies some other things along the way.
 ## Terminology
 
 Puppy supports multiple project types; the `project_type` field in `puppy.yaml` declares what kind each project is (default: `pack`).
-Each site declares which project types it supports, and sites that do not support the current project type are silently skipped.
-Currently each site supports only `pack` (texture/resource packs), though additional types (mods, worlds, etc.) may be added per site as that support is built out.
+Sites that do not support the current project type are silently skipped.
+CurseForge and Modrinth support `pack`, `mod`, `modpack`, and `world`; Modrinth additionally supports `shader` and `datapack`; PMC supports only `pack`.
 Each project is published across multiple sites.
 Typically this doc uses the term "project" except where talking about a pack in relation to its uploading and management, but not strictly.
 Currently the sites supported are CurseForge (also called "cf"), Modrinth, and Planet Minecraft (also called "pmc").
@@ -322,7 +322,8 @@ Examples:
 
 | Neutral key | CurseForge | Modrinth | PMC |
 |---|---|---|---|
-| `project_type: pack` | `classId: 12` (texture pack) | `project_type: resourcepack` | texture-pack form |
+| `project_type: pack/mod/modpack/world` | `classId: 12/6/4471/17`; URL segment `texture-packs/mc-mods/modpacks/worlds` | `project_type: resourcepack/mod/modpack/world` | texture-pack form (pack only) |
+| `loaders: [fabric, forge, neoforge, quilt]` | resolved as game version IDs via CF API; added to version file upload | `loaders` on version upload | ignored |
 | `title: <string>` | ignored | ignored | overrides `name` as displayed project title |
 | `license: CC-BY-4.0` ([SPDX](https://spdx.org/licenses/)) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |
 | `resolution: 16` | `mainCategory: 16x` | full tier group (`16x: true`, others false) | `resolution: 16`, tags `16x` and `16x16` |
@@ -331,10 +332,12 @@ Examples:
 | `client_side: required/optional/unsupported` | adds game version ID 9638 (client env) if `required` or `optional` | `client_side` on project (create and update) | ignored |
 | `server_side: required/optional/unsupported` | adds game version ID 9639 (server env) if `required` or `optional` | `server_side` on project (create and update) | ignored |
 
-These fields should only be set when `project_type: mod`.
+`client_side` and `server_side` should only be set when `project_type: mod`.
 For any other project type, setting them is an error — puppy prints a warning and ignores them.
 Each site applies its own type-appropriate defaults when these fields are absent.
 CF encodes client/server environment as special entries in its game version ID list, not as separate API fields.
+`loaders` is meaningful for `mod` and `modpack` project types.
+For resource packs, puppy defaults to `['minecraft']` on MR and omits loader IDs from CF file uploads.
 
 
 ### Translation & Shielding

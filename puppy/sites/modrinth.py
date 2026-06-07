@@ -262,7 +262,7 @@ class ModrinthSite(Site):
             'dependencies': [],
             'game_versions': game_versions,
             'version_type': 'release',
-            'loaders': ['minecraft'],
+            'loaders': config.get('loaders') or ['minecraft'],
             'featured': True,
             'project_id': project_id,
             'file_parts': ['file'],
@@ -355,7 +355,7 @@ class ModrinthSite(Site):
             'source_url': links.get('source') or None,
             'discord_url': socials.get('discord') or None,
             'license_id': license_id,
-            'project_type': 'resourcepack',
+            'project_type': _MR_TYPE_MAP.get(config.get('project_type', 'pack'), 'resourcepack'),
             'is_draft': True,
             'initial_versions': [],
         }

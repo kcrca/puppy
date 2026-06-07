@@ -173,6 +173,27 @@ _CF_CATEGORIES = {
 _CF_ENV_CLIENT = 9638
 _CF_ENV_SERVER = 9639
 
+_CF_CLASS_IDS = {
+    'pack': 12,
+    'mod': 6,
+    'modpack': 4471,
+    'world': 17,
+}
+
+_CF_URL_SEGMENTS = {
+    'pack': 'texture-packs',
+    'mod': 'mc-mods',
+    'modpack': 'modpacks',
+    'world': 'worlds',
+}
+
+_CF_LOADER_NAMES = {
+    'fabric': 'Fabric',
+    'forge': 'Forge',
+    'neoforge': 'NeoForge',
+    'quilt': 'Quilt',
+}
+
 # Maps SPDX license IDs to the keys PU's curseforge.js license map uses
 _SPDX_TO_PU_CF = {
     'CC0-1.0': 'Public Domain',
@@ -201,7 +222,7 @@ class CurseForgeSite(Site):
     label = 'CurseForge'
     template_ext = '.html'
     desc_exts = ['.html', '.md']
-    supported_types = frozenset({'pack'})
+    supported_types = frozenset(_CF_CLASS_IDS)
 
     def convert_md(self, text: str) -> str:
         return md_to_html(text)
@@ -294,7 +315,9 @@ class CurseForgeSite(Site):
         ref = site_config.get('slug') or site_config.get('id')
         if not ref:
             return None
-        return f'https://www.curseforge.com/minecraft/texture-packs/{ref}'
+        project_type = site_config.get('project_type', 'pack')
+        segment = _CF_URL_SEGMENTS.get(project_type, 'texture-packs')
+        return f'https://www.curseforge.com/minecraft/{segment}/{ref}'
 
     def _cookie_headers(self, auth: dict) -> dict:
         return {'Cookie': auth.get('curseforge', {}).get('cookie', '')}
@@ -425,7 +448,9 @@ class CurseForgeSite(Site):
                 version_strings = [str(v)]
         elif isinstance(cf_versions, str):
             version_strings = [cf_versions]
-        game_version_ids = _cf_resolve_game_version_ids(version_strings, auth)
+        loaders = config.get('loaders') or []
+        loader_names = [_CF_LOADER_NAMES[l] for l in loaders if l in _CF_LOADER_NAMES]
+        game_version_ids = _cf_resolve_game_version_ids(version_strings + loader_names, auth)
         if config.get('client_side') in ('required', 'optional'):
             game_version_ids.append(_CF_ENV_CLIENT)
         if config.get('server_side') in ('required', 'optional'):
@@ -463,6 +488,8 @@ class CurseForgeSite(Site):
             print('  [CurseForge] icon uploaded')
 
         sc = config.get('curseforge', {})
+        project_type = config.get('project_type', 'pack')
+        class_id = _CF_CLASS_IDS.get(project_type, 12)
         main_cat = sc.get('mainCategory')
         primary_cat_id = _CF_CATEGORIES.get(str(main_cat), 393) if main_cat else 393
         license_name = sc.get('license') or config.get('license') or 'All Rights Reserved'
@@ -478,7 +505,7 @@ class CurseForgeSite(Site):
             'allowComments': True,
             'allowDistribution': False,
             'gameId': 432,
-            'classId': 12,
+            'classId': class_id,
             'descriptionType': 1,
             'licenseId': license_id,
         })
@@ -513,7 +540,8 @@ class CurseForgeSite(Site):
             result['socials'] = socials
 
         if verbosity >= 1:
-            print(f'  [CurseForge] https://www.curseforge.com/minecraft/texture-packs/{slug}')
+            segment = _CF_URL_SEGMENTS.get(project_type, 'texture-packs')
+            print(f'  [CurseForge] https://www.curseforge.com/minecraft/{segment}/{slug}')
         return result
 
     def img_tag(self, url: str, name: str) -> str:

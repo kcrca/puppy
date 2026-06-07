@@ -154,6 +154,48 @@ def test_update_project_uses_configured_client_server_side():
     assert body['server_side'] == 'required'
 
 
+def test_upload_version_uses_loaders_from_config(tmp_path):
+    zip_path = tmp_path / 'mymod-1.0.zip'
+    with zipfile.ZipFile(zip_path, 'w') as z:
+        z.writestr('pack.mcmeta', '{}')
+    config = {
+        'minecraft': '1.21',
+        'pack': 'mymod',
+        'modrinth': {'id': 'abc123', 'slug': 'mymod'},
+        'loaders': ['fabric', 'quilt'],
+    }
+    real_upload = MODRINTH.__class__.upload_version
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response({'id': 'ver123'})
+        real_upload(MODRINTH, 'abc123', _AUTH, zip_path, '1.0', config)
+
+    req = mock_open.call_args[0][0]
+    body_text = req.data.decode('latin-1')
+    loaders_section = body_text.split('"loaders"')[1].split(']')[0]
+    assert 'fabric' in loaders_section
+    assert 'quilt' in loaders_section
+    assert 'minecraft' not in loaders_section
+
+
+def test_upload_version_defaults_to_minecraft_loader_for_pack(tmp_path):
+    zip_path = tmp_path / 'mypack-1.0.zip'
+    with zipfile.ZipFile(zip_path, 'w') as z:
+        z.writestr('pack.mcmeta', '{}')
+    config = {
+        'minecraft': '1.21',
+        'pack': 'mypack',
+        'modrinth': {'id': 'abc123', 'slug': 'mypack'},
+    }
+    real_upload = MODRINTH.__class__.upload_version
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response({'id': 'ver123'})
+        real_upload(MODRINTH, 'abc123', _AUTH, zip_path, '1.0', config)
+
+    req = mock_open.call_args[0][0]
+    body_text = req.data.decode('latin-1')
+    assert '"loaders": ["minecraft"]' in body_text or '"loaders":["minecraft"]' in body_text
+
+
 # ── 4. AuthExpiredError on 401 ───────────────────────────────────────────────
 
 def test_update_project_401_raises_auth_expired():

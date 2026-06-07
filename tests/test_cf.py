@@ -256,6 +256,50 @@ def test_upload_file_no_env_ids_when_unsupported(tmp_path):
     assert 9639 not in metadata['gameVersions']
 
 
+def test_upload_file_loaders_resolved_as_game_versions(tmp_path):
+    zip_path = tmp_path / 'pack-1.0.0.zip'
+    with zipfile.ZipFile(zip_path, 'w') as z:
+        z.writestr('pack.mcmeta', '{}')
+
+    config = {
+        'minecraft': '1.21',
+        'curseforge': {'slug': 'mymod'},
+        'pack': 'mymod',
+        'loaders': ['fabric', 'quilt'],
+    }
+
+    game_versions_resp = [
+        {'id': 10550, 'name': '1.21', 'gameVersionTypeID': 615},
+        {'id': 7499, 'name': 'Fabric', 'gameVersionTypeID': 68441},
+        {'id': 9153, 'name': 'Quilt', 'gameVersionTypeID': 68441},
+    ]
+    responses = [_make_response(game_versions_resp), _make_response({'id': 99})]
+
+    real_upload = CURSEFORGE.__class__.upload_file
+    with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
+        real_upload(CURSEFORGE, _PROJECT_ID, _AUTH, zip_path, '1.0.0', config)
+
+    req = mock_open.call_args_list[1][0][0]
+    boundary_line = req.data.split(b'\r\n')[0]
+    boundary = boundary_line[2:]
+    parts = req.data.split(b'--' + boundary)
+    metadata_part = next(p for p in parts if b'name="metadata"' in p)
+    metadata_json_start = metadata_part.index(b'\r\n\r\n') + 4
+    metadata = json.loads(metadata_part[metadata_json_start:].rstrip(b'\r\n'))
+    assert 7499 in metadata['gameVersions']
+    assert 9153 in metadata['gameVersions']
+    assert 10550 in metadata['gameVersions']
+
+
+def test_url_for_uses_project_type_segment():
+    assert CURSEFORGE.url_for({'slug': 'my-mod', 'project_type': 'mod'}) == \
+        'https://www.curseforge.com/minecraft/mc-mods/my-mod'
+    assert CURSEFORGE.url_for({'slug': 'my-pack', 'project_type': 'pack'}) == \
+        'https://www.curseforge.com/minecraft/texture-packs/my-pack'
+    assert CURSEFORGE.url_for({'slug': 'my-modpack', 'project_type': 'modpack'}) == \
+        'https://www.curseforge.com/minecraft/modpacks/my-modpack'
+
+
 # ── 5. update_details ────────────────────────────────────────────────────────
 
 def test_update_details_sends_correct_json_fields():
