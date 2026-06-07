@@ -75,7 +75,7 @@ def run_push(
             )
         if PMC in visitor and pmc_id:
             image_urls_by_site['planetminecraft'] = PMC.upload_images(
-                pmc_id, auth, image_list, images_dir, verbosity
+                pmc_id, auth, image_list, images_dir, verbosity, project_type
             )
 
     discovery = ContentDiscovery(puppy_home, project.root)

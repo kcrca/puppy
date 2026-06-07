@@ -569,7 +569,7 @@ def test_run_pmc_pull_images_forced_when_no_image_info(tmp_path):
 
     pull_calls = []
 
-    def fake_pull(self, project_id, auth, puppy_dir, images, verbosity):
+    def fake_pull(self, project_id, auth, puppy_dir, images, verbosity, project_type='pack'):
         pull_calls.append(images)
         return {'config': {}, 'planetminecraft': {'id': project_id}}
 
@@ -587,7 +587,7 @@ def test_run_pmc_pull_images_skipped_when_info_exists(tmp_path):
 
     pull_calls = []
 
-    def fake_pull(self, project_id, auth, puppy_dir, images, verbosity):
+    def fake_pull(self, project_id, auth, puppy_dir, images, verbosity, project_type='pack'):
         pull_calls.append(images)
         return {'config': {}, 'planetminecraft': {'id': project_id}}
 
@@ -604,7 +604,7 @@ def test_run_pmc_pull_images_true_fetches_even_when_info_exists(tmp_path):
 
     pull_calls = []
 
-    def fake_pull(self, project_id, auth, puppy_dir, images, verbosity):
+    def fake_pull(self, project_id, auth, puppy_dir, images, verbosity, project_type='pack'):
         pull_calls.append(images)
         return {'config': {}, 'planetminecraft': {'id': project_id}}
 

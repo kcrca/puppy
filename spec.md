@@ -11,7 +11,7 @@ It also simplifies some other things along the way.
 
 Puppy supports multiple project types; the `project_type` field in `puppy.yaml` declares what kind each project is (default: `pack`).
 Sites that do not support the current project type are silently skipped.
-CurseForge and Modrinth support `pack`, `mod`, and `world`; PMC supports only `pack`.
+CurseForge, Modrinth, and PMC support `pack` and `world`; CurseForge and Modrinth also support `mod`.
 Each project is published across multiple sites.
 Typically this doc uses the term "project" except where talking about a pack in relation to its uploading and management, but not strictly.
 Currently the sites supported are CurseForge (also called "cf"), Modrinth, and Planet Minecraft (also called "pmc").
@@ -322,7 +322,7 @@ Examples:
 
 | Neutral key | CurseForge | Modrinth | PMC |
 |---|---|---|---|
-| `project_type: pack/mod/world` | `classId: 12/6/17`; URL segment `texture-packs/mc-mods/worlds`; default category per type (override with `curseforge.mainCategory` numeric CF category ID) | `project_type: resourcepack/mod/world` | texture-pack form (pack only) |
+| `project_type: pack/mod/world` | `classId: 12/6/17`; URL segment `texture-packs/mc-mods/worlds`; default category per type (override with `curseforge.mainCategory` numeric CF category ID) | `project_type: resourcepack/mod/world` | `/texture-pack/` URL and pack form for `pack`; `/project/` URL and world form (no resolution or modifies) for `world` |
 | `loaders: [fabric, forge, neoforge, quilt]` | resolved as game version IDs via CF API; added to version file upload | `loaders` on version upload | ignored |
 | `title: <string>` | ignored | ignored | overrides `name` as displayed project title |
 | `license: CC-BY-4.0` ([SPDX](https://spdx.org/licenses/)) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |

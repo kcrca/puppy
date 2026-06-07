@@ -26,7 +26,7 @@ class ProjectInfo(NamedTuple):
 
 PACK = ProjectInfo('pack', _UNIVERSAL | _PACK_ONLY, frozenset({'curseforge', 'modrinth', 'planetminecraft'}))
 MOD = ProjectInfo('mod', _UNIVERSAL | _MOD_ONLY, frozenset({'curseforge', 'modrinth'}))
-WORLD = ProjectInfo('world', _UNIVERSAL, frozenset({'curseforge', 'modrinth'}))
+WORLD = ProjectInfo('world', _UNIVERSAL, frozenset({'curseforge', 'modrinth', 'planetminecraft'}))
 
 PROJECT_TYPES: dict[str, ProjectInfo] = {
     t.name: t for t in [PACK, MOD, WORLD]

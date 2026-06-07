@@ -59,6 +59,7 @@ class Site:
         image_list: list,
         images_dir: Path,
         verbosity: int,
+        project_type: str = 'pack',
     ) -> dict[str, str]:
         return {}
 
