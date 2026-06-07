@@ -6,9 +6,9 @@ from puppy.config import _apply_neutral_metadata
 from puppy.syncer import apply_env_sides
 
 
-def test_resolution_cf_main_category():
+def test_resolution_cf_category():
     config = _apply_neutral_metadata({'resolution': 16})
-    assert config['curseforge']['mainCategory'] == '16x'
+    assert config['curseforge']['category'] == '16x'
 
 
 def test_resolution_modrinth_tags_tier_group():
@@ -44,7 +44,7 @@ def test_per_site_override_wins_over_neutral():
         }
     )
     assert config['modrinth']['tags']['16x'] is False
-    assert config['curseforge']['mainCategory'] == '16x'
+    assert config['curseforge']['category'] == '16x'
 
 
 def test_explicit_extra_resolution_tag_preserved():

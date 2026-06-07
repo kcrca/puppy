@@ -510,7 +510,7 @@ def test_cf_pull_fetches_project_and_writes_description(tmp_path):
     assert result['config']['summary'] == 'A great pack'
     assert result['curseforge']['id'] == 12345
     assert result['curseforge']['slug'] == 'mypack'
-    assert result['curseforge']['mainCategory'] == 405
+    assert result['curseforge']['category'] == 405
     assert result['curseforge']['donation'] == {'type': 'kofi', 'value': 'myname'}
     assert result['curseforge']['license'] == 'MIT License'
     assert result['curseforge']['socials'] == {'discord': 'https://discord.gg/x', 'website': 'https://mypack.com'}

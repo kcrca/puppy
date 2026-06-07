@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-_UNIVERSAL = frozenset({'license', 'title', 'links', 'after_push'})
-_PACK_ONLY = frozenset({'resolution', 'progress'})
-_MOD_ONLY = frozenset({'client_side', 'server_side', 'loaders'})
-_ALL_NEUTRAL = _UNIVERSAL | _PACK_ONLY | _MOD_ONLY
+_UNIVERSAL = frozenset({'license', 'title', 'links', 'after_push', 'video', 'alt_download', 'credit', 'donation', 'socials'})
+_PACK = frozenset({'resolution', 'progress'})
+_MOD = frozenset({'client_side', 'server_side', 'loaders'})
+_WORLD = frozenset({'progress'})
+_ALL_NEUTRAL = _UNIVERSAL | _PACK | _MOD | _WORLD
 
 
 class ProjectInfo(NamedTuple):
@@ -24,9 +25,9 @@ class ProjectInfo(NamedTuple):
         return config
 
 
-PACK = ProjectInfo('pack', _UNIVERSAL | _PACK_ONLY, frozenset({'curseforge', 'modrinth', 'planetminecraft'}))
-MOD = ProjectInfo('mod', _UNIVERSAL | _MOD_ONLY, frozenset({'curseforge', 'modrinth'}))
-WORLD = ProjectInfo('world', _UNIVERSAL, frozenset({'curseforge', 'planetminecraft'}))
+PACK = ProjectInfo('pack', _UNIVERSAL | _PACK, frozenset({'curseforge', 'modrinth', 'planetminecraft'}))
+MOD = ProjectInfo('mod', _UNIVERSAL | _MOD, frozenset({'curseforge', 'modrinth'}))
+WORLD = ProjectInfo('world', _UNIVERSAL | _WORLD, frozenset({'curseforge', 'planetminecraft'}))
 
 PROJECT_TYPES: dict[str, ProjectInfo] = {
     t.name: t for t in [PACK, MOD, WORLD]

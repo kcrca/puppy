@@ -220,6 +220,8 @@ def _pmc_sync_gallery(
 
 
 def _pmc_download_url(config: dict) -> str:
+    if config.get('alt_download'):
+        return str(config['alt_download'])
     project_type = config.get('project_type', 'pack')
     mr = config.get('modrinth', {})
     cf = config.get('curseforge', {})
@@ -253,24 +255,29 @@ class PlanetMinecraftSite(Site):
 
     def apply_neutral(self, config: dict) -> None:
         project_type = config.get('project_type', 'pack')
+        pmc = config.setdefault('planetminecraft', {})
+
         if project_type == 'pack':
             resolution = config.get('resolution')
             if resolution is not None:
                 res = str(resolution)
-                pmc = config.setdefault('planetminecraft', {})
                 pmc.setdefault('resolution', int(resolution))
                 pmc_tags = pmc.setdefault('tags', [])
                 for res_tag in [f'{res}x', f'{res}x{res}']:
                     if res_tag not in pmc_tags:
                         pmc_tags.append(res_tag)
 
-            progress = config.get('progress')
-            if progress is not None:
-                config.setdefault('planetminecraft', {}).setdefault('progress', int(progress))
+        progress = config.get('progress')
+        if progress is not None:
+            pmc.setdefault('progress', int(progress))
+
+        credit = config.get('credit')
+        if credit is not None:
+            pmc.setdefault('credit', str(credit))
 
         links = config.get('links') or {}
         if isinstance(links, dict) and links.get('home'):
-            config.setdefault('planetminecraft', {}).setdefault('website', {}).setdefault('link', links['home'])
+            pmc.setdefault('website', {}).setdefault('link', links['home'])
 
     def preview_rows(self, sc: dict) -> list[tuple[str, str]]:
         rows = []
@@ -599,9 +606,6 @@ class PlanetMinecraftSite(Site):
             progress_tag = soup.find(id='progress')
             progress = int(progress_tag['value']) if progress_tag and progress_tag.get('value') else 100
 
-            credit_tag = soup.find('input', {'name': 'credit'})
-            credit = credit_tag['value'] if credit_tag else ''
-
             modifies = {}
             mod_container = soup.find(id='main_folder_modified')
             if mod_container:
@@ -617,10 +621,13 @@ class PlanetMinecraftSite(Site):
             if resolution:
                 pmc_result['resolution'] = resolution
             pmc_result['progress'] = progress
-            if credit:
-                pmc_result['credit'] = credit
             if modifies:
                 pmc_result['modifies'] = modifies
+
+        credit_tag = soup.find('input', {'name': 'credit'})
+        credit = credit_tag['value'] if credit_tag else ''
+        if credit:
+            pmc_result['credit'] = credit
 
         tags = []
         tags_container = soup.find(id='item_tags')

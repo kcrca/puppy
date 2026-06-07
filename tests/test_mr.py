@@ -370,7 +370,8 @@ def test_pull_fetches_project_and_writes_description(tmp_path):
     assert result['modrinth']['id'] == 'abc123'
     assert result['modrinth']['slug'] == 'mypack'
     assert result['modrinth']['donation'] == {'patreon': 'https://patreon.com/me'}
-    assert result['modrinth']['tags'] == {'16x': True, 'realistic': True}
+    assert result['modrinth']['tags'] == {'16x': True}
+    assert result['modrinth']['category'] == ['realistic']
 
 
 def test_pull_downloads_gallery_images(tmp_path):

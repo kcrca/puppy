@@ -191,7 +191,7 @@ def test_cf_create_returns_id_slug_and_harvested_metadata():
 
     assert result['id'] == 9999
     assert result['slug'] == 'my-pack'
-    assert result['mainCategory'] == 393  # harvested from fetch, not string form
+    assert result['category'] == 393  # harvested from fetch, not string form
     assert result['license'] == 'MIT License'  # licenseId 4 → MIT License
     assert result['socials'] == {'discord': 'https://discord.gg/x'}
 

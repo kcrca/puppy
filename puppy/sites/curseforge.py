@@ -248,7 +248,7 @@ class CurseForgeSite(Site):
     def apply_neutral(self, config: dict) -> None:
         resolution = config.get('resolution')
         if resolution is not None:
-            config.setdefault('curseforge', {}).setdefault('mainCategory', f'{resolution}x')
+            config.setdefault('curseforge', {}).setdefault('category', f'{resolution}x')
 
         license_ = config.get('license')
         if license_:
@@ -273,11 +273,6 @@ class CurseForgeSite(Site):
         if sc.get('category'):
             raw = sc['category']
             rows.append(('Category', ', '.join([raw] if isinstance(raw, str) else raw)))
-        elif sc.get('mainCategory'):
-            rows.append(('Main Category', str(sc['mainCategory'])))
-        extra = {k: v for k, v in sc.get('additionalCategories', {}).items() if v}
-        if extra:
-            rows.append(('Categories', ', '.join(extra)))
         if sc.get('license'):
             rows.append(('License', str(sc['license'])))
         return rows
@@ -568,7 +563,7 @@ class CurseForgeSite(Site):
 
         result = {'id': project_id, 'slug': slug}
         if project_data.get('primaryCategoryId') is not None:
-            result['mainCategory'] = project_data['primaryCategoryId']
+            result['category'] = project_data['primaryCategoryId']
         license_id_inv = {v: k for k, v in _CF_LICENSE_IDS.items()}
         harvested_license = license_id_inv.get(project_data.get('licenseId'))
         if harvested_license:
@@ -637,10 +632,10 @@ class CurseForgeSite(Site):
             'summary': config.get('summary', ''),
             **config.get('curseforge', {}),
         }
-        if sc.get('mainCategory') is None:
+        if sc.get('category') is None:
             remote = self.fetch_project(project_id, auth)
             if remote.get('primaryCategoryId'):
-                sc['mainCategory'] = remote['primaryCategoryId']
+                sc['category'] = remote['primaryCategoryId']
 
         if verbosity >= 1:
             print(f'  [CurseForge] updating description')
@@ -768,7 +763,7 @@ class CurseForgeSite(Site):
         if license_name:
             cf_result['license'] = license_name
         if data.get('primaryCategoryId') is not None:
-            cf_result['mainCategory'] = data['primaryCategoryId']
+            cf_result['category'] = data['primaryCategoryId']
         if socials:
             cf_result['socials'] = socials
 

@@ -22,6 +22,8 @@ _MR_TYPE_MAP = {
     'world': 'world',
 }
 
+_MR_RESOLUTION_TIERS = frozenset({'8x-', '16x', '32x', '48x', '64x', '128x', '256x', '512x+'})
+
 
 def _mr_headers(auth: dict, extra: dict = None) -> dict:
     h = {'User-Agent': _MR_UA}
@@ -138,6 +140,17 @@ def _mr_resolve_game_versions(spec: dict, auth: dict) -> list[str]:
     return []
 
 
+def _mr_build_categories(sc: dict) -> list[str]:
+    tags = [k for k, v in sc.get('tags', {}).items() if v]
+    raw = sc.get('category')
+    if raw is not None:
+        extra = [raw] if isinstance(raw, str) else list(raw)
+        for c in extra:
+            if c not in tags:
+                tags.append(c)
+    return tags
+
+
 # Reverse map: Modrinth donation platform id → puppy key
 _MR_DONATION_ID_TO_KEY = {
     'patreon': 'patreon',
@@ -207,6 +220,9 @@ class ModrinthSite(Site):
         active_tags = [k for k, v in sc.get('tags', {}).items() if v]
         if active_tags:
             rows.append(('Tags', ', '.join(active_tags)))
+        if sc.get('category'):
+            raw = sc['category']
+            rows.append(('Category', ', '.join([raw] if isinstance(raw, str) else raw)))
         if sc.get('license'):
             rows.append(('License', str(sc['license'])))
         return rows
@@ -334,7 +350,7 @@ class ModrinthSite(Site):
             print(f'  [Modrinth] slug "{base_slug}" taken, using "{slug}"')
 
         license_id = mr.get('license') or config.get('license') or 'LicenseRef-All-Rights-Reserved'
-        active_tags = [k for k, v in mr.get('tags', {}).items() if v]
+        categories = _mr_build_categories(mr)
         links = config.get('links') or {}
         socials = config.get('socials') or {}
 
@@ -342,7 +358,7 @@ class ModrinthSite(Site):
             'slug': slug,
             'title': config.get('name', ''),
             'description': config.get('summary', ''),
-            'categories': active_tags,
+            'categories': categories,
             'additional_categories': [],
             'client_side': config.get('client_side', 'required'),
             'server_side': config.get('server_side', 'unsupported'),
@@ -401,7 +417,7 @@ class ModrinthSite(Site):
         links = config.get('links') or {}
         socials = config.get('socials') or {}
         donation = sc.get('donation') or {}
-        active_tags = [k for k, v in sc.get('tags', {}).items() if v]
+        categories = _mr_build_categories(sc)
 
         donation_urls = [
             {'id': pid, 'platform': platform, 'url': donation[key]}
@@ -413,7 +429,7 @@ class ModrinthSite(Site):
             'title': sc.get('name', ''),
             'description': sc.get('summary', ''),
             'body': description,
-            'categories': active_tags,
+            'categories': categories,
             'additional_categories': [],
             'client_side': config.get('client_side', 'required'),
             'server_side': config.get('server_side', 'unsupported'),
@@ -582,7 +598,9 @@ class ModrinthSite(Site):
             if key and entry.get('url')
         }
 
-        tags = {cat: True for cat in (data.get('categories') or [])}
+        all_cats = data.get('categories') or []
+        tags = {cat: True for cat in all_cats if cat in _MR_RESOLUTION_TIERS}
+        category = [cat for cat in all_cats if cat not in _MR_RESOLUTION_TIERS]
 
         return {
             'config': {
@@ -598,6 +616,7 @@ class ModrinthSite(Site):
                 'slug': data['slug'],
                 'donation': donation or None,
                 'tags': tags or None,
+                'category': category if category else None,
             },
         }
 
