@@ -13,7 +13,7 @@ from puppy.errors import AuthExpiredError
 from puppy.publisher import upload_pack
 from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
-from puppy.sites import CURSEFORGE, MODRINTH, PMC, SiteVisitor
+from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
 
 
 def run_push(
@@ -38,7 +38,12 @@ def run_push(
 
     if auth is None:
         auth = _load_auth(puppy_home)
-    visitor = SiteVisitor(site)
+    project_type = config.get('project_type', 'pack')
+    visitor = SiteVisitor(site, project_type=project_type)
+    if verbosity >= 1 and not site:
+        for s in SITES:
+            if s not in visitor:
+                print(f'  [{s.label}] skipping — project_type "{project_type}" not supported')
 
     cf_token = auth.get('curseforge', {}).get('token')
     cf_id = config.get('curseforge', {}).get('id')
@@ -69,7 +74,7 @@ def run_push(
 
     discovery = ContentDiscovery(puppy_home, project.root)
     descriptions: dict[str, str] = {}
-    for s in SiteVisitor(site):
+    for s in SiteVisitor(site, project_type=project_type):
         site_config = ConfigSynthesizer(
             puppy_home, project.root, site=s
         ).get_running_config()

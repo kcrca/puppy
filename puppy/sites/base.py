@@ -9,6 +9,7 @@ class Site:
     label: str
     template_ext: str
     desc_exts: list[str]
+    supported_types: frozenset[str] = frozenset({'pack'})
 
     def __str__(self) -> str:
         return self.name

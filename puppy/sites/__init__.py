@@ -30,12 +30,9 @@ _ALIASES: dict[str, str] = {a: s.name for s in SITES for a in s.aliases}
 
 
 class SiteVisitor:
-    """Iterates over the active sites, respecting an optional filter.
+    """Iterates over the active sites, respecting an optional filter and project_type."""
 
-    Construct with the value of the -s/--site CLI flag (or None for all sites).
-    """
-
-    def __init__(self, filter: str = None):
+    def __init__(self, filter: str = None, project_type: str = 'pack'):
         if filter:
             requested = [_ALIASES.get(s.strip(), s.strip()) for s in filter.split(',')]
             unknown = [s for s in requested if s not in SITE_MAP]
@@ -44,8 +41,13 @@ class SiteVisitor:
                     f'Unknown site(s): {", ".join(unknown)}. Valid: {", ".join(SITE_MAP)}'
                 )
             self.sites = [s for s in SITES if s.name in requested]
+            unsupported = [s for s in self.sites if project_type not in s.supported_types]
+            if unsupported:
+                raise SystemExit(
+                    f'Site(s) {", ".join(s.label for s in unsupported)} do not support project_type "{project_type}"'
+                )
         else:
-            self.sites = list(SITES)
+            self.sites = [s for s in SITES if project_type in s.supported_types]
 
     def __iter__(self):
         return iter(self.sites)

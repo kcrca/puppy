@@ -226,7 +226,12 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack
         config = dict(config)
         config['projects'] = build_projects_context(puppy_home)
         discovery = ContentDiscovery(puppy_home, project.root)
-        sites = list(SiteVisitor(site))
+        project_type = config.get('project_type', 'pack')
+        sites = list(SiteVisitor(site, project_type=project_type))
+        if verbosity >= 1 and not site:
+            for s in SITES:
+                if s not in sites:
+                    print(f'  [{s.label}] skipping — project_type "{project_type}" not supported')
         source_exts: dict[str, str] = {}
         for s in sites:
             body, source_path = discovery.find_description(site=s)
@@ -271,7 +276,7 @@ def _collect_after_push(config: dict, site: str | None) -> list:
     messages = []
     if config.get('after_push'):
         messages.append(config['after_push'])
-    for s in SiteVisitor(site):
+    for s in SiteVisitor(site, project_type=config.get('project_type', 'pack')):
         msg = config.get(s.name, {}).get('after_push')
         if msg:
             messages.append(f'[{s.label}] {msg}')

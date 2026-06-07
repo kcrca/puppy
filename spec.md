@@ -9,8 +9,10 @@ It also simplifies some other things along the way.
 
 ## Terminology
 
-Currently puppy supports only packs, though projects of other types may be supported later.
-Each pack is a project that is supported across multiple sites.
+Puppy supports multiple project types; the `project_type` field in `puppy.yaml` declares what kind each project is (default: `pack`).
+Each site declares which project types it supports, and sites that do not support the current project type are silently skipped.
+Currently each site supports only `pack` (texture/resource packs), though additional types (mods, worlds, etc.) may be added per site as that support is built out.
+Each project is published across multiple sites.
 Typically this doc uses the term "project" except where talking about a pack in relation to its uploading and management, but not strictly.
 Currently the sites supported are CurseForge (also called "cf"), Modrinth, and Planet Minecraft (also called "pmc").
 
@@ -205,7 +207,7 @@ This means a config key can reference other config keys, projects variables, or 
 
 **`sites:`** — optional list of site names (or abbreviations) that this project publishes to.
 When present, commands that do not have an explicit `--site` flag operate only on the listed sites.
-When absent, all three sites are used.
+When absent, all sites that support the project's `project_type` are used.
 Can be set at the Puppy Home level to apply to all projects, or per-project to override.
 Example: `sites: [cf, mr]`
 
@@ -307,8 +309,8 @@ In the name of the pack file, version must be the last component before `.zip`, 
 The filename need not start with the project slug.
 Strict boundary check ensures `1.2` does not match `1.2.4`.
 
-### Neutral Pack Metadata
-Certain properties are intrinsic to the pack and should not need to be repeated under each site's config block.
+### Neutral Project Metadata
+Certain properties are intrinsic to the project and should not need to be repeated under each site's config block.
 Puppy translates top-level neutral keys to each site's native representation when staging.
 A neutral key sets the *entire group* of related per-site fields:
 For example, `resolution: 16` sets the Modrinth resolution tier tags `16x` to true, all others false, sets CF `mainCategory: 16x`, sets PMC `resolution: 16`, and adds `16x` and `16x16` to PMC tags.
@@ -320,10 +322,14 @@ Examples:
 
 | Neutral key | CurseForge | Modrinth | PMC |
 |---|---|---|---|
+| `project_type: pack` | `classId: 12` (texture pack) | `project_type: resourcepack` | texture-pack form |
+| `title: <string>` | ignored | ignored | overrides `name` as displayed project title |
 | `license: CC-BY-4.0` ([SPDX](https://spdx.org/licenses/)) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |
 | `resolution: 16` | `mainCategory: 16x` | full tier group (`16x: true`, others false) | `resolution: 16`, tags `16x` and `16x16` |
 | `progress: 100` | ignored | ignored | `progress: 100` |
 | `links.patreon/kofi/… (donation keys)` | first key as `{type: platform, value: url}` | all donation keys passed as `donation.*` (`github_sponsors` → `github`) | ignored |
+| `client_side: required/optional/unsupported` | adds game version ID 9638 (client env) if `required` or `optional` | `client_side` on project | ignored |
+| `server_side: required/optional/unsupported` | adds game version ID 9639 (server env) if `required` or `optional` | `server_side` on project | ignored |
 
 
 ### Translation & Shielding

@@ -216,6 +216,7 @@ class PlanetMinecraftSite(Site):
     label = 'PlanetMinecraft'
     template_ext = '.bbcode'
     desc_exts = ['.bbcode', '.md']
+    supported_types = frozenset({'pack'})
 
     def convert_md(self, text: str) -> str:
         return md_to_bbcode(text)

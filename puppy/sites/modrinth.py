@@ -172,6 +172,7 @@ class ModrinthSite(Site):
     label = 'Modrinth'
     template_ext = '.md'
     desc_exts = ['.md']
+    supported_types = frozenset({'pack'})
 
     def apply_neutral(self, config: dict) -> None:
         resolution = config.get('resolution')
