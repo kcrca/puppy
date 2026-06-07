@@ -137,6 +137,21 @@ def test_update_project_sends_correct_json_fields():
     assert body['discord_url'] == 'https://discord.gg/x'
     assert body['requested_status'] == 'approved'
     assert body['donation_urls'] == [{'id': 'patreon', 'platform': 'Patreon', 'url': 'https://patreon.com/me'}]
+    assert body['client_side'] == 'required'
+    assert body['server_side'] == 'unsupported'
+
+
+def test_update_project_uses_configured_client_server_side():
+    sc = {'name': 'My Mod', 'summary': 'A mod'}
+    config = {'client_side': 'optional', 'server_side': 'required'}
+
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(None)
+        MODRINTH.update_project(_PROJECT_ID, _AUTH, sc, '', config)
+
+    body = json.loads(mock_open.call_args[0][0].data)
+    assert body['client_side'] == 'optional'
+    assert body['server_side'] == 'required'
 
 
 # ── 4. AuthExpiredError on 401 ───────────────────────────────────────────────

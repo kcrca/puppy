@@ -12,7 +12,7 @@ It tries to require as little as possible from you to do the work.
 
 ## Acknowledgements
 
-Puppy was originally a front end to a tool called [PackUploader](https://github.com/ewanhowell5195/PackUploader), by Ewan Howell,
+Puppy was originally a front end to the tool [PackUploader](https://github.com/ewanhowell5195/PackUploader), by Ewan Howell,
 that deals exclusively with texture packs.
 I outgrew it, but it gave me both impetus and knowledge for writing puppy,
 and I am grateful for both.

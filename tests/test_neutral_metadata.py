@@ -3,6 +3,7 @@ import yaml
 from pathlib import Path
 
 from puppy.config import _apply_neutral_metadata
+from puppy.syncer import apply_env_sides
 
 
 def test_resolution_cf_main_category():
@@ -204,3 +205,33 @@ def test_license_appears_on_cf_and_modrinth(project_env, run_puppy):
         Path(tempfile.gettempdir()) / 'puppy' / 'neonglow' / 'index.html'
     ).read_text()
     assert 'MIT' in index
+
+
+# ── apply_env_sides ──────────────────────────────────────────────────────────
+
+def test_env_sides_passthrough_for_mod():
+    config = {'project_type': 'mod', 'client_side': 'optional', 'server_side': 'required'}
+    result = apply_env_sides(config)
+    assert result['client_side'] == 'optional'
+    assert result['server_side'] == 'required'
+
+
+def test_env_sides_warns_and_strips_for_pack(capsys):
+    config = {'project_type': 'pack', 'client_side': 'optional', 'server_side': 'required'}
+    result = apply_env_sides(config)
+    assert 'client_side' not in result
+    assert 'server_side' not in result
+    assert 'warning' in capsys.readouterr().out
+
+
+def test_env_sides_no_warning_when_not_set():
+    config = {'project_type': 'pack'}
+    result = apply_env_sides(config)
+    assert result is config
+
+
+def test_env_sides_default_project_type_treated_as_pack(capsys):
+    config = {'client_side': 'required'}
+    result = apply_env_sides(config)
+    assert 'client_side' not in result
+    assert 'warning' in capsys.readouterr().out

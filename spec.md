@@ -328,8 +328,13 @@ Examples:
 | `resolution: 16` | `mainCategory: 16x` | full tier group (`16x: true`, others false) | `resolution: 16`, tags `16x` and `16x16` |
 | `progress: 100` | ignored | ignored | `progress: 100` |
 | `links.patreon/kofi/… (donation keys)` | first key as `{type: platform, value: url}` | all donation keys passed as `donation.*` (`github_sponsors` → `github`) | ignored |
-| `client_side: required/optional/unsupported` | adds game version ID 9638 (client env) if `required` or `optional` | `client_side` on project | ignored |
-| `server_side: required/optional/unsupported` | adds game version ID 9639 (server env) if `required` or `optional` | `server_side` on project | ignored |
+| `client_side: required/optional/unsupported` | adds game version ID 9638 (client env) if `required` or `optional` | `client_side` on project (create and update) | ignored |
+| `server_side: required/optional/unsupported` | adds game version ID 9639 (server env) if `required` or `optional` | `server_side` on project (create and update) | ignored |
+
+These fields should only be set when `project_type: mod`.
+For any other project type, setting them is an error — puppy prints a warning and ignores them.
+Each site applies its own type-appropriate defaults when these fields are absent.
+CF encodes client/server environment as special entries in its game version ID list, not as separate API fields.
 
 
 ### Translation & Shielding

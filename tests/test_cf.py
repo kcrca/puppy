@@ -187,6 +187,75 @@ def test_upload_file_sends_correct_multipart_with_metadata(tmp_path):
     assert metadata['gameVersions'] == [10550]
 
 
+def test_upload_file_env_ids_in_game_versions(tmp_path):
+    zip_path = tmp_path / 'pack-1.0.0.zip'
+    with zipfile.ZipFile(zip_path, 'w') as z:
+        z.writestr('pack.mcmeta', '{}')
+
+    config = {
+        'minecraft': '1.21',
+        'curseforge': {'slug': 'mypack'},
+        'pack': 'mypack',
+        'client_side': 'required',
+        'server_side': 'optional',
+    }
+
+    game_versions_resp = [{'id': 10550, 'name': '1.21', 'gameVersionTypeID': 615}]
+    responses = [
+        _make_response(game_versions_resp),
+        _make_response({'id': 99}),
+    ]
+
+    real_upload = CURSEFORGE.__class__.upload_file
+    with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
+        real_upload(CURSEFORGE, _PROJECT_ID, _AUTH, zip_path, '1.0.0', config)
+
+    req = mock_open.call_args_list[1][0][0]
+    boundary_line = req.data.split(b'\r\n')[0]
+    boundary = boundary_line[2:]
+    parts = req.data.split(b'--' + boundary)
+    metadata_part = next(p for p in parts if b'name="metadata"' in p)
+    metadata_json_start = metadata_part.index(b'\r\n\r\n') + 4
+    metadata = json.loads(metadata_part[metadata_json_start:].rstrip(b'\r\n'))
+    assert 9638 in metadata['gameVersions']
+    assert 9639 in metadata['gameVersions']
+    assert 10550 in metadata['gameVersions']
+
+
+def test_upload_file_no_env_ids_when_unsupported(tmp_path):
+    zip_path = tmp_path / 'pack-1.0.0.zip'
+    with zipfile.ZipFile(zip_path, 'w') as z:
+        z.writestr('pack.mcmeta', '{}')
+
+    config = {
+        'minecraft': '1.21',
+        'curseforge': {'slug': 'mypack'},
+        'pack': 'mypack',
+        'client_side': 'unsupported',
+        'server_side': 'unsupported',
+    }
+
+    game_versions_resp = [{'id': 10550, 'name': '1.21', 'gameVersionTypeID': 615}]
+    responses = [
+        _make_response(game_versions_resp),
+        _make_response({'id': 99}),
+    ]
+
+    real_upload = CURSEFORGE.__class__.upload_file
+    with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
+        real_upload(CURSEFORGE, _PROJECT_ID, _AUTH, zip_path, '1.0.0', config)
+
+    req = mock_open.call_args_list[1][0][0]
+    boundary_line = req.data.split(b'\r\n')[0]
+    boundary = boundary_line[2:]
+    parts = req.data.split(b'--' + boundary)
+    metadata_part = next(p for p in parts if b'name="metadata"' in p)
+    metadata_json_start = metadata_part.index(b'\r\n\r\n') + 4
+    metadata = json.loads(metadata_part[metadata_json_start:].rstrip(b'\r\n'))
+    assert 9638 not in metadata['gameVersions']
+    assert 9639 not in metadata['gameVersions']
+
+
 # ── 5. update_details ────────────────────────────────────────────────────────
 
 def test_update_details_sends_correct_json_fields():

@@ -170,6 +170,9 @@ _CF_CATEGORIES = {
     '512x and Higher': 398, 'Data Packs': 5193, 'Font Packs': 5244,
 }
 
+_CF_ENV_CLIENT = 9638
+_CF_ENV_SERVER = 9639
+
 # Maps SPDX license IDs to the keys PU's curseforge.js license map uses
 _SPDX_TO_PU_CF = {
     'CC0-1.0': 'Public Domain',
@@ -423,6 +426,10 @@ class CurseForgeSite(Site):
         elif isinstance(cf_versions, str):
             version_strings = [cf_versions]
         game_version_ids = _cf_resolve_game_version_ids(version_strings, auth)
+        if config.get('client_side') in ('required', 'optional'):
+            game_version_ids.append(_CF_ENV_CLIENT)
+        if config.get('server_side') in ('required', 'optional'):
+            game_version_ids.append(_CF_ENV_SERVER)
 
         slug = config.get('curseforge', {}).get('slug') or config.get('pack', '')
         metadata = {

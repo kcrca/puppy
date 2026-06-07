@@ -14,7 +14,7 @@ from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
 from puppy.sites import SITES, SiteVisitor, _ALIASES
 from puppy.creator import run_create
-from puppy.syncer import run_push
+from puppy.syncer import run_push, apply_env_sides
 
 
 def _resolve_projects(puppy_home: Path) -> list[Path]:
@@ -225,6 +225,7 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack
     if action in ('push',):
         config = dict(config)
         config['projects'] = build_projects_context(puppy_home)
+        config = apply_env_sides(config)
         discovery = ContentDiscovery(puppy_home, project.root)
         project_type = config.get('project_type', 'pack')
         sites = list(SiteVisitor(site, project_type=project_type))
