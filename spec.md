@@ -11,7 +11,8 @@ It also simplifies some other things along the way.
 
 Puppy supports multiple project types; the `project_type` field in `puppy.yaml` declares what kind each project is (default: `pack`).
 Sites that do not support the current project type are silently skipped.
-CurseForge, Modrinth, and PMC support `pack` and `world`; CurseForge and Modrinth also support `mod`.
+CurseForge and PMC support `pack` and `world`; CurseForge and Modrinth support `mod`; Modrinth supports `pack`.
+Modrinth does not yet have a world project type (as of mid-2026); world support is in `_MR_TYPE_MAP` for when it ships.
 Each project is published across multiple sites.
 Typically this doc uses the term "project" except where talking about a pack in relation to its uploading and management, but not strictly.
 Currently the sites supported are CurseForge (also called "cf"), Modrinth, and Planet Minecraft (also called "pmc").

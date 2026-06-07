@@ -19,6 +19,12 @@
   `--force` should skip any interactive check.
   Modrinth is not a concern — its API rejects duplicate slugs cleanly.
 
+- **Modrinth world support**: MR does not yet have a `world` project type (feature request filed Dec 2025, no milestone).
+  `_MR_TYPE_MAP` and `WORLD` already exclude MR; re-add `modrinth` to `WORLD.supported_site_names` once MR ships the type.
+
+- **Mod specialized metadata per site**: Survey what mod-specific fields each site supports beyond the current neutral fields (`loaders`, `client_side`, `server_side`).
+  Check CF mod subcategories (IDs for Technology, Magic, Adventure, etc.), MR mod categories, and any mod-only API fields on either site.
+
 - **World/save specialized metadata per site**: Current world support covers only the fields shared with packs.
   Each site has world-specific metadata not yet implemented:
   - PMC: world genre categories (Adventure, Survival, Creation, Puzzle, etc. — need numeric IDs), Bedrock edition boolean, any other world-form-only fields
