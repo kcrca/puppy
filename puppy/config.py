@@ -98,7 +98,10 @@ class ConfigSynthesizer:
 
 def _apply_neutral_metadata(config: dict) -> dict:
     """Expand top-level neutral keys into per-site fields; per-site values win."""
+    from puppy.project_type import PROJECT_TYPES, PACK
     config = dict(config)
+    pt = PROJECT_TYPES.get(config.get('project_type', 'pack'), PACK)
+    config = pt.warn_inapplicable(config)
     links = config.get('links') or {}
     if isinstance(links, dict) and links.get('source'):
         config.setdefault('github', links['source'])

@@ -19,9 +19,7 @@ _MR_UA = 'puppy/1.0'
 _MR_TYPE_MAP = {
     'pack': 'resourcepack',
     'mod': 'mod',
-    'shader': 'shader',
     'world': 'world',
-    'datapack': 'datapack',
 }
 
 
@@ -180,7 +178,6 @@ class ModrinthSite(Site):
     label = 'Modrinth'
     template_ext = '.md'
     desc_exts = ['.md']
-    supported_types = frozenset(_MR_TYPE_MAP)
 
     def apply_neutral(self, config: dict) -> None:
         resolution = config.get('resolution')

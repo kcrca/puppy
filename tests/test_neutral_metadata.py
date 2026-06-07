@@ -210,10 +210,42 @@ def test_license_appears_on_cf_and_modrinth(project_env, run_puppy):
 # ── apply_env_sides ──────────────────────────────────────────────────────────
 
 def test_env_sides_passthrough_for_mod():
-    config = {'project_type': 'mod', 'client_side': 'optional', 'server_side': 'required'}
+    config = {'project_type': 'mod', 'client_side': 'optional', 'server_side': 'required', 'loaders': ['fabric']}
     result = apply_env_sides(config)
     assert result['client_side'] == 'optional'
     assert result['server_side'] == 'required'
+    assert result['loaders'] == ['fabric']
+
+
+def test_loaders_warns_and_strips_for_non_mod(capsys):
+    config = {'project_type': 'pack', 'loaders': ['fabric']}
+    result = apply_env_sides(config)
+    assert 'loaders' not in result
+    assert 'warning' in capsys.readouterr().out
+
+
+def test_loaders_warns_and_strips_for_world(capsys):
+    config = {'project_type': 'world', 'loaders': ['forge']}
+    result = apply_env_sides(config)
+    assert 'loaders' not in result
+    assert 'warning' in capsys.readouterr().out
+
+
+def test_resolution_warns_and_strips_for_mod(capsys):
+    config = _apply_neutral_metadata({'project_type': 'mod', 'resolution': 16})
+    assert 'resolution' not in config
+    assert 'warning' in capsys.readouterr().out
+
+
+def test_resolution_warns_and_strips_for_world(capsys):
+    config = _apply_neutral_metadata({'project_type': 'world', 'resolution': 32})
+    assert 'resolution' not in config
+    assert 'warning' in capsys.readouterr().out
+
+
+def test_resolution_no_warning_for_pack(capsys):
+    _apply_neutral_metadata({'project_type': 'pack', 'resolution': 16})
+    assert 'warning' not in capsys.readouterr().out
 
 
 def test_env_sides_warns_and_strips_for_pack(capsys):

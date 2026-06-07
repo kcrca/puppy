@@ -15,21 +15,10 @@ from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
 from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
 
-_EXPLICIT_ENV_TYPES = frozenset({'mod'})
-
-
 def apply_env_sides(config: dict) -> dict:
-    project_type = config.get('project_type', 'pack')
-    if project_type in _EXPLICIT_ENV_TYPES:
-        return config
-    offenders = [f for f in ('client_side', 'server_side') if f in config]
-    if not offenders:
-        return config
-    print(f'warning: client_side/server_side only apply to mods; ignored for project_type "{project_type}"')
-    config = dict(config)
-    for f in offenders:
-        del config[f]
-    return config
+    from puppy.project_type import PROJECT_TYPES, PACK
+    pt = PROJECT_TYPES.get(config.get('project_type', 'pack'), PACK)
+    return pt.warn_inapplicable(config)
 
 
 def run_push(

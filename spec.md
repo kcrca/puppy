@@ -11,7 +11,7 @@ It also simplifies some other things along the way.
 
 Puppy supports multiple project types; the `project_type` field in `puppy.yaml` declares what kind each project is (default: `pack`).
 Sites that do not support the current project type are silently skipped.
-CurseForge and Modrinth support `pack`, `mod`, and `world`; Modrinth additionally supports `shader` and `datapack`; PMC supports only `pack`.
+CurseForge and Modrinth support `pack`, `mod`, and `world`; PMC supports only `pack`.
 Each project is published across multiple sites.
 Typically this doc uses the term "project" except where talking about a pack in relation to its uploading and management, but not strictly.
 Currently the sites supported are CurseForge (also called "cf"), Modrinth, and Planet Minecraft (also called "pmc").
@@ -332,12 +332,12 @@ Examples:
 | `client_side: required/optional/unsupported` | adds game version ID 9638 (client env) if `required` or `optional` | `client_side` on project (create and update) | ignored |
 | `server_side: required/optional/unsupported` | adds game version ID 9639 (server env) if `required` or `optional` | `server_side` on project (create and update) | ignored |
 
-`client_side` and `server_side` should only be set when `project_type: mod`.
-For any other project type, setting them is an error — puppy prints a warning and ignores them.
-Each site applies its own type-appropriate defaults when these fields are absent.
+Each project type declares which neutral fields are valid for it.
+Setting a field that does not apply to the declared type prints a warning and ignores it.
+`client_side`, `server_side`, and `loaders` are valid only for `mod`.
+`resolution` and `progress` are valid only for `pack`.
 CF encodes client/server environment as special entries in its game version ID list, not as separate API fields.
-`loaders` is meaningful for `mod` and `modpack` project types.
-For resource packs, puppy defaults to `['minecraft']` on MR and omits loader IDs from CF file uploads.
+For resource packs and worlds, MR defaults to `['minecraft']` for the version loader and CF adds no loader IDs.
 
 
 ### Translation & Shielding

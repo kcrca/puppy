@@ -226,7 +226,6 @@ class CurseForgeSite(Site):
     label = 'CurseForge'
     template_ext = '.html'
     desc_exts = ['.html', '.md']
-    supported_types = frozenset(_CF_CLASS_IDS)
 
     def convert_md(self, text: str) -> str:
         return md_to_html(text)
