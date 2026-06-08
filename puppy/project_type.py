@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import NamedTuple
 
 _UNIVERSAL = frozenset({'license', 'title', 'links', 'after_push', 'video', 'credit', 'socials'})
-_PACK = frozenset({'resolution', 'progress'})
+_PACK = frozenset({'resolution', 'progress', 'bedrock'})
 _MOD = frozenset({'client_side', 'server_side', 'loaders'})
-_WORLD = frozenset({'progress'})
+_WORLD = frozenset({'progress', 'bedrock'})
 _ALL_NEUTRAL = _UNIVERSAL | _PACK | _MOD | _WORLD
 
 

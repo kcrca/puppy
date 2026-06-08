@@ -271,6 +271,9 @@ class PlanetMinecraftSite(Site):
         if progress is not None:
             pmc.setdefault('progress', int(progress))
 
+        if config.get('bedrock'):
+            pmc.setdefault('bedrock', True)
+
         credit = config.get('credit')
         if credit is not None:
             pmc.setdefault('credit', str(credit))
@@ -379,15 +382,18 @@ class PlanetMinecraftSite(Site):
                 for opt in ver_select.find_all('option')
                 if opt.get('value')
             ]
-            ver_options = [(v, n) for v, n in ver_options if n not in ('Bedrock', 'Dungeons')]
-            mc_spec = config.get('versions', {}).get('planetminecraft') or config.get('minecraft')
-            if isinstance(mc_spec, dict) and mc_spec.get('type') == 'exact':
-                target = str(mc_spec.get('version', ''))
-                op1 = next((v for v, n in ver_options if n == target), ver_options[0][0] if ver_options else None)
-            elif isinstance(mc_spec, str):
-                op1 = next((v for v, n in ver_options if n == mc_spec), ver_options[0][0] if ver_options else None)
-            elif ver_options:
-                op1 = ver_options[0][0]
+            if sc.get('bedrock'):
+                op1 = next((v for v, n in ver_options if 'bedrock' in n.lower()), None)
+            else:
+                ver_options = [(v, n) for v, n in ver_options if n not in ('Bedrock', 'Dungeons')]
+                mc_spec = config.get('versions', {}).get('planetminecraft') or config.get('minecraft')
+                if isinstance(mc_spec, dict) and mc_spec.get('type') == 'exact':
+                    target = str(mc_spec.get('version', ''))
+                    op1 = next((v for v, n in ver_options if n == target), ver_options[0][0] if ver_options else None)
+                elif isinstance(mc_spec, str):
+                    op1 = next((v for v, n in ver_options if n == mc_spec), ver_options[0][0] if ver_options else None)
+                elif ver_options:
+                    op1 = ver_options[0][0]
 
         tag_ids = []
         for tag in sc.get('tags', []):
@@ -437,6 +443,9 @@ class PlanetMinecraftSite(Site):
             for mod, on in (sc.get('modifies') or {}).items():
                 if on and mod in _PMC_MODIFIES:
                     fields.append(('folder_id[]', str(_PMC_MODIFIES[mod])))
+
+        if project_type == 'world' and sc.get('bedrock'):
+            fields.append(('platform', '2'))
 
         if op1:
             fields.append(('op1', op1))
@@ -561,7 +570,20 @@ class PlanetMinecraftSite(Site):
                 if on and mod in _PMC_MODIFIES:
                     fields.append(('folder_id[]', str(_PMC_MODIFIES[mod])))
 
-        if current_op1:
+        if project_type == 'world' and sc.get('bedrock'):
+            fields.append(('platform', '2'))
+
+        if sc.get('bedrock') and project_type == 'pack':
+            op1_select = soup.find('select', id='op1')
+            bedrock_op1 = None
+            if op1_select:
+                for opt in op1_select.find_all('option'):
+                    if 'bedrock' in opt.get_text(strip=True).lower():
+                        bedrock_op1 = opt.get('value')
+                        break
+            if bedrock_op1:
+                fields.append(('op1', bedrock_op1))
+        elif current_op1:
             fields.append(('op1', current_op1))
 
         video = sc.get('video') or config.get('video')
@@ -616,6 +638,12 @@ class PlanetMinecraftSite(Site):
                         key = lbl.get_text(strip=True).lower()
                         modifies[key] = inp.has_attr('checked')
 
+            op1_sel = soup.find('select', id='op1')
+            if op1_sel:
+                op1_opt = op1_sel.find('option', selected=True)
+                if op1_opt and 'bedrock' in op1_opt.get_text(strip=True).lower():
+                    pmc_result['bedrock'] = True
+
             if category:
                 pmc_result['category'] = category
             if resolution:
@@ -623,6 +651,11 @@ class PlanetMinecraftSite(Site):
             pmc_result['progress'] = progress
             if modifies:
                 pmc_result['modifies'] = modifies
+
+        if project_type == 'world':
+            bedrock_cb = soup.find('input', {'name': 'platform', 'value': '2'})
+            if bedrock_cb and bedrock_cb.has_attr('checked'):
+                pmc_result['bedrock'] = True
 
         credit_tag = soup.find('input', {'name': 'credit'})
         credit = credit_tag['value'] if credit_tag else ''

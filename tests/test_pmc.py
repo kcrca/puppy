@@ -331,6 +331,45 @@ def test_push_raises_system_exit_on_failure(tmp_path):
             )
 
 
+def test_push_bedrock_pack_uses_bedrock_op1(tmp_path):
+    icon = tmp_path / 'icon.png'
+    Image.new('RGB', (64, 64)).save(icon)
+    html = _EDIT_HTML.replace(
+        '<select id="op1"><option value="1.21" selected>1.21</option></select>',
+        '<select id="op1"><option value="1.21" selected>1.21</option><option value="bedrock-val">Minecraft Bedrock</option></select>',
+    )
+    responses = [_make_response(html), _make_response({'status': 'success'})]
+    config = {'name': 'Pack', 'planetminecraft': {'id': _PROJECT_ID, 'bedrock': True}}
+    with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
+        PMC.push(
+            project_id=_PROJECT_ID, config=config, description='',
+            icon_path=icon, logo_path=None, banner_path=None,
+            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+        )
+    update_req = mock_open.call_args_list[1][0][0]
+    assert b'bedrock-val' in update_req.data
+    assert b'1.21\r\n' not in update_req.data
+
+
+def test_push_bedrock_world_sends_platform_field(tmp_path):
+    icon = tmp_path / 'icon.png'
+    Image.new('RGB', (64, 64)).save(icon)
+    responses = [_make_response(_EDIT_HTML), _make_response({'status': 'success'})]
+    config = {
+        'name': 'Pack', 'project_type': 'world',
+        'planetminecraft': {'id': _PROJECT_ID, 'bedrock': True},
+    }
+    with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
+        PMC.push(
+            project_id=_PROJECT_ID, config=config, description='',
+            icon_path=icon, logo_path=None, banner_path=None,
+            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+        )
+    update_req = mock_open.call_args_list[1][0][0]
+    assert b'platform' in update_req.data
+    assert b'2' in update_req.data
+
+
 # ── 5. _run_pmc routing ──────────────────────────────────────────────────────
 
 def test_run_push_when_pmc_creds_present(push_env, run_puppy):
@@ -475,6 +514,37 @@ def test_pull_scrapes_name_and_video(tmp_path):
 
     assert result['config']['name'] == 'Test Pack'
     assert result['config']['video'] == 'dQw4w9WgXcQ'
+
+
+def test_pull_detects_bedrock_pack(tmp_path):
+    html = _PULL_HTML + '<select id="op1"><option value="bedrock-val" selected>Minecraft Bedrock</option></select>'
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(html)
+        result = PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False)
+    assert result['planetminecraft'].get('bedrock') is True
+
+
+def test_pull_no_bedrock_flag_for_java_pack(tmp_path):
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(_PULL_HTML)
+        result = PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False)
+    assert 'bedrock' not in result['planetminecraft']
+
+
+def test_pull_detects_bedrock_world(tmp_path):
+    html = _PULL_HTML + '<input type="checkbox" name="platform" value="2" checked>'
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(html)
+        result = PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False, project_type='world')
+    assert result['planetminecraft'].get('bedrock') is True
+
+
+def test_pull_no_bedrock_flag_for_java_world(tmp_path):
+    html = _PULL_HTML + '<input type="checkbox" name="platform" value="2">'
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(html)
+        result = PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False, project_type='world')
+    assert 'bedrock' not in result['planetminecraft']
 
 
 def test_pull_includes_image_entries_skipping_special(tmp_path):

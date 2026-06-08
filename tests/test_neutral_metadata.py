@@ -189,6 +189,32 @@ def test_links_source_cf_explicit_wins():
     assert config['curseforge']['links']['source'] == 'https://gitlab.com/me/mod'
 
 
+def test_bedrock_sets_pmc_bedrock():
+    config = _apply_neutral_metadata({'bedrock': True})
+    assert config['planetminecraft']['bedrock'] is True
+
+
+def test_bedrock_explicit_pmc_override_wins():
+    config = _apply_neutral_metadata({'bedrock': True, 'planetminecraft': {'bedrock': False}})
+    assert config['planetminecraft']['bedrock'] is False
+
+
+def test_bedrock_warns_for_mod(capsys):
+    config = _apply_neutral_metadata({'project_type': 'mod', 'bedrock': True})
+    assert 'bedrock' not in config
+    assert 'warning' in capsys.readouterr().out
+
+
+def test_bedrock_no_warning_for_pack(capsys):
+    _apply_neutral_metadata({'project_type': 'pack', 'bedrock': True})
+    assert 'warning' not in capsys.readouterr().out
+
+
+def test_bedrock_no_warning_for_world(capsys):
+    _apply_neutral_metadata({'project_type': 'world', 'bedrock': True})
+    assert 'warning' not in capsys.readouterr().out
+
+
 def test_socials_discord_sets_cf_social():
     config = _apply_neutral_metadata({'socials': {'discord': 'https://discord.gg/x'}})
     assert config['curseforge']['socials']['discord'] == 'https://discord.gg/x'

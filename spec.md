@@ -341,6 +341,7 @@ Examples:
 | `license: CC-BY-4.0` ([SPDX](https://spdx.org/licenses/)) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |
 | `resolution: 16` | `category: 16x` | full tier group (`16x: true`, others false) | `resolution: 16`, tags `16x` and `16x16` |
 | `progress: 100` | ignored | ignored | `progress: 100` |
+| `bedrock: true` | ignored (Bedrock is a separate CF site) | ignored (no Bedrock loader on MR) | pack: selects "Minecraft Bedrock" in version dropdown; world: checks "Bedrock Edition Map" |
 | `links.home: <url>` | `socials.website` | ignored | `website.link` |
 | `links.source: <url>` | source repo link | `source_url` | ignored |
 | `links.patreon/kofi/… (donation keys)` | first key as `{type: platform, value: url}` | all donation keys passed as `donation.*` (`github_sponsors` → `github`) | ignored |

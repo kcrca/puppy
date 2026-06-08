@@ -19,8 +19,9 @@
   `--force` should skip any interactive check.
   Modrinth is not a concern — its API rejects duplicate slugs cleanly.
 
-- **Modrinth world support**: MR does not yet have a `world` project type (feature request filed Dec 2025, no milestone).
-  `_MR_TYPE_MAP` and `WORLD` already exclude MR; re-add `modrinth` to `WORLD.supported_site_names` once MR ships the type.
+- **CurseForge Bedrock support**: Investigate whether the `minecraft/texture-packs` and `minecraft/worlds` sections on CF allow Bedrock version IDs in the `gameVersions` list on file uploads.
+  Check the game versions API response (with a real token) for Bedrock version entries alongside Java versions.
+  If supported, wire `bedrock: true` neutral field to CF file upload.
 
 - **Modrinth resolution field**: Replace the current per-tier boolean approach (`16x: true`, `32x: false`, etc.) with a single `modrinth.resolution` field that accepts one value or a list.
   If not present, infer from neutral `resolution`.
@@ -28,7 +29,7 @@
 
 - **World/save specialized metadata per site**: Current world support covers only the fields shared with packs.
   Each site has world-specific metadata not yet implemented:
-  - PMC: world genre categories (Adventure, Survival, Creation, Puzzle, etc. — need numeric IDs), Bedrock edition boolean, any other world-form-only fields
+  - PMC: world genre categories (Adventure, Survival, Creation, Puzzle, etc. — need numeric IDs), any other world-form-only fields
   - CF: verify correct world subcategory IDs and any world-specific API fields
   - MR: verify world-specific categories and any other world-only fields
   Audit each site's world create/edit form before implementing.
