@@ -31,10 +31,13 @@ def _ctx_mock(cf=CF_COOKIES, pmc=PMC_COOKIES):
 @pytest.fixture()
 def auth_run(tmp_path):
     """Returns a helper that calls run_auth with a mocked browser context."""
+    puppy_dir = tmp_path / 'puppy'
+    puppy_dir.mkdir()
+
     def _run(site=None, ctx=None, initial_auth=None, puppy_yaml=None):
-        (tmp_path / 'puppy.yaml').write_text(puppy_yaml or '')
+        (puppy_dir / 'puppy.yaml').write_text(puppy_yaml or '')
         if initial_auth:
-            (tmp_path / 'auth.yaml').write_text(yaml.dump(initial_auth))
+            (puppy_dir / 'auth.yaml').write_text(yaml.dump(initial_auth))
 
         mock_ctx = ctx if ctx is not None else _ctx_mock()
         mock_p = MagicMock()
@@ -49,7 +52,7 @@ def auth_run(tmp_path):
             except SystemExit as e:
                 exit_code = e.code if isinstance(e.code, int) else 1
 
-        auth_file = tmp_path / 'auth.yaml'
+        auth_file = puppy_dir / 'auth.yaml'
         auth = yaml.safe_load(auth_file.read_text()) if auth_file.exists() else {}
         return auth, exit_code
 
@@ -121,7 +124,7 @@ def test_no_token_warning_for_excluded_site(auth_run, capsys):
 
 def test_gitignore_updated(auth_run, tmp_path):
     auth_run(site='cf')
-    gitignore = tmp_path / '.gitignore'
+    gitignore = tmp_path / 'puppy' / '.gitignore'
     assert gitignore.exists()
     assert 'auth.yaml' in gitignore.read_text()
 

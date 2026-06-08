@@ -4,6 +4,17 @@ from pathlib import Path
 from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
 
 
+def find_puppy_home(directory: Path) -> Path | None:
+    if (directory / 'puppy' / 'puppy.yaml').exists():
+        return directory / 'puppy'
+    for candidate in [directory, *directory.parents]:
+        if candidate.name == 'puppy' and (candidate / 'puppy.yaml').exists():
+            return candidate
+        if candidate == candidate.parent:
+            break
+    return None
+
+
 def _slugify(name: str) -> str:
     return re.sub(r'[^a-z0-9]', '', name.lower())
 

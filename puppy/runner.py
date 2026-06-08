@@ -5,7 +5,7 @@ from pathlib import Path
 
 from puppy.checks import check_auth, check_preflight
 from puppy.config import ConfigSynthesizer, _load_yaml, build_projects_context
-from puppy.core import Project
+from puppy.core import Project, find_puppy_home
 from puppy.puller import run_pull
 from puppy.init import run_init
 from puppy.preview import generate as generate_preview
@@ -38,31 +38,17 @@ def _resolve_projects(puppy_home: Path) -> list[Path]:
 
 
 def _determine_roots(directory: Path) -> tuple[Path, list[Path]]:
-    """Return (puppy_home, [project_roots]).
-
-    Finds the puppy home by locating auth.yaml: either one level down
-    (global root) or by walking up from the current directory.
-    Works from the global root, the puppy home, or anywhere beneath it.
-    """
-    # Global root: auth.yaml is inside a puppy/ subdir
-    if (directory / 'puppy' / 'auth.yaml').exists():
-        puppy_home = directory / 'puppy'
+    puppy_home = find_puppy_home(directory)
+    if not puppy_home:
+        raise SystemExit(
+            f'Cannot determine project structure from {directory}\n'
+            'Run from the global root, puppy home, or anywhere beneath it.'
+        )
+    if directory == puppy_home or directory == puppy_home.parent:
         return puppy_home, _resolve_projects(puppy_home)
-
-    # Walk up to find the puppy home
-    for candidate in [directory, *directory.parents]:
-        if (candidate / 'auth.yaml').exists() and (candidate / 'puppy.yaml').exists():
-            puppy_home = candidate
-            if directory == puppy_home:
-                return puppy_home, _resolve_projects(puppy_home)
-            rel = directory.relative_to(puppy_home)
-            project_root = puppy_home / rel.parts[0]
-            return puppy_home, [project_root]
-
-    raise SystemExit(
-        f'Cannot determine project structure from {directory}\n'
-        'Run from the global root, puppy home, or anywhere beneath it.'
-    )
+    rel = directory.relative_to(puppy_home)
+    project_root = puppy_home / rel.parts[0]
+    return puppy_home, [project_root]
 
 
 

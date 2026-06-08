@@ -95,7 +95,7 @@ Puppy has the following actions:
   Description body text pulled varies by platform:
   * *Modrinth:* Full description body pulled via API. This md file is put in the site home.
   * *CurseForge:* Full HTML description pulled via `api.curseforge.com/v1/mods/{id}/description` using the API token. Saved to `curseforge/description.html`.
-  * *Planet Minecraft:* No description pulled. Manually paste content into `puppy/planetminecraft/description.bbcode`.
+  * *Planet Minecraft:* Full BBCode description pulled via Playwright (headless Firefox with stored cookie), saved to `planetminecraft/description.bbcode`.
 * **`create`:** Creates the pack project on each site, then automatically runs `pull` to harvest the site-assigned ID, slug, and any defaults back into `puppy.yaml`.
   Prompts for confirmation unless `-f/--force` is given.
   Per-site errors do not abort the other sites.

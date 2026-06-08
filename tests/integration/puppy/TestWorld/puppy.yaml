@@ -1,0 +1,5 @@
+name: Puppy Integration Test World
+summary: A minimal world for puppy integration testing.
+project_type: world
+license: MIT
+progress: 50

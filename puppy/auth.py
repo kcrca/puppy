@@ -5,6 +5,8 @@ from pathlib import Path
 import yaml
 from playwright.sync_api import sync_playwright
 
+from puppy.core import find_puppy_home
+
 _CF_URL = 'https://authors.curseforge.com'
 _PMC_URL = 'https://www.planetminecraft.com'
 
@@ -116,17 +118,6 @@ def _check_missing_tokens(auth: dict, site_names: list[str]) -> None:
             print(f'{site} token not set — add to auth.yaml', flush=True)
 
 
-def _find_puppy_home(directory: Path) -> Path:
-    if (directory / 'puppy' / 'puppy.yaml').exists():
-        return directory / 'puppy'
-    for candidate in [directory, *directory.parents]:
-        if (candidate / 'puppy.yaml').exists():
-            return candidate
-        if candidate == candidate.parent:
-            break
-    return directory
-
-
 def _load_auth(puppy_home: Path) -> dict:
     auth_file = puppy_home / 'auth.yaml'
     if auth_file.exists():
@@ -150,7 +141,12 @@ def _ensure_gitignored(puppy_home: Path) -> None:
 
 
 def run_auth(site: str | None, directory: Path) -> None:
-    puppy_home = _find_puppy_home(directory)
+    puppy_home = find_puppy_home(directory)
+    if not puppy_home:
+        raise SystemExit(
+            f'Cannot find puppy home from {directory}\n'
+            'Run from inside a directory named "puppy" that contains puppy.yaml.'
+        )
     site_names = _resolve_sites(site, puppy_home)
     auth = _load_auth(puppy_home)
 

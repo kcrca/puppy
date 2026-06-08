@@ -1,0 +1,7 @@
+name: Puppy Integration Test Mod
+summary: A minimal mod for puppy integration testing.
+project_type: mod
+license: MIT
+loaders: [fabric]
+client_side: required
+server_side: optional

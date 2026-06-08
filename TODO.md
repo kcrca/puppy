@@ -45,12 +45,12 @@
 
 ## Known Limitations
 
-- **PMC description pull**: PMC blocks non-browser HTTP, so the description can't be fetched.
-  No workaround currently — users must paste content manually into `puppy/planetminecraft/description.bbcode`.
-
 ## Testing Gaps
 
 - **API mocks**: Add reusable fixtures that intercept `urllib.request.urlopen` calls to `api.modrinth.com`, `authors.curseforge.com`, and the CF description API.
   Would let tests cover `needs_upload`, `resolve_id`, and donation/tag expansion without hitting the network.
 
-- **Integration tests on live sites**: End-to-end `create`, `pull`, and `push --pack` against real CurseForge, Modrinth, and PMC accounts.
+- **Integration tests on live sites**: Framework in place (`tests/integration/`).
+  Add `tests/integration/auth.yaml` with test account credentials and run `pytest tests/integration/`.
+  CF and PMC tests need manual project cleanup after each run (no delete API).
+  Investigate CF and PMC delete endpoints to automate cleanup.

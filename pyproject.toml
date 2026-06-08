@@ -39,5 +39,10 @@ include = ["puppy*"]
 Repository = "https://github.com/kenarnold/puppy"
 "Bug Tracker" = "https://github.com/kenarnold/puppy/issues"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--ignore=tests/integration"
+markers = ["integration: live-network tests requiring site credentials in tests/integration/auth.yaml"]
+
 [tool.ruff.format]
 quote-style = "single"

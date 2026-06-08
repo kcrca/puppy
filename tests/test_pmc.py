@@ -23,6 +23,11 @@ _PACK = 'neonglow'
 _VERSION = '1.0.0'
 
 
+@pytest.fixture(autouse=True)
+def _no_pmc_description(monkeypatch):
+    monkeypatch.setattr('puppy.sites.planetminecraft._pmc_fetch_description', lambda *a, **k: None)
+
+
 @pytest.fixture
 def push_pack_env(project_env):
     source = project_env['project']
@@ -605,6 +610,26 @@ def test_pull_includes_project_id(tmp_path):
         result = PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False)
 
     assert result['planetminecraft']['id'] == _PROJECT_ID
+
+
+def test_pull_writes_description_bbcode(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        'puppy.sites.planetminecraft._pmc_fetch_description',
+        lambda *a, **k: '[b]Hello[/b]',
+    )
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(_PULL_HTML)
+        PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False)
+
+    assert (tmp_path / 'description.bbcode').read_text() == '[b]Hello[/b]'
+
+
+def test_pull_no_description_file_when_unavailable(tmp_path):
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(_PULL_HTML)
+        PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False)
+
+    assert not (tmp_path / 'description.bbcode').exists()
 
 
 # ── 7. _run_pmc_pull routing ─────────────────────────────────────────────────

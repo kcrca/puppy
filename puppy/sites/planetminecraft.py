@@ -66,6 +66,30 @@ def _pmc_get_page(project_id, cookie: str, project_type: str = 'pack') -> tuple[
     return soup, tag['content']
 
 
+def _pmc_fetch_description(project_id, cookie: str, project_type: str = 'pack') -> str | None:
+    from playwright.sync_api import sync_playwright
+    manage = _pmc_manage_path(project_type)
+    url = f'{_PMC_BASE}{manage}{project_id}/'
+    name, _, value = cookie.partition('=')
+    try:
+        with sync_playwright() as p:
+            browser = p.firefox.launch(headless=True)
+            ctx = browser.new_context()
+            ctx.add_cookies([{
+                'name': name.strip(),
+                'value': value.strip(),
+                'domain': 'www.planetminecraft.com',
+                'path': '/',
+            }])
+            page = ctx.new_page()
+            page.goto(url, wait_until='networkidle')
+            text = page.eval_on_selector('textarea[name="description"]', 'el => el.value')
+            browser.close()
+            return text or None
+    except Exception:
+        return None
+
+
 def _pmc_url_to_filename(url: str) -> str:
     stem = url.split('?')[0].rsplit('/', 1)[-1].rsplit('.', 1)[0]
     if stem.endswith(('_s', '_l')):
@@ -724,6 +748,15 @@ class PlanetMinecraftSite(Site):
                         print(f'    failed to download: {item["file"]}')
 
         image_entries = [{'file': item['file'], 'description': item['description']} for item in image_items]
+
+        desc_file = puppy_dir / 'description.bbcode'
+        if verbosity >= 1:
+            print('  [PlanetMinecraft] fetching description')
+        desc = _pmc_fetch_description(project_id, cookie, project_type)
+        if desc:
+            desc_file.write_text(desc)
+        elif verbosity >= 1:
+            print('  [PlanetMinecraft] description unavailable — paste manually into description.bbcode')
 
         config_result: dict = {'images': image_entries}
         if name:
