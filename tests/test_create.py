@@ -98,10 +98,10 @@ def test_mr_create_tries_next_slug_on_collision():
     # (checked in the POST response above)
 
 
-def test_mr_create_sends_categories_from_tags():
+def test_mr_create_sends_categories_from_resolution():
     config = {
         'name': 'Pack', 'pack': 'pk',
-        'modrinth': {'slug': 'pk', 'tags': {'16x': True, '32x': False, 'realistic': True}},
+        'modrinth': {'slug': 'pk', 'resolution': '16x', 'category': 'realistic'},
     }
     responses = [
         _make_http_error(404, ''),

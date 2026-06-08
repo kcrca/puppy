@@ -23,10 +23,6 @@
   Check the game versions API response (with a real token) for Bedrock version entries alongside Java versions.
   If supported, wire `bedrock: true` neutral field to CF file upload.
 
-- **Modrinth resolution field**: Replace the current per-tier boolean approach (`16x: true`, `32x: false`, etc.) with a single `modrinth.resolution` field that accepts one value or a list.
-  If not present, infer from neutral `resolution`.
-  If present and the neutral `resolution` value is not in the list, warn ("adding 16x from neutral resolution") and add it.
-
 - **World/save specialized metadata per site**: Current world support covers only the fields shared with packs.
   Each site has world-specific metadata not yet implemented:
   - PMC: world genre categories (Adventure, Survival, Creation, Puzzle, etc. — need numeric IDs), any other world-form-only fields

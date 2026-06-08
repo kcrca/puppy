@@ -318,9 +318,13 @@ Strict boundary check ensures `1.2` does not match `1.2.4`.
 Certain properties are intrinsic to the project and should not need to be repeated under each site's config block.
 Puppy translates top-level neutral keys to each site's native representation when staging.
 A neutral key sets the *entire group* of related per-site fields:
-For example, `resolution: 16` sets the Modrinth resolution tier tags `16x` to true, all others false, sets CF `category: 16x`, sets PMC `resolution: 16`, and adds `16x` and `16x16` to PMC tags.
+For example, `resolution: 16` sets `modrinth.resolution: '16x'`, sets CF `category: 16x`, sets PMC `resolution: 16`, and adds `16x` and `16x16` to PMC tags.
 There is no need to specify these in the site blocks unless overriding.
 Per-site overrides in `curseforge`, `modrinth`, `planetminecraft` blocks overwrite values set from neutral keys — explicit per-site values are never overwritten.
+`modrinth.resolution` accepts a single tier string (e.g. `'16x'`) or a list.
+Valid tiers: `8x-`, `16x`, `32x`, `48x`, `64x`, `128x`, `256x`, `512x+`.
+A bare integer is also accepted and is normalized to `{n}x`.
+If both neutral `resolution` and `modrinth.resolution` are set, the neutral tier is appended to the explicit list if not already present, with a warning.
 Site-specific fields with no neutral equivalent (e.g. CF `category`, PMC `modifies`, PMC `tags`, PMC `alt_download`) should list all options explicitly so intent is clear.
 `planetminecraft.alt_download` sets the external download URL shown on PMC (PMC-specific because CF and Modrinth host files themselves).
 `curseforge.category` accepts a single name or a list; the first becomes `primaryCategoryId`, the rest become `subCategoryIds`.
@@ -339,7 +343,7 @@ Examples:
 | `loaders: [fabric, forge, neoforge, quilt]` | resolved as game version IDs via CF API; added to version file upload | `loaders` on version upload | ignored |
 | `title: <string>` | ignored | ignored | overrides `name` as displayed project title |
 | `license: CC-BY-4.0` ([SPDX](https://spdx.org/licenses/)) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |
-| `resolution: 16` | `category: 16x` | full tier group (`16x: true`, others false) | `resolution: 16`, tags `16x` and `16x16` |
+| `resolution: 16` | `category: 16x` | `resolution: '16x'` | `resolution: 16`, tags `16x` and `16x16` |
 | `progress: 100` | ignored | ignored | `progress: 100` |
 | `bedrock: true` | ignored (Bedrock is a separate CF site) | ignored (no Bedrock loader on MR) | pack: selects "Minecraft Bedrock" in version dropdown; world: checks "Bedrock Edition Map" |
 | `links.home: <url>` | `socials.website` | ignored | `website.link` |

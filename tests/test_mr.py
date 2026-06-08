@@ -107,7 +107,7 @@ def test_update_project_sends_correct_json_fields():
     sc = {
         'name': 'My Pack',
         'summary': 'A cool pack',
-        'tags': {'16x': True, '32x': False},
+        'resolution': '16x',
         'donation': {'patreon': 'https://patreon.com/me'},
         'discord': 'https://discord.gg/x',
     }
@@ -370,7 +370,7 @@ def test_pull_fetches_project_and_writes_description(tmp_path):
     assert result['modrinth']['id'] == 'abc123'
     assert result['modrinth']['slug'] == 'mypack'
     assert result['modrinth']['donation'] == {'patreon': 'https://patreon.com/me'}
-    assert result['modrinth']['tags'] == {'16x': True}
+    assert result['modrinth']['resolution'] == ['16x']
     assert result['modrinth']['category'] == ['realistic']
 
 

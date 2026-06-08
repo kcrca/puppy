@@ -11,13 +11,9 @@ def test_resolution_cf_category():
     assert config['curseforge']['category'] == '16x'
 
 
-def test_resolution_modrinth_tags_tier_group():
+def test_resolution_modrinth_resolution_field():
     config = _apply_neutral_metadata({'resolution': 16})
-    tags = config['modrinth']['tags']
-    assert tags['16x'] is True
-    assert tags['8x-'] is False
-    assert tags['32x'] is False
-    assert tags['512x+'] is False
+    assert config['modrinth']['resolution'] == '16x'
 
 
 def test_resolution_pmc_field_and_tags():
@@ -40,22 +36,21 @@ def test_per_site_override_wins_over_neutral():
     config = _apply_neutral_metadata(
         {
             'resolution': 16,
-            'modrinth': {'tags': {'16x': False}},
+            'modrinth': {'resolution': '32x'},
         }
     )
-    assert config['modrinth']['tags']['16x'] is False
+    assert config['modrinth']['resolution'] == ['32x', '16x']
     assert config['curseforge']['category'] == '16x'
 
 
-def test_explicit_extra_resolution_tag_preserved():
+def test_explicit_extra_resolution_preserved():
     config = _apply_neutral_metadata(
         {
             'resolution': 16,
-            'modrinth': {'tags': {'8x-': True}},
+            'modrinth': {'resolution': ['8x-', '16x']},
         }
     )
-    assert config['modrinth']['tags']['8x-'] is True
-    assert config['modrinth']['tags']['16x'] is True
+    assert config['modrinth']['resolution'] == ['8x-', '16x']
 
 
 def test_explicit_cf_main_category_preserved():

@@ -140,15 +140,20 @@ def _mr_resolve_game_versions(spec: dict, auth: dict) -> list[str]:
     return []
 
 
+def _mr_normalize_resolution(value) -> list[str]:
+    items = [value] if not isinstance(value, list) else value
+    return [f'{r}x' if str(r).isdigit() else str(r) for r in items]
+
+
 def _mr_build_categories(sc: dict) -> list[str]:
-    tags = [k for k, v in sc.get('tags', {}).items() if v]
+    resolution = sc.get('resolution')
+    cats = _mr_normalize_resolution(resolution) if resolution is not None else []
     raw = sc.get('category')
     if raw is not None:
-        extra = [raw] if isinstance(raw, str) else list(raw)
-        for c in extra:
-            if c not in tags:
-                tags.append(c)
-    return tags
+        for c in ([raw] if isinstance(raw, str) else list(raw)):
+            if c not in cats:
+                cats.append(c)
+    return cats
 
 
 # Reverse map: Modrinth donation platform id → puppy key
@@ -195,10 +200,16 @@ class ModrinthSite(Site):
     def apply_neutral(self, config: dict) -> None:
         resolution = config.get('resolution')
         if resolution is not None:
-            res = str(resolution)
-            tags = config.setdefault('modrinth', {}).setdefault('tags', {})
-            for tier in ['8x-', '16x', '32x', '48x', '64x', '128x', '256x', '512x+']:
-                tags.setdefault(tier, tier == f'{res}x')
+            neutral_tier = f'{resolution}x'
+            mr = config.setdefault('modrinth', {})
+            existing = mr.get('resolution')
+            if existing is None:
+                mr['resolution'] = neutral_tier
+            else:
+                existing_list = _mr_normalize_resolution(existing)
+                if neutral_tier not in existing_list:
+                    print(f'warning: adding {neutral_tier} from neutral resolution to modrinth.resolution')
+                    mr['resolution'] = existing_list + [neutral_tier]
 
         license_ = config.get('license')
         if license_:
@@ -221,9 +232,9 @@ class ModrinthSite(Site):
 
     def preview_rows(self, sc: dict) -> list[tuple[str, str]]:
         rows = []
-        active_tags = [k for k, v in sc.get('tags', {}).items() if v]
-        if active_tags:
-            rows.append(('Tags', ', '.join(active_tags)))
+        resolution = sc.get('resolution')
+        if resolution is not None:
+            rows.append(('Resolution', ', '.join(_mr_normalize_resolution(resolution))))
         if sc.get('category'):
             raw = sc['category']
             rows.append(('Category', ', '.join([raw] if isinstance(raw, str) else raw)))
@@ -602,7 +613,7 @@ class ModrinthSite(Site):
         }
 
         all_cats = data.get('categories') or []
-        tags = {cat: True for cat in all_cats if cat in _MR_RESOLUTION_TIERS}
+        resolution = [cat for cat in all_cats if cat in _MR_RESOLUTION_TIERS]
         category = [cat for cat in all_cats if cat not in _MR_RESOLUTION_TIERS]
 
         return {
@@ -618,7 +629,7 @@ class ModrinthSite(Site):
                 'id': data['id'],
                 'slug': data['slug'],
                 'donation': donation or None,
-                'tags': tags or None,
+                'resolution': resolution if resolution else None,
                 'category': category if category else None,
             },
         }
