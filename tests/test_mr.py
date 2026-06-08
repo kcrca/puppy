@@ -376,6 +376,24 @@ def test_pull_fetches_project_and_writes_description(tmp_path):
     assert result['modrinth']['category'] == ['realistic']
 
 
+def test_pull_reads_resolution_from_additional_categories(tmp_path):
+    project_data = {
+        'id': 'abc123', 'slug': 'mypack',
+        'title': 'My Pack', 'description': 'A cool pack',
+        'body': '', 'icon_url': None, 'gallery': [],
+        'license': None, 'issues_url': None, 'source_url': None,
+        'wiki_url': None, 'discord_url': None, 'donation_urls': [],
+        'categories': ['blocks', 'simplistic'],
+        'additional_categories': ['16x'],
+    }
+
+    with patch('urllib.request.urlopen', side_effect=[_make_response(project_data)]):
+        result = MODRINTH.pull('mypack', _AUTH, tmp_path, images=False)
+
+    assert result['modrinth']['resolution'] == ['16x']
+    assert result['modrinth']['category'] == ['blocks', 'simplistic']
+
+
 def test_pull_downloads_gallery_images(tmp_path):
     gallery = [
         {'url': 'https://cdn.modrinth.com/img1.jpg', 'title': 'img1.jpg', 'description': ''},

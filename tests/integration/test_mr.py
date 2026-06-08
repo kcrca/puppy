@@ -14,6 +14,16 @@ def test_pack_lifecycle(mr_auth, make_home, inject_slug, run_cli):
     assert config.get('modrinth', {}).get('id'), 'modrinth.id not set after create'
     assert config['modrinth'].get('slug') == slug
 
+    # Step 6: pull and verify harvested fields
+    run_cli(project_dir, 'pull', '--site', 'modrinth')
+
+    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
+    assert config['modrinth'].get('id'), 'modrinth.id missing after pull'
+    assert config['modrinth'].get('slug') == slug
+    assert config.get('name'), 'name not harvested after pull'
+    assert config.get('summary'), 'summary not harvested after pull'
+    assert config['modrinth'].get('category'), 'category not harvested after pull'
+
 
 def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli):
     home, project_dir = make_home('mod', {'modrinth': mr_auth['modrinth']})
@@ -24,3 +34,13 @@ def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli):
     config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
     assert config.get('modrinth', {}).get('id'), 'modrinth.id not set after create'
     assert config['modrinth'].get('slug') == slug
+
+    # Step 6: pull and verify harvested fields
+    run_cli(project_dir, 'pull', '--site', 'modrinth')
+
+    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
+    assert config['modrinth'].get('id'), 'modrinth.id missing after pull'
+    assert config['modrinth'].get('slug') == slug
+    assert config.get('name'), 'name not harvested after pull'
+    assert config.get('summary'), 'summary not harvested after pull'
+    assert config['modrinth'].get('category'), 'category not harvested after pull'
