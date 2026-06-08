@@ -63,11 +63,9 @@ def run_create(
     puppy_home: Path,
     auth: dict,
     site: str | None,
-    images: bool,
     verbosity: int,
 ) -> None:
     from puppy.errors import AuthExpiredError
-    from puppy.syncer import run_push
 
     puppy_dir = project.puppy_dir
     icon = _resolve_asset(config.get('icon'), puppy_dir, _find_icon, config)
@@ -135,20 +133,6 @@ def run_create(
             raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}) — run: puppy auth --site pmc')
         _update_config(puppy_yaml, 'planetminecraft', result)
         config.setdefault('planetminecraft', {}).update(result)
-
-    # Push to populate descriptions, icon, gallery, details
-    run_push(
-        project=project,
-        config=config,
-        puppy_home=puppy_home,
-        site=site,
-        version=None,
-        pack=False,
-        force=False,
-        images=images,
-        verbosity=verbosity,
-        auth=auth,
-    )
 
     if verbosity >= 1:
         print(f'[{project.name}] create complete')

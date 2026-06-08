@@ -280,7 +280,6 @@ def _dispatch(
             puppy_home=puppy_home,
             auth=auth,
             site=site,
-            images=images,
             verbosity=verbosity,
         )
     elif action == 'pull':

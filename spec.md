@@ -96,7 +96,8 @@ Puppy has the following actions:
   * *Modrinth:* Full description body pulled via API. This md file is put in the site home.
   * *CurseForge:* Full HTML description pulled via `api.curseforge.com/v1/mods/{id}/description` using the API token. Saved to `curseforge/description.html`.
   * *Planet Minecraft:* Full BBCode description pulled via Playwright (headless Firefox with stored cookie), saved to `planetminecraft/description.bbcode`.
-* **`create`:** Creates the pack project on each site, then automatically runs `pull` to harvest the site-assigned ID, slug, and any defaults back into `puppy.yaml`.
+* **`create`:** Creates the pack project on each site and writes the site-assigned ID and slug back to `puppy.yaml`.
+  Does not push description body, icon, or gallery — those are uploaded by `push`.
   Prompts for confirmation unless `-f/--force` is given.
   Per-site errors do not abort the other sites.
 
@@ -305,7 +306,7 @@ If the file cannot be found or converted, Puppy exits with an error.
 If there is a `projects` field in {{puppy}}/puppy.yaml, puppy iterates through these sequentially, unless specific projects are given on the command line.
 
 ### State Harvesting
-After `pull` (and after the implicit pull that follows `create`), platform IDs, slugs, and full metadata are written back to the project's `puppy.yaml`.
+After `pull`, platform IDs, slugs, and full metadata are written back to the project's `puppy.yaml`.
 If pulled, images and their metadata are written to `{{project}}/images/` and `{{project}}/images/images.yaml` respectively.
 Leading and trailing underscores are stripped from image filenames on harvest.
 

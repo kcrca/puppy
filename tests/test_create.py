@@ -367,11 +367,10 @@ def test_run_create_calls_site_create_and_writes_ids(create_env, monkeypatch):
     monkeypatch.setattr('puppy.creator.CURSEFORGE.create', lambda **k: {'id': 111, 'slug': 'mypack'})
     monkeypatch.setattr('puppy.creator.MODRINTH.create', lambda **k: {'id': 'abc', 'slug': 'mypack'})
     monkeypatch.setattr('puppy.creator.PMC.create', lambda **k: {'id': 42, 'slug': 'mypack'})
-    monkeypatch.setattr('puppy.syncer.run_push', lambda **k: None)
 
     run_create(
         project=project, config=config, puppy_home=home,
-        auth=auth, site=None, images=False, verbosity=0,
+        auth=auth, site=None, verbosity=0,
     )
 
     saved = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
@@ -403,11 +402,10 @@ def test_run_create_skips_sites_with_existing_id(create_env, monkeypatch):
                         lambda **k: mr_create_calls.append(k) or {'id': 'new', 'slug': 'x'})
     monkeypatch.setattr('puppy.creator.CURSEFORGE.create', lambda **k: {'id': 222, 'slug': 'mypack'})
     monkeypatch.setattr('puppy.creator.PMC.create', lambda **k: {'id': 43, 'slug': 'mypack'})
-    monkeypatch.setattr('puppy.syncer.run_push', lambda **k: None)
 
     run_create(
         project=project, config=config, puppy_home=home,
-        auth=auth, site=None, images=False, verbosity=0,
+        auth=auth, site=None, verbosity=0,
     )
 
     assert mr_create_calls == []  # MR already had an id, skipped
@@ -427,30 +425,5 @@ def test_run_create_missing_mr_credentials_raises(create_env, monkeypatch):
         run_create(
             project=project, config=config, puppy_home=home,
             auth={},  # no credentials
-            site='modrinth', images=False, verbosity=0,
+            site='modrinth', verbosity=0,
         )
-
-
-def test_run_create_calls_run_push_at_end(create_env, monkeypatch):
-    from puppy.config import ConfigSynthesizer
-    from puppy.core import Project
-    from puppy.creator import run_create
-
-    home = create_env['home']
-    project_dir = create_env['project']
-    config = ConfigSynthesizer(home, project_dir).get_running_config()
-    project = Project.from_config(project_dir, config, dry_run=False)
-    auth = yaml.safe_load((home / 'auth.yaml').read_text())
-
-    push_calls = []
-    monkeypatch.setattr('puppy.creator.CURSEFORGE.create', lambda **k: {'id': 1, 'slug': 's'})
-    monkeypatch.setattr('puppy.creator.MODRINTH.create', lambda **k: {'id': 'a', 'slug': 's'})
-    monkeypatch.setattr('puppy.creator.PMC.create', lambda **k: {'id': 2, 'slug': 's'})
-    monkeypatch.setattr('puppy.syncer.run_push', lambda **k: push_calls.append(k))
-
-    run_create(
-        project=project, config=config, puppy_home=home,
-        auth=auth, site=None, images=False, verbosity=0,
-    )
-
-    assert len(push_calls) == 1
