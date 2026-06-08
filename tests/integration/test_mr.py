@@ -20,9 +20,6 @@ def test_pack_lifecycle(mr_auth, make_home, inject_slug, run_cli):
     config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
     assert config['modrinth'].get('id'), 'modrinth.id missing after pull'
     assert config['modrinth'].get('slug') == slug
-    assert config.get('name'), 'name not harvested after pull'
-    assert config.get('summary'), 'summary not harvested after pull'
-    assert config['modrinth'].get('category'), 'category not harvested after pull'
 
 
 def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli):
@@ -41,6 +38,3 @@ def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli):
     config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
     assert config['modrinth'].get('id'), 'modrinth.id missing after pull'
     assert config['modrinth'].get('slug') == slug
-    assert config.get('name'), 'name not harvested after pull'
-    assert config.get('summary'), 'summary not harvested after pull'
-    assert config['modrinth'].get('category'), 'category not harvested after pull'

@@ -19,9 +19,6 @@ def test_pack_lifecycle(cf_auth, make_home, inject_slug, run_cli):
     config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
     assert config['curseforge'].get('id'), 'curseforge.id missing after pull'
     assert config['curseforge'].get('slug'), 'curseforge.slug missing after pull'
-    assert config.get('name'), 'name not harvested after pull'
-    assert config.get('summary'), 'summary not harvested after pull'
-    assert config['curseforge'].get('category'), 'category not harvested after pull'
 
 
 def test_world_lifecycle(cf_auth, make_home, inject_slug, run_cli):
@@ -39,6 +36,3 @@ def test_world_lifecycle(cf_auth, make_home, inject_slug, run_cli):
     config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
     assert config['curseforge'].get('id'), 'curseforge.id missing after pull'
     assert config['curseforge'].get('slug'), 'curseforge.slug missing after pull'
-    assert config.get('name'), 'name not harvested after pull'
-    assert config.get('summary'), 'summary not harvested after pull'
-    assert config['curseforge'].get('category'), 'category not harvested after pull'

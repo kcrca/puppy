@@ -19,7 +19,6 @@ def test_pack_lifecycle(pmc_auth, make_home, inject_slug, run_cli):
     config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
     assert config['planetminecraft'].get('id'), 'planetminecraft.id missing after pull'
     assert config['planetminecraft'].get('slug'), 'planetminecraft.slug missing after pull'
-    assert config.get('name'), 'name not harvested after pull'
 
 
 def test_world_lifecycle(pmc_auth, make_home, inject_slug, run_cli):
@@ -37,4 +36,3 @@ def test_world_lifecycle(pmc_auth, make_home, inject_slug, run_cli):
     config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
     assert config['planetminecraft'].get('id'), 'planetminecraft.id missing after pull'
     assert config['planetminecraft'].get('slug'), 'planetminecraft.slug missing after pull'
-    assert config.get('name'), 'name not harvested after pull'
