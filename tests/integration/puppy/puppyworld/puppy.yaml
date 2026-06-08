@@ -1,0 +1,6 @@
+name: Puppy Test World
+summary: A minimal world save for puppy integration testing.
+project_type: world
+progress: 75
+planetminecraft:
+  category: Survival

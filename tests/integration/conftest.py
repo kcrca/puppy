@@ -12,9 +12,9 @@ _PUPPY_HOME = _INTEGRATION_DIR / 'puppy'
 _AUTH_FILE = _PUPPY_HOME / 'auth.yaml'
 
 _PROJECT_NAME = {
-    'pack': 'TestPack',
-    'mod': 'TestMod',
-    'world': 'TestWorld',
+    'pack': 'puppypack',
+    'mod': 'puppymod',
+    'world': 'puppyworld',
 }
 
 

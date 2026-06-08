@@ -1,4 +1,11 @@
 projects:
-- TestPack
-- TestMod
-- TestWorld
+- puppypack
+- puppymod
+- puppyworld
+license: MIT
+links:
+  home: https://example.com/puppy-integration-test
+  source: https://github.com/example/puppy-integration-test
+socials:
+  kofi: puppytest
+  discord: https://discord.gg/puppytest

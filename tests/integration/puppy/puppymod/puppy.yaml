@@ -1,0 +1,10 @@
+name: Puppy Test Mod
+summary: A minimal Fabric mod for puppy integration testing.
+project_type: mod
+loaders: [fabric]
+client_side: required
+server_side: optional
+modrinth:
+  category:
+    - utility
+    - library
