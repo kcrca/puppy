@@ -366,7 +366,7 @@ class PlanetMinecraftSite(Site):
         images_dir: Path,
         verbosity: int = 0,
     ) -> dict:
-        cookie = auth.get('planetminecraft', '')
+        cookie = auth.get('planetminecraft', {}).get('cookie', '')
         sc = config.get('planetminecraft', {})
         project_type = config.get('project_type', 'pack')
         manage = _pmc_manage_path(project_type)
@@ -447,7 +447,7 @@ class PlanetMinecraftSite(Site):
             ('server_id', ''),
             ('title', config.get('title') or config.get('name', '')),
             ('progress', str(sc.get('progress', 100))),
-            ('description', config.get('summary', '')),
+            ('description', config.get('summary', '').ljust(150)),
             ('wid1', '1'), ('wfile1', '1'),
             ('wurl1', download_url), ('wtitle1', 'Download here'),
             ('wid0', '0'), ('wfile0', '0'),
@@ -503,7 +503,7 @@ class PlanetMinecraftSite(Site):
     ) -> dict[str, str]:
         if not image_list:
             return {}
-        cookie = auth.get('planetminecraft', '')
+        cookie = auth.get('planetminecraft', {}).get('cookie', '')
         soup, csrf = _pmc_get_page(project_id, cookie, project_type)
         if verbosity >= 1:
             print(f'  [PlanetMinecraft] syncing gallery ({len(image_list)} images)')
@@ -537,7 +537,7 @@ class PlanetMinecraftSite(Site):
         auth: dict,
         verbosity: int,
     ) -> None:
-        cookie = auth.get('planetminecraft', '')
+        cookie = auth.get('planetminecraft', {}).get('cookie', '')
         sc = config.get('planetminecraft', {})
         project_type = config.get('project_type', 'pack')
 
@@ -629,7 +629,7 @@ class PlanetMinecraftSite(Site):
         verbosity: int = 0,
         project_type: str = 'pack',
     ) -> dict:
-        cookie = auth.get('planetminecraft', '')
+        cookie = auth.get('planetminecraft', {}).get('cookie', '')
 
         if verbosity >= 1:
             print('  [PlanetMinecraft] fetching project page')
@@ -770,7 +770,7 @@ class PlanetMinecraftSite(Site):
         }
 
     def submit_log(self, project_id, auth: dict, version: str, config: dict) -> None:
-        cookie = auth.get('planetminecraft', '')
+        cookie = auth.get('planetminecraft', {}).get('cookie', '')
         project_type = config.get('project_type', 'pack')
         soup, csrf = _pmc_get_page(project_id, cookie, project_type)
         member_id = _pmc_scrape_hidden(soup, 'member_id')

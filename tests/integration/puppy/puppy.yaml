@@ -4,7 +4,7 @@ projects:
 - puppyworld
 license: MIT
 links:
-  home: https://example.com/puppy-integration-test
+  home: https://github.com/example/puppy-integration-test
   source: https://github.com/example/puppy-integration-test
 socials:
   kofi: puppytest

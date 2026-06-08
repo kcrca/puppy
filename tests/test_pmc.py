@@ -17,7 +17,7 @@ from puppy.puller import _run_pmc_pull as _run_pmc_pull_real
 from puppy.syncer import _run_pmc as _run_pmc_real
 
 
-_AUTH = {'planetminecraft': 'pmc_autologin=test-cookie'}
+_AUTH = {'planetminecraft': {'cookie': 'pmc_autologin=test-cookie'}}
 _PROJECT_ID = 999
 _PACK = 'neonglow'
 _VERSION = '1.0.0'
@@ -390,7 +390,7 @@ def test_run_push_when_pmc_creds_present(push_env, run_puppy):
     (push_env['home'] / 'auth.yaml').write_text(_yaml.dump({
         'modrinth': {'token': 'token123'},
         'curseforge': {'token': 'cf456', 'cookie': 'CobaltSession=fake'},
-        'planetminecraft': 'pmc_autologin=test-cookie',
+        'planetminecraft': {'cookie': 'pmc_autologin=test-cookie'},
     }))
 
     called = []
@@ -643,7 +643,7 @@ def test_run_pull_when_pmc_creds_present(push_env, run_puppy):
         })
     )
     (push_env['home'] / 'auth.yaml').write_text(_yaml.dump({
-        'planetminecraft': 'pmc_autologin=test-cookie',
+        'planetminecraft': {'cookie': 'pmc_autologin=test-cookie'},
     }))
 
     called = []
@@ -778,7 +778,7 @@ def test_upload_pack_pmc_when_pmc_creds_present(push_pack_env, run_puppy, monkey
     (push_pack_env['home'] / 'auth.yaml').write_text(yaml.dump({
         'modrinth': {'token': 'token123'},
         'curseforge': {'token': 'cf456', 'cookie': 'CobaltSession=fake'},
-        'planetminecraft': 'pmc_autologin=test-cookie',
+        'planetminecraft': {'cookie': 'pmc_autologin=test-cookie'},
     }))
 
     called = []
@@ -796,7 +796,7 @@ def test_upload_pack_pmc_skips_when_already_current(push_pack_env, run_puppy, mo
         })
     )
     (push_pack_env['home'] / 'auth.yaml').write_text(yaml.dump({
-        'planetminecraft': 'pmc_autologin=test-cookie',
+        'planetminecraft': {'cookie': 'pmc_autologin=test-cookie'},
     }))
     state = {'planetminecraft': {'version': '1.0.0'}}
     (source / '.publish_state.yaml').write_text(yaml.dump(state))
@@ -816,7 +816,7 @@ def test_upload_pack_pmc_auth_expired_raises_system_exit(push_pack_env, run_pupp
         })
     )
     (push_pack_env['home'] / 'auth.yaml').write_text(yaml.dump({
-        'planetminecraft': 'pmc_autologin=test-cookie',
+        'planetminecraft': {'cookie': 'pmc_autologin=test-cookie'},
     }))
     monkeypatch.setattr(
         'puppy.publisher.PMC.submit_log',

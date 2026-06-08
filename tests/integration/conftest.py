@@ -116,6 +116,8 @@ def inject_slug(run_id):
         slug = f'{_PROJECT_NAME[project_type]}-{run_id}'
         config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
         config['pack'] = slug
+        if config.get('name'):
+            config['name'] = f'{config["name"]} {run_id}'
         (project_dir / 'puppy.yaml').write_text(yaml.dump(config))
         return slug
     return _inject

@@ -211,7 +211,7 @@ _CF_CLASS_IDS = {
 _CF_DEFAULT_CATEGORIES = {
     'pack': 393,   # 16x resolution
     'mod': 425,    # Miscellaneous
-    'world': 17,
+    'world': 253,  # Survival
 }
 
 _CF_URL_SEGMENTS = {

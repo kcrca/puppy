@@ -15,7 +15,7 @@ from puppy.sites.modrinth import _MR_API
 
 _MR_AUTH = {'modrinth': {'token': 'test-token'}}
 _CF_AUTH = {'curseforge': {'token': 'cf-token', 'cookie': 'CobaltSession=cf-cookie'}}
-_PMC_AUTH = {'planetminecraft': 'pmc_autologin=test-cookie'}
+_PMC_AUTH = {'planetminecraft': {'cookie': 'pmc_autologin=test-cookie'}}
 
 _NEW_PAGE_HTML = '''
 <meta id="core-csrf-token" content="csrf-abc">
@@ -340,7 +340,7 @@ def create_env(tmp_path, monkeypatch):
     (home / 'auth.yaml').write_text(yaml.dump({
         'modrinth': {'token': 'mr-tok'},
         'curseforge': {'token': 'cf-tok', 'cookie': 'CobaltSession=x'},
-        'planetminecraft': 'pmc_autologin=x',
+        'planetminecraft': {'cookie': 'pmc_autologin=x'},
     }))
     (project / 'puppy.yaml').write_text(yaml.dump({
         'name': 'MyPack', 'pack': 'mypack',

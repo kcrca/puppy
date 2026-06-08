@@ -122,7 +122,7 @@ def run_create(
             print(f'[{project.name}] PlanetMinecraft: creating project')
         images_source = config.get('images_source')
         images_dir = Path(images_source) if images_source else puppy_dir / 'images'
-        image_list = config.get('images', []) if images else []
+        image_list = config.get('images', [])
         try:
             result = PMC.create(
                 config=config,
