@@ -1,6 +1,7 @@
 import json
 import re
 import shutil
+import urllib.parse
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -23,6 +24,9 @@ _PROJECT_NAME = {
 _MR_API = 'https://api.modrinth.com/v2'
 _MR_UA = 'puppy-test/1.0'
 
+_CF_DASH = 'https://authors.curseforge.com/_api'
+_CF_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+
 _TEST_SLUG_RE = re.compile(r'^puppy(?:pack|mod|world)-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$')
 
 
@@ -42,6 +46,17 @@ def _mr_request(path: str, token: str, method: str = 'GET') -> object:
         return json.loads(r.read()) if method == 'GET' else None
 
 
+def _cf_fetch(url: str, cookie: str) -> dict:
+    req = urllib.request.Request(url, headers={
+        'User-Agent': _CF_UA,
+        'Cookie': cookie,
+        'Origin': 'https://authors.curseforge.com',
+        'Referer': 'https://authors.curseforge.com/',
+    })
+    with urllib.request.urlopen(req) as r:
+        return json.loads(r.read())
+
+
 def _mr_cleanup(token: str) -> None:
     username = _mr_request('/user/me', token)['username']
     projects = _mr_request(f'/user/{username}/projects', token)
@@ -49,6 +64,38 @@ def _mr_cleanup(token: str) -> None:
     for p in to_delete:
         print(f'\n[cleanup] Deleting Modrinth: {p["slug"]}')
         _mr_request(f'/project/{p["id"]}', token, method='DELETE')
+
+
+def _cf_delete_project(project_id: int, cookie: str) -> None:
+    req = urllib.request.Request(
+        f'{_CF_DASH}/projects/{project_id}',
+        method='DELETE',
+        headers={
+            'User-Agent': _CF_UA,
+            'Cookie': cookie,
+            'Origin': 'https://authors.curseforge.com',
+            'Referer': 'https://authors.curseforge.com/',
+        },
+    )
+    with urllib.request.urlopen(req) as _:
+        pass
+
+
+def _cf_cleanup(cookie: str) -> None:
+    params = urllib.parse.urlencode({'filter': '{}', 'range': '[0,99]', 'sort': '["id","DESC"]'})
+    try:
+        data = _cf_fetch(f'{_CF_DASH}/projects?{params}', cookie)
+    except Exception:
+        return
+    if not isinstance(data, list):
+        return
+    stale = [p for p in data if _TEST_SLUG_RE.match(p.get('slug', ''))]
+    for p in stale:
+        print(f'\n[cleanup] Deleting CurseForge: {p["slug"]}')
+        try:
+            _cf_delete_project(p['id'], cookie)
+        except Exception as e:
+            print(f'[cleanup] Warning: failed to delete {p["slug"]}: {e}')
 
 
 @pytest.fixture(scope='session')
@@ -61,7 +108,11 @@ def _cleanup_prior_runs(_auth):
     token = _auth.get('modrinth', {}).get('token')
     if token:
         _mr_cleanup(token)
-    # CurseForge and PMC have no delete API — remove old test projects manually.
+
+    cf_cookie = _auth.get('curseforge', {}).get('cookie')
+    if cf_cookie:
+        _cf_cleanup(cf_cookie)
+
 
 
 @pytest.fixture
@@ -134,3 +185,40 @@ def run_cli(monkeypatch):
             if e.code and e.code != 0:
                 raise AssertionError(f'puppy {list(args)!r} failed with exit code {e.code}')
     return _run
+
+
+@pytest.fixture
+def mr_api(_auth):
+    token = _auth.get('modrinth', {}).get('token', '')
+    return lambda path: _mr_request(path, token)
+
+
+@pytest.fixture
+def cf_api(_auth):
+    cookie = _auth.get('curseforge', {}).get('cookie', '')
+    return lambda path: _cf_fetch(f'{_CF_DASH}{path}', cookie)
+
+
+@pytest.fixture
+def pmc_page(_auth):
+    cookie_str = _auth.get('planetminecraft', {}).get('cookie', '')
+    name, _, value = cookie_str.partition('=')
+
+    def _fetch(url: str) -> str:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.firefox.launch(headless=True)
+            ctx = browser.new_context()
+            if name and value:
+                ctx.add_cookies([{
+                    'name': name.strip(),
+                    'value': value.strip(),
+                    'domain': 'www.planetminecraft.com',
+                    'path': '/',
+                }])
+            page = ctx.new_page()
+            page.goto(url, wait_until='networkidle')
+            html = page.content()
+            browser.close()
+            return html
+    return _fetch
