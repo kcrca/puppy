@@ -176,6 +176,50 @@ def test_links_explicit_cf_social_wins_over_home():
     assert config['curseforge']['socials']['website'] == 'https://explicit.com'
 
 
+def test_links_source_sets_cf_links_source():
+    config = _apply_neutral_metadata({'links': {'source': 'https://github.com/me/mod'}})
+    assert config['curseforge']['links']['source'] == 'https://github.com/me/mod'
+
+
+def test_links_source_cf_explicit_wins():
+    config = _apply_neutral_metadata({
+        'links': {'source': 'https://github.com/me/mod'},
+        'curseforge': {'links': {'source': 'https://gitlab.com/me/mod'}},
+    })
+    assert config['curseforge']['links']['source'] == 'https://gitlab.com/me/mod'
+
+
+def test_socials_discord_sets_cf_social():
+    config = _apply_neutral_metadata({'socials': {'discord': 'https://discord.gg/x'}})
+    assert config['curseforge']['socials']['discord'] == 'https://discord.gg/x'
+
+
+def test_socials_discord_sets_modrinth_discord():
+    config = _apply_neutral_metadata({'socials': {'discord': 'https://discord.gg/x'}})
+    assert config['modrinth']['discord'] == 'https://discord.gg/x'
+
+
+def test_socials_cf_explicit_wins_over_neutral():
+    config = _apply_neutral_metadata({
+        'socials': {'discord': 'https://discord.gg/neutral'},
+        'curseforge': {'socials': {'discord': 'https://discord.gg/explicit'}},
+    })
+    assert config['curseforge']['socials']['discord'] == 'https://discord.gg/explicit'
+
+
+def test_socials_mr_explicit_wins_over_neutral():
+    config = _apply_neutral_metadata({
+        'socials': {'discord': 'https://discord.gg/neutral'},
+        'modrinth': {'discord': 'https://discord.gg/explicit'},
+    })
+    assert config['modrinth']['discord'] == 'https://discord.gg/explicit'
+
+
+def test_socials_unknown_key_not_set_on_cf():
+    config = _apply_neutral_metadata({'socials': {'unknown_platform': 'https://example.com'}})
+    assert 'unknown_platform' not in config.get('curseforge', {}).get('socials', {})
+
+
 def test_resolution_expands_to_all_sites(project_env, run_puppy):
     (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'resolution': 16}))
     run_puppy('push', '-n')

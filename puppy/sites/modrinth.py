@@ -215,6 +215,10 @@ class ModrinthSite(Site):
             if donation:
                 config.setdefault('modrinth', {}).setdefault('donation', donation)
 
+        socials = config.get('socials') or {}
+        if isinstance(socials, dict) and socials.get('discord'):
+            config.setdefault('modrinth', {}).setdefault('discord', socials['discord'])
+
     def preview_rows(self, sc: dict) -> list[tuple[str, str]]:
         rows = []
         active_tags = [k for k, v in sc.get('tags', {}).items() if v]
@@ -415,7 +419,6 @@ class ModrinthSite(Site):
 
     def update_project(self, project_id: str, auth: dict, sc: dict, description: str, config: dict) -> None:
         links = config.get('links') or {}
-        socials = config.get('socials') or {}
         donation = sc.get('donation') or {}
         categories = _mr_build_categories(sc)
 
@@ -436,7 +439,7 @@ class ModrinthSite(Site):
             'issues_url': links.get('issues') or None,
             'source_url': links.get('source') or None,
             'wiki_url': links.get('wiki') or None,
-            'discord_url': socials.get('discord') or None,
+            'discord_url': sc.get('discord') or None,
             'donation_urls': donation_urls,
             'requested_status': 'approved',
         }

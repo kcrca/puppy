@@ -178,10 +178,24 @@ _CF_SOCIAL_TYPES = {
 }
 
 _CF_CATEGORIES = {
+    # Pack subcategories (classId=12)
     '16x': 393, '32x': 394, '64x': 395, '128x': 396, '256x': 397,
     '512x and Higher': 398, 'Data Packs': 5193, 'Font Packs': 5244,
+    # World subcategories (classId=17)
     'Adventure': 248, 'Creation': 249, 'Game Map': 250, 'Parkour': 251,
     'Puzzle': 252, 'Survival': 253, 'Modded World': 4464,
+    # Mod subcategories (classId=6)
+    'Adventure and RPG': 422, 'API and Library': 421,
+    'Armor, Tools, and Weapons': 434, 'Automation': 4843,
+    'Biomes': 407, 'Bug Fixes': 6821, 'Cosmetic': 424,
+    'Dimensions': 410, 'Education': 5299, 'Energy': 417,
+    'Energy, Fluid, and Item Transport': 415, 'Farming': 416,
+    'Food': 436, 'Genetics': 418, 'Magic': 419,
+    'Map and Information': 423, 'Miscellaneous': 425, 'Mobs': 411,
+    'Ores and Resources': 408, 'Performance': 6814, 'Player Transport': 414,
+    'Processing': 413, 'Redstone': 4558, 'Server Utility': 435,
+    'Skyblock': 6145, 'Storage': 420, 'Structures': 409,
+    'Technology': 412, 'Utility & QoL': 5191, 'World Gen': 406,
 }
 _CF_CATEGORIES_LOWER = {k.lower(): v for k, v in _CF_CATEGORIES.items()}
 
@@ -258,6 +272,8 @@ class CurseForgeSite(Site):
         links = config.get('links') or {}
         if isinstance(links, dict) and links.get('home'):
             config.setdefault('curseforge', {}).setdefault('socials', {}).setdefault('website', links['home'])
+        if isinstance(links, dict) and links.get('source'):
+            config.setdefault('curseforge', {}).setdefault('links', {}).setdefault('source', links['source'])
 
         if isinstance(links, dict):
             for key in self._DONATION_LINK_KEYS:
@@ -267,6 +283,12 @@ class CurseForgeSite(Site):
                         'donation', {'type': cf_key, 'value': links[key]}
                     )
                     break
+
+        socials = config.get('socials') or {}
+        if isinstance(socials, dict):
+            for key, value in socials.items():
+                if value and key in _CF_SOCIAL_TYPES:
+                    config.setdefault('curseforge', {}).setdefault('socials', {}).setdefault(key, value)
 
     def preview_rows(self, sc: dict) -> list[tuple[str, str]]:
         rows = []

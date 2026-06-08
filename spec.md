@@ -223,6 +223,10 @@ Example: `sites: [cf, mr]`
   * `patreon: <url>`, `kofi: <url>`, `paypal: <url>`, `buyMeACoffee: <url>`, `github_sponsors: <url>`, `other: <url>` — donation links;
     CF receives the first one as `{type, value}`;
     Modrinth receives all as `donation.*` (with `github_sponsors` mapped to `github`)
+* `socials:` — social media accounts for the project (all optional):
+  * `discord: <url>` — Discord server invite; maps to CF social `discord` and Modrinth `discord_url`
+  * `mastodon/twitter/youtube/twitch/reddit/github/bluesky/…: <url>` — other social accounts; maps to CF social links (PMC and Modrinth have no equivalent for these)
+  Per-site overrides (`curseforge.socials.*`, `modrinth.discord`) take precedence over neutral `socials`.
 * `after_push: <message>` — a message printed to stdout after all projects have been pushed (not during dry-run).
   When set inside a site block, prints only when that site is active, prefixed with the site label.
   Useful for reminders about manual steps that can't be automated (e.g. fixing a PMC download link).
@@ -317,10 +321,13 @@ A neutral key sets the *entire group* of related per-site fields:
 For example, `resolution: 16` sets the Modrinth resolution tier tags `16x` to true, all others false, sets CF `category: 16x`, sets PMC `resolution: 16`, and adds `16x` and `16x16` to PMC tags.
 There is no need to specify these in the site blocks unless overriding.
 Per-site overrides in `curseforge`, `modrinth`, `planetminecraft` blocks overwrite values set from neutral keys — explicit per-site values are never overwritten.
-Site-specific fields with no neutral equivalent (e.g. CF `category`, PMC `modifies`, PMC `tags`) should list all options explicitly so intent is clear.
+Site-specific fields with no neutral equivalent (e.g. CF `category`, PMC `modifies`, PMC `tags`, PMC `alt_download`) should list all options explicitly so intent is clear.
+`planetminecraft.alt_download` sets the external download URL shown on PMC (PMC-specific because CF and Modrinth host files themselves).
 `curseforge.category` accepts a single name or a list; the first becomes `primaryCategoryId`, the rest become `subCategoryIds`.
 Named pack categories: `16x`, `32x`, `64x`, `128x`, `256x`, `512x and Higher`, `Data Packs`, `Font Packs`.
 Named world categories: `Adventure`, `Creation`, `Game Map`, `Parkour`, `Puzzle`, `Survival`, `Modded World`.
+Named mod categories: `Adventure and RPG`, `API and Library`, `Armor, Tools, and Weapons`, `Automation`, `Biomes`, `Bug Fixes`, `Cosmetic`, `Dimensions`, `Education`, `Energy`, `Energy, Fluid, and Item Transport`, `Farming`, `Food`, `Genetics`, `Magic`, `Map and Information`, `Miscellaneous`, `Mobs`, `Ores and Resources`, `Performance`, `Player Transport`, `Processing`, `Redstone`, `Server Utility`, `Skyblock`, `Storage`, `Structures`, `Technology`, `Utility & QoL`, `World Gen`.
+Modrinth mod categories: `cursed`, `decoration`, `economy`, `equipment`, `food`, `game-mechanics`, `library`, `magic`, `management`, `minigame`, `mobs`, `optimization`, `technology`, `transportation`, `utility`, `social`, `storage`, `worldgen`.
 Category names are case-insensitive.
 A bare numeric ID is also accepted.
 
@@ -334,7 +341,11 @@ Examples:
 | `license: CC-BY-4.0` ([SPDX](https://spdx.org/licenses/)) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |
 | `resolution: 16` | `category: 16x` | full tier group (`16x: true`, others false) | `resolution: 16`, tags `16x` and `16x16` |
 | `progress: 100` | ignored | ignored | `progress: 100` |
+| `links.home: <url>` | `socials.website` | ignored | `website.link` |
+| `links.source: <url>` | source repo link | `source_url` | ignored |
 | `links.patreon/kofi/… (donation keys)` | first key as `{type: platform, value: url}` | all donation keys passed as `donation.*` (`github_sponsors` → `github`) | ignored |
+| `socials.discord: <url>` | `socials.discord` | `discord_url` | ignored |
+| `socials.twitter/mastodon/… (other social keys)` | `socials.*` (CF social link types only) | ignored | ignored |
 | `client_side: required/optional/unsupported` | adds game version ID 9638 (client env) if `required` or `optional` | `client_side` on project (create and update) | ignored |
 | `server_side: required/optional/unsupported` | adds game version ID 9639 (server env) if `required` or `optional` | `server_side` on project (create and update) | ignored |
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-_UNIVERSAL = frozenset({'license', 'title', 'links', 'after_push', 'video', 'alt_download', 'credit', 'donation', 'socials'})
+_UNIVERSAL = frozenset({'license', 'title', 'links', 'after_push', 'video', 'credit', 'socials'})
 _PACK = frozenset({'resolution', 'progress'})
 _MOD = frozenset({'client_side', 'server_side', 'loaders'})
 _WORLD = frozenset({'progress'})

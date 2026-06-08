@@ -26,9 +26,6 @@
   If not present, infer from neutral `resolution`.
   If present and the neutral `resolution` value is not in the list, warn ("adding 16x from neutral resolution") and add it.
 
-- **Mod specialized metadata per site**: Survey what mod-specific fields each site supports beyond the current neutral fields (`loaders`, `client_side`, `server_side`).
-  Check CF mod subcategories (IDs for Technology, Magic, Adventure, etc.), MR mod categories, and any mod-only API fields on either site.
-
 - **World/save specialized metadata per site**: Current world support covers only the fields shared with packs.
   Each site has world-specific metadata not yet implemented:
   - PMC: world genre categories (Adventure, Survival, Creation, Puzzle, etc. — need numeric IDs), Bedrock edition boolean, any other world-form-only fields

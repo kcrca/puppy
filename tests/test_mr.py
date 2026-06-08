@@ -109,12 +109,12 @@ def test_update_project_sends_correct_json_fields():
         'summary': 'A cool pack',
         'tags': {'16x': True, '32x': False},
         'donation': {'patreon': 'https://patreon.com/me'},
+        'discord': 'https://discord.gg/x',
     }
     config = {
         'name': 'My Pack',
         'license': 'MIT',
         'links': {'source': 'https://github.com/me/pack', 'issues': None},
-        'socials': {'discord': 'https://discord.gg/x'},
     }
 
     with patch('urllib.request.urlopen') as mock_open:
