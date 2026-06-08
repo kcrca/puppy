@@ -24,15 +24,11 @@
   If supported, wire `bedrock: true` neutral field to CF file upload.
 
 - **World/save specialized metadata per site**: Current world support covers only the fields shared with packs.
+  MR does not support world projects.
   Each site has world-specific metadata not yet implemented:
   - PMC: world genre categories (Adventure, Survival, Creation, Puzzle, etc. — need numeric IDs), any other world-form-only fields
-  - CF: verify correct world subcategory IDs and any world-specific API fields
-  - MR: verify world-specific categories and any other world-only fields
+  - CF: subcategory IDs verified correct; audit world create/edit API for any world-specific fields beyond shared pack fields
   Audit each site's world create/edit form before implementing.
-
-- **Bedrock edition support**: PMC (and possibly other sites) have a flag for Bedrock compatibility.
-  Add as `planetminecraft.bedrock: true/false` (PMC-specific for now).
-  Extend to other sites if they have an equivalent.
 
 - **PMC mod support**: PMC supports mods; unclear if it's a popular destination.
   When implementing, check what URL segments and form fields PMC uses for mods vs packs.
