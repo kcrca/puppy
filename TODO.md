@@ -6,6 +6,8 @@
 
 ## Unimplemented Features
 
+- **Rename `--pack` option**: `push --pack` is confusing since "pack" means resource pack elsewhere. Find a clearer name (e.g. `--file`, `--upload`, `--release`).
+
 - **Paralell work**: Do work in parallel.
   At least across the sites, we may need to linearize accss to each site.
   Start with this, then later see if we can do per-site requests in parellel.
