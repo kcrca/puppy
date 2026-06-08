@@ -9,7 +9,8 @@ import yaml
 from PIL import Image
 
 from puppy.errors import AuthExpiredError, SiteError
-from puppy.sites import CURSEFORGE, _CF_DASH, _CF_API
+from puppy.sites import CURSEFORGE
+from puppy.sites.curseforge import _CF_DASH, _CF_API
 from puppy.syncer import _run_cf as _run_cf_real
 from puppy.puller import _run_cf_pull as _run_cf_pull_real
 

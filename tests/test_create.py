@@ -9,7 +9,9 @@ import yaml
 from PIL import Image
 
 from puppy.errors import AuthExpiredError
-from puppy.sites import _CF_DASH, _MR_API, CURSEFORGE, MODRINTH, PMC
+from puppy.sites import CURSEFORGE, MODRINTH, PMC
+from puppy.sites.curseforge import _CF_DASH
+from puppy.sites.modrinth import _MR_API
 
 _MR_AUTH = {'modrinth': {'token': 'test-token'}}
 _CF_AUTH = {'curseforge': {'token': 'cf-token', 'cookie': 'CobaltSession=cf-cookie'}}

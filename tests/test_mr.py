@@ -8,7 +8,8 @@ import pytest
 from PIL import Image
 
 from puppy.errors import AuthExpiredError, SiteError
-from puppy.sites import MODRINTH, _MR_API
+from puppy.sites import MODRINTH
+from puppy.sites.modrinth import _MR_API
 from puppy.syncer import _run_mr as _run_mr_real
 from puppy.puller import _run_mr_pull as _run_mr_pull_real
 
@@ -130,7 +131,8 @@ def test_update_project_sends_correct_json_fields():
     assert body['title'] == 'My Pack'
     assert body['description'] == 'A cool pack'
     assert body['body'] == '<description>'
-    assert body['categories'] == ['16x']
+    assert body['categories'] == []
+    assert body['additional_categories'] == ['16x']
     assert body['license_id'] == 'MIT'
     assert body['source_url'] == 'https://github.com/me/pack'
     assert body['issues_url'] is None

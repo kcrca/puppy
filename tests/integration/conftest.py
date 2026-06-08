@@ -43,7 +43,7 @@ def _mr_request(path: str, token: str, method: str = 'GET') -> object:
 
 
 def _mr_cleanup(token: str) -> None:
-    username = _mr_request('/user', token)['username']
+    username = _mr_request('/user/me', token)['username']
     projects = _mr_request(f'/user/{username}/projects', token)
     to_delete = [p for p in projects if _TEST_SLUG_RE.match(p.get('slug', ''))]
     for p in to_delete:
@@ -99,7 +99,9 @@ def make_home(tmp_path):
         home.mkdir()
 
         shutil.copytree(_PUPPY_HOME / project_name, home / project_name)
-        (home / 'puppy.yaml').write_text(yaml.dump({'projects': [project_name]}))
+        home_config = yaml.safe_load((_PUPPY_HOME / 'puppy.yaml').read_text()) or {}
+        home_config['projects'] = [project_name]
+        (home / 'puppy.yaml').write_text(yaml.dump(home_config, default_flow_style=False))
         shutil.copy(_PUPPY_HOME / '.gitignore', home / '.gitignore')
         (home / 'auth.yaml').write_text(yaml.dump(auth))
 

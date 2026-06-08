@@ -145,15 +145,15 @@ def _mr_normalize_resolution(value) -> list[str]:
     return [f'{r}x' if str(r).isdigit() else str(r) for r in items]
 
 
-def _mr_build_categories(sc: dict) -> list[str]:
-    resolution = sc.get('resolution')
-    cats = _mr_normalize_resolution(resolution) if resolution is not None else []
+def _mr_build_categories(sc: dict) -> tuple[list[str], list[str]]:
+    resolution_cats = _mr_normalize_resolution(sc.get('resolution')) if sc.get('resolution') is not None else []
     raw = sc.get('category')
+    content_cats = []
     if raw is not None:
         for c in ([raw] if isinstance(raw, str) else list(raw)):
-            if c not in cats:
-                cats.append(c)
-    return cats
+            if c not in content_cats:
+                content_cats.append(c)
+    return content_cats, resolution_cats
 
 
 # Reverse map: Modrinth donation platform id → puppy key
@@ -166,28 +166,6 @@ _MR_DONATION_ID_TO_KEY = {
     'other': 'other',
 }
 
-# Maps SPDX license IDs to the keys PU's modrinth.js license map uses
-_SPDX_TO_PU_MR = {
-    'CC0-1.0': 'CC Zero (Public Domain equivalent)',
-    'CC-BY-4.0': 'CC-BY 4.0',
-    'CC-BY-SA-4.0': 'CC-BY-SA 4.0',
-    'CC-BY-NC-4.0': 'CC-BY-NC 4.0',
-    'CC-BY-NC-SA-4.0': 'CC-BY-NC-SA 4.0',
-    'CC-BY-ND-4.0': 'CC-BY-ND 4.0',
-    'CC-BY-NC-ND-4.0': 'CC-BY-NC-ND 4.0',
-    'MIT': 'MIT License',
-    'Apache-2.0': 'Apache License 2.0',
-    'GPL-2.0': 'GNU General Public License v2',
-    'GPL-3.0': 'GNU General Public License v3',
-    'LGPL-2.1': 'GNU Lesser General Public License v2.1',
-    'LGPL-3.0': 'GNU Lesser General Public License v3',
-    'AGPL-3.0': 'GNU Affero General Public License v3',
-    'MPL-2.0': 'Mozilla Public License 2.0',
-    'BSD-2-Clause': 'BSD 2-Clause "Simplified" License',
-    'BSD-3-Clause': 'BSD 3-Clause "New" or "Revised" License',
-    'ISC': 'ISC License',
-    'Zlib': 'zlib License',
-}
 
 
 class ModrinthSite(Site):
@@ -213,8 +191,7 @@ class ModrinthSite(Site):
 
         license_ = config.get('license')
         if license_:
-            pu_license = _SPDX_TO_PU_MR.get(license_, license_)
-            config.setdefault('modrinth', {}).setdefault('license', pu_license)
+            config.setdefault('modrinth', {}).setdefault('license', license_)
 
         links = config.get('links') or {}
         if isinstance(links, dict):
@@ -364,8 +341,8 @@ class ModrinthSite(Site):
         if suffix and verbosity >= 1:
             print(f'  [Modrinth] slug "{base_slug}" taken, using "{slug}"')
 
-        license_id = mr.get('license') or config.get('license') or 'LicenseRef-All-Rights-Reserved'
-        categories = _mr_build_categories(mr)
+        license_id = config.get('license') or mr.get('license') or 'LicenseRef-All-Rights-Reserved'
+        categories, additional_categories = _mr_build_categories(mr)
         links = config.get('links') or {}
         socials = config.get('socials') or {}
 
@@ -374,7 +351,7 @@ class ModrinthSite(Site):
             'title': config.get('name', ''),
             'description': config.get('summary', ''),
             'categories': categories,
-            'additional_categories': [],
+            'additional_categories': additional_categories,
             'client_side': config.get('client_side', 'required'),
             'server_side': config.get('server_side', 'unsupported'),
             'body': '',
@@ -431,7 +408,7 @@ class ModrinthSite(Site):
     def update_project(self, project_id: str, auth: dict, sc: dict, description: str, config: dict) -> None:
         links = config.get('links') or {}
         donation = sc.get('donation') or {}
-        categories = _mr_build_categories(sc)
+        categories, additional_categories = _mr_build_categories(sc)
 
         donation_urls = [
             {'id': pid, 'platform': platform, 'url': donation[key]}
@@ -444,7 +421,7 @@ class ModrinthSite(Site):
             'description': sc.get('summary', ''),
             'body': description,
             'categories': categories,
-            'additional_categories': [],
+            'additional_categories': additional_categories,
             'client_side': config.get('client_side', 'required'),
             'server_side': config.get('server_side', 'unsupported'),
             'issues_url': links.get('issues') or None,
@@ -612,7 +589,7 @@ class ModrinthSite(Site):
             if key and entry.get('url')
         }
 
-        all_cats = data.get('categories') or []
+        all_cats = (data.get('categories') or []) + (data.get('additional_categories') or [])
         resolution = [cat for cat in all_cats if cat in _MR_RESOLUTION_TIERS]
         category = [cat for cat in all_cats if cat not in _MR_RESOLUTION_TIERS]
 

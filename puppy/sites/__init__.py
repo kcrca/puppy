@@ -17,7 +17,7 @@ from puppy.sites.curseforge import (
     _SPDX_TO_PU_CF,
     CurseForgeSite,
 )
-from puppy.sites.modrinth import _MR_API, _SPDX_TO_PU_MR, ModrinthSite
+from puppy.sites.modrinth import ModrinthSite
 from puppy.sites.planetminecraft import PlanetMinecraftSite
 
 CURSEFORGE = CurseForgeSite()
