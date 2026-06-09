@@ -162,7 +162,7 @@ def test_upload_version_uses_loaders_from_config(tmp_path):
         z.writestr('pack.mcmeta', '{}')
     config = {
         'minecraft': '1.21',
-        'pack': 'mymod',
+        'handle': 'mymod',
         'modrinth': {'id': 'abc123', 'slug': 'mymod'},
         'loaders': ['fabric', 'quilt'],
     }
@@ -185,7 +185,7 @@ def test_upload_version_defaults_to_minecraft_loader_for_pack(tmp_path):
         z.writestr('pack.mcmeta', '{}')
     config = {
         'minecraft': '1.21',
-        'pack': 'mypack',
+        'handle': 'mypack',
         'modrinth': {'id': 'abc123', 'slug': 'mypack'},
     }
     real_upload = MODRINTH.__class__.upload_version
@@ -231,7 +231,7 @@ def test_run_push_when_mr_token_present(tmp_path, monkeypatch):
     }))
     (project_dir / 'puppy.yaml').write_text(yaml.dump({
         'name': 'MyPack',
-        'pack': 'mypack',
+        'handle': 'mypack',
         'modrinth': {'id': 'abc123', 'slug': 'mypack'},
         'planetminecraft': {'slug': 'mypack'},
     }))
@@ -259,7 +259,7 @@ def test_run_push_when_mr_token_present(tmp_path, monkeypatch):
         puppy_home=home,
         site='modrinth',
         version=None,
-        pack=False,
+        upload_file=False,
         force=False,
         images=False,
         verbosity=0,
@@ -279,7 +279,7 @@ def test_upload_version_sends_multipart_with_correct_fields(tmp_path):
         z.writestr('pack.mcmeta', '{}')
     config = {
         'minecraft': '1.21',
-        'pack': 'mypack',
+        'handle': 'mypack',
         'modrinth': {'id': 'abc123', 'slug': 'mypack'},
     }
     # Call unpatched class method directly (autouse fixture patches the instance)
@@ -311,7 +311,7 @@ def test_upload_version_in_push_pack(tmp_path, monkeypatch):
     (home / 'auth.yaml').write_text(yaml.dump({'modrinth': {'token': 'mr-token'}}))
     (project_dir / 'puppy.yaml').write_text(yaml.dump({
         'name': 'MyPack',
-        'pack': 'mypack',
+        'handle': 'mypack',
         'minecraft': '1.21',
         'modrinth': {'id': 'abc123', 'slug': 'mypack'},
     }))
@@ -332,7 +332,7 @@ def test_upload_version_in_push_pack(tmp_path, monkeypatch):
         verbosity=0,
         site='modrinth',
         version='1.0',
-        pack=True,
+        upload_file=True,
         force=True,
     )
 
@@ -427,7 +427,7 @@ def test_run_pull_when_mr_token_present(tmp_path, monkeypatch):
     (home / 'puppy.yaml').write_text(yaml.dump({'projects': ['MyPack']}))
     (home / 'auth.yaml').write_text(yaml.dump({'modrinth': {'token': 'mr-token-abc'}}))
     (project_dir / 'puppy.yaml').write_text(yaml.dump({
-        'name': 'MyPack', 'pack': 'mypack',
+        'name': 'MyPack', 'handle': 'mypack',
         'modrinth': {'id': 'abc123', 'slug': 'mypack'},
     }))
 
@@ -578,19 +578,19 @@ def test_run_mr_pull_auth_expired_raises_system_exit(tmp_path):
 
 # ── publisher auth-expired ────────────────────────────────────────────────────
 
-def test_upload_pack_mr_skips_when_already_current(tmp_path, monkeypatch):
-    from puppy.publisher import upload_pack
+def test_upload_file_mr_skips_when_already_current(tmp_path, monkeypatch):
+    from puppy.publisher import upload_file
     from puppy.core import Project
     zip_path = tmp_path / 'pack-1.0.zip'
     with zipfile.ZipFile(zip_path, 'w') as z:
         z.writestr('pack.mcmeta', '{}')
-    project = Project(tmp_path, override_name='T', override_pack='pack')
+    project = Project(tmp_path, override_name='T', override_handle='pack')
     config = {'minecraft': '1.21', 'modrinth': {'id': 'abc', 'slug': 'mypack'}}
 
     upload_calls = []
     monkeypatch.setattr('puppy.publisher.MODRINTH.needs_upload', lambda *a, **k: False)
     monkeypatch.setattr('puppy.publisher.MODRINTH.upload_version', lambda *a, **k: upload_calls.append(a))
-    upload_pack(
+    upload_file(
         project=project,
         config=config,
         site='modrinth',
@@ -602,13 +602,13 @@ def test_upload_pack_mr_skips_when_already_current(tmp_path, monkeypatch):
     assert upload_calls == []
 
 
-def test_upload_pack_mr_auth_expired_raises_system_exit(tmp_path, monkeypatch):
-    from puppy.publisher import upload_pack
+def test_upload_file_mr_auth_expired_raises_system_exit(tmp_path, monkeypatch):
+    from puppy.publisher import upload_file
     from puppy.core import Project
     zip_path = tmp_path / 'pack-1.0.zip'
     with zipfile.ZipFile(zip_path, 'w') as z:
         z.writestr('pack.mcmeta', '{}')
-    project = Project(tmp_path, override_name='T', override_pack='pack')
+    project = Project(tmp_path, override_name='T', override_handle='pack')
     config = {'minecraft': '1.21', 'modrinth': {'id': 'abc', 'slug': 'mypack'}}
 
     def raise_auth(*a, **k):
@@ -616,7 +616,7 @@ def test_upload_pack_mr_auth_expired_raises_system_exit(tmp_path, monkeypatch):
 
     monkeypatch.setattr('puppy.publisher.MODRINTH.upload_version', raise_auth)
     with pytest.raises(SystemExit, match='Modrinth auth expired'):
-        upload_pack(
+        upload_file(
             project=project,
             config=config,
             site='modrinth',

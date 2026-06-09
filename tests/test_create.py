@@ -56,7 +56,7 @@ def _make_http_error(code: int, body: str = ''):
 # ── MODRINTH.create ───────────────────────────────────────────────────────────
 
 def test_mr_create_posts_to_project_endpoint():
-    config = {'name': 'My Pack', 'summary': 'Cool', 'pack': 'mypack', 'modrinth': {'slug': 'mypack'}}
+    config = {'name': 'My Pack', 'summary': 'Cool', 'handle': 'mypack', 'modrinth': {'slug': 'mypack'}}
     responses = [
         _make_http_error(404, 'not found'),  # slug check → available
         _make_response({'id': 'abc123', 'slug': 'mypack'}),  # POST create
@@ -72,7 +72,7 @@ def test_mr_create_posts_to_project_endpoint():
 
 
 def test_mr_create_returns_id_and_slug():
-    config = {'name': 'Pack', 'pack': 'pk', 'modrinth': {'slug': 'pk'}}
+    config = {'name': 'Pack', 'handle': 'pk', 'modrinth': {'slug': 'pk'}}
     responses = [
         _make_http_error(404, ''),
         _make_response({'id': 'id-xyz', 'slug': 'pk'}),
@@ -84,7 +84,7 @@ def test_mr_create_returns_id_and_slug():
 
 
 def test_mr_create_tries_next_slug_on_collision():
-    config = {'name': 'Pack', 'pack': 'mypack', 'modrinth': {'slug': 'mypack'}}
+    config = {'name': 'Pack', 'handle': 'mypack', 'modrinth': {'slug': 'mypack'}}
     responses = [
         _make_response({'id': 'existing'}),  # slug 'mypack' taken
         _make_http_error(404, ''),  # slug 'mypack-1' available
@@ -102,7 +102,7 @@ def test_mr_create_tries_next_slug_on_collision():
 
 def test_mr_create_sends_categories_from_resolution():
     config = {
-        'name': 'Pack', 'pack': 'pk',
+        'name': 'Pack', 'handle': 'pk',
         'modrinth': {'slug': 'pk', 'resolution': '16x', 'category': 'realistic'},
     }
     responses = [
@@ -119,7 +119,7 @@ def test_mr_create_sends_categories_from_resolution():
 
 
 def test_mr_create_raises_on_api_error():
-    config = {'name': 'Pack', 'pack': 'pk', 'modrinth': {'slug': 'pk'}}
+    config = {'name': 'Pack', 'handle': 'pk', 'modrinth': {'slug': 'pk'}}
     responses = [
         _make_http_error(404, ''),
         _make_response({'error': 'invalid_input', 'description': 'Slug already exists'}),
@@ -343,7 +343,7 @@ def create_env(tmp_path, monkeypatch):
         'planetminecraft': {'cookie': 'pmc_autologin=x'},
     }))
     (project / 'puppy.yaml').write_text(yaml.dump({
-        'name': 'MyPack', 'pack': 'mypack',
+        'name': 'MyPack', 'handle': 'mypack',
         'modrinth': {'slug': 'mypack'},
         'curseforge': {'slug': 'mypack'},
         'planetminecraft': {'slug': 'mypack'},
@@ -388,7 +388,7 @@ def test_run_create_skips_sites_with_existing_id(create_env, monkeypatch):
     home = create_env['home']
     project_dir = create_env['project']
     (project_dir / 'puppy.yaml').write_text(_yaml.dump({
-        'name': 'MyPack', 'pack': 'mypack',
+        'name': 'MyPack', 'handle': 'mypack',
         'modrinth': {'id': 'existing-id', 'slug': 'mypack'},
         'curseforge': {'slug': 'mypack'},
         'planetminecraft': {'slug': 'mypack'},

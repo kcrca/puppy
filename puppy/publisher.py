@@ -8,7 +8,7 @@ from puppy.errors import AuthExpiredError
 from puppy.sites import CURSEFORGE, MODRINTH, PMC, SiteVisitor
 
 
-def upload_pack(
+def upload_file(
     *,
     project: Project,
     config: dict,
@@ -20,7 +20,7 @@ def upload_pack(
 ) -> None:
     if not config.get('minecraft') and not config.get('versions'):
         raise SystemExit(
-            f"[{project.name}] push --pack requires 'minecraft:' or 'versions:' in puppy.yaml"
+            f"[{project.name}] push --file requires 'minecraft:' or 'versions:' in puppy.yaml"
         )
     puppy_dir = project.puppy_dir
     zip_path = _resolve_zip(config, puppy_dir, version, project)
@@ -33,7 +33,7 @@ def upload_pack(
     if not sites_to_upload:
         if verbosity >= 1:
             print(
-                f'[{project.name}] pack already current on all sites, skipping upload'
+                f'[{project.name}] already current on all sites, skipping upload'
             )
         return
 
@@ -51,7 +51,7 @@ def upload_pack(
         missing.append(PMC)
     if missing:
         labels = ', '.join(s.label for s in missing)
-        raise SystemExit(f'Credentials missing for pack upload: {labels} — run: puppy auth')
+        raise SystemExit(f'Credentials missing for file upload: {labels} — run: puppy auth')
 
     if MODRINTH in sites_to_upload:
         if verbosity >= 1:
@@ -91,7 +91,7 @@ def _resolve_zip(config: dict, puppy_dir: Path, version: str, project: Project) 
             raise SystemExit(f'Zip not found: {p}')
         return p
     try:
-        return ArtifactFinder(puppy_dir).find(project=project.pack, version=version)
+        return ArtifactFinder(puppy_dir).find(project=project.handle, version=version)
     except FileNotFoundError as e:
         raise SystemExit(str(e))
 

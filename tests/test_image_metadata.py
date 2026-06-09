@@ -7,11 +7,11 @@ from puppy.config import ConfigSynthesizer
 
 def test_images_yaml_values_are_jinja_expanded(project_env):
     """images.yaml string values are expanded via config strings, not pre-rendered as a template."""
-    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'pack': 'neonglow'}))
+    (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'handle': 'neonglow'}))
     img_dir = project_env['project'] / 'images'
     img_dir.mkdir()
     (img_dir / 'images.yaml').write_text(
-        yaml.dump({'images': [{'file': '{{pack}}_screenshot'}]})
+        yaml.dump({'images': [{'file': '{{handle}}_screenshot'}]})
     )
 
     cfg = ConfigSynthesizer(project_env['home'], project_env['project']).get_running_config()

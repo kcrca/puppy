@@ -8,7 +8,7 @@ def test_internal_project_linking(project_env, run_puppy):
     other_home = project_env['home'] / 'OtherMod'
     other_home.mkdir(parents=True)
     (other_home / 'puppy.yaml').write_text(
-        yaml.dump({'pack': 'other', 'modrinth': {'slug': 'other-slug'}})
+        yaml.dump({'handle': 'other', 'modrinth': {'slug': 'other-slug'}})
     )
 
     (project_env['home'] / 'puppy.yaml').write_text(

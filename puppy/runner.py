@@ -28,12 +28,12 @@ def _resolve_projects(puppy_home: Path) -> list[Path]:
                 raise SystemExit(f'Project directory not found: {root}')
             roots.append(root)
         return roots
-    if config.get('pack') or config.get('name'):
+    if config.get('handle') or config.get('name'):
         # Flat single-project: puppy_home is the project source, parent is the project root
         return [puppy_home.parent]
     raise SystemExit(
         f'Cannot find projects in {puppy_home / "puppy.yaml"} — '
-        'add a projects: list or a pack:/name: key'
+        'add a projects: list or a handle:/name: key'
     )
 
 
@@ -61,8 +61,8 @@ def run(
     verbosity: int,
     site: str | None,
     version: str | None,
-    pack: bool = False,
-    pack_filter: list[str] | None = None,
+    upload_file: bool = False,
+    handle_filter: list[str] | None = None,
     force: bool = False,
     images: bool = False,
     open_browser: bool = True,
@@ -90,25 +90,25 @@ def run(
         ).get_running_config()
         project = Project.from_config(project_root, config, dry_run=dry_run)
 
-        if pack_filter and project.pack not in pack_filter:
+        if handle_filter and project.handle not in handle_filter:
             continue
         ran_any = True
 
         resolved_version = version or config.get('version')
-        if action == 'push' and pack and not resolved_version:
+        if action == 'push' and upload_file and not resolved_version:
             raise SystemExit(
-                f'[{project.name}] push --pack requires --version or version: in puppy.yaml'
+                f'[{project.name}] push --file requires --version or version: in puppy.yaml'
             )
 
         if verbosity >= 1:
-            label = action + (' --pack' if action == 'push' and pack else '')
+            label = action + (' --file' if action == 'push' and upload_file else '')
             print(
                 f'[{project.name}] {label}'
                 + (f' v{resolved_version}' if resolved_version else '')
             )
 
         if dry_run:
-            single = len(projects) == 1 or pack_filter is not None
+            single = len(projects) == 1 or handle_filter is not None
             _run_dry(
                 action,
                 project,
@@ -117,7 +117,7 @@ def run(
                 verbosity,
                 puppy_home,
                 site,
-                pack=pack,
+                upload_file=upload_file,
                 print_url=single,
                 open_browser=open_browser and single,
             )
@@ -132,7 +132,7 @@ def run(
                 auth,
                 puppy_home,
                 site,
-                pack,
+                upload_file,
                 force,
                 images,
                 verbosity,
@@ -140,8 +140,8 @@ def run(
             after_push_messages += _collect_after_push(config, site)
 
 
-    if pack_filter and not ran_any:
-        raise SystemExit(f'No projects matching {pack_filter!r} found in {puppy_home}')
+    if handle_filter and not ran_any:
+        raise SystemExit(f'No projects matching {handle_filter!r} found in {puppy_home}')
 
     if len(dry_run_projects) > 1:
         _write_batch_index(dry_run_projects, open_browser=open_browser)
@@ -153,14 +153,14 @@ def run(
 def _write_batch_index(projects: list, open_browser: bool = False) -> None:
     base = Path(tempfile.gettempdir()) / 'puppy'
     tabs = ''.join(
-        f'<button class="tab" onclick="show(\'{p.pack}\', this)">{p.name}</button>'
+        f'<button class="tab" onclick="show(\'{p.handle}\', this)">{p.name}</button>'
         for p in projects
     )
     frames = ''.join(
-        f'<iframe id="{p.pack}" src="{p.pack}/index.html" style="display:none"></iframe>'
+        f'<iframe id="{p.handle}" src="{p.handle}/index.html" style="display:none"></iframe>'
         for p in projects
     )
-    first = projects[0].pack
+    first = projects[0].handle
     html = f"""<!doctype html>
 <html>
 <head>
@@ -201,8 +201,8 @@ def _write_batch_index(projects: list, open_browser: bool = False) -> None:
         webbrowser.open(index.as_uri())
 
 
-def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack=False, print_url=True, open_browser=True):
-    debug_dir = Path(tempfile.gettempdir()) / 'puppy' / project.pack
+def _run_dry(action, project, config, version, verbosity, puppy_home, site, upload_file=False, print_url=True, open_browser=True):
+    debug_dir = Path(tempfile.gettempdir()) / 'puppy' / project.handle
     if debug_dir.exists():
         shutil.rmtree(debug_dir)
     debug_dir.mkdir(parents=True)
@@ -227,7 +227,7 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack
                     puppy_home, project.root, site=s
                 ).get_running_config()
                 site_config.setdefault('name', project.name)
-                site_config.setdefault('pack', project.pack)
+                site_config.setdefault('handle', project.handle)
                 site_config['projects'] = config['projects']
                 rendered = render(body, site_config, source=str(source_path), site=s)
                 staged_ext = source_path.suffix if source_path else s.template_ext
@@ -243,7 +243,7 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, pack
                 out.write_text(rendered)
                 source_exts[s.name] = staged_ext
 
-        if pack:
+        if upload_file:
             zip_src = _resolve_zip(config, project.puppy_dir, version, project)
             shutil.copy(zip_src, debug_dir / zip_src.name)
             zip_name = zip_src.name
@@ -271,7 +271,7 @@ def _collect_after_push(config: dict, site: str | None) -> list:
 
 
 def _dispatch(
-    action, project, config, version, auth, puppy_home, site, pack, force, images, verbosity
+    action, project, config, version, auth, puppy_home, site, upload_file, force, images, verbosity
 ):
     if action == 'create':
         run_create(
@@ -298,7 +298,7 @@ def _dispatch(
             puppy_home=puppy_home,
             site=site,
             version=version,
-            pack=pack,
+            upload_file=upload_file,
             force=force,
             images=images,
             verbosity=verbosity,

@@ -156,7 +156,7 @@ def _site_rows(site: Site, project: Project, config: dict) -> list[tuple[str, st
     rows: list[tuple[str, str]] = []
 
     rows.append(('Name', _e(project.name)))
-    rows.append(('Pack', _e(project.pack)))
+    rows.append(('Handle', _e(project.handle)))
     if config.get('version'):
         rows.append(('Version', _e(str(config['version']))))
 
@@ -196,7 +196,7 @@ def _write_metadata(site_dir: Path, project: Project, config: dict, site: Site) 
     # The submission contract: what Puppy will actually send to the platform.
     # preview.html lets you validate visuals; metadata.yaml lets tests (and you)
     # validate the contract — slugs, IDs, and site-specific fields — before upload.
-    meta = {'name': project.name, 'pack': project.pack}
+    meta = {'name': project.name, 'handle': project.handle}
     if config.get('version'):
         meta['version'] = str(config['version'])
     sc = config.get(site.name, {})
@@ -254,7 +254,7 @@ def _page(
         tab_panes += f'<div class="tab-pane" id="pane-{s}" style="display:{display}">{per_site_html.get(s.name, "")}</div>\n'
 
     zip_line = (
-        f'<p class="zip">Pack: <a href="{_e(zip_name)}">{_e(zip_name)}</a></p>\n'
+        f'<p class="zip">File: <a href="{_e(zip_name)}">{_e(zip_name)}</a></p>\n'
         if zip_name
         else ''
     )

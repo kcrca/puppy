@@ -19,10 +19,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        'pack_name',
+        'handle_name',
         nargs='*',
         metavar='project',
-        help='Limit action to one or more projects (by pack slug).',
+        help='Limit action to one or more projects (by handle).',
     )
 
     parser.add_argument(
@@ -72,11 +72,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        '-p',
-        '--pack',
+        '-F',
+        '--file',
         action='store_true',
-        dest='pack',
-        help='Include zip artifact upload in push.',
+        dest='upload_file',
+        help='Include artifact file upload in push.',
     )
 
     parser.add_argument(
@@ -84,7 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
         '--force',
         action='store_true',
         dest='force',
-        help='With push -p, bypass per-site skip checks. With create, skip confirmation prompt.',
+        help='With push -F, bypass per-site skip checks. With create, skip confirmation prompt.',
     )
 
     parser.add_argument(
@@ -124,8 +124,8 @@ def main(argv: list[str] = None) -> None:
         verbosity=args.verbosity,
         site=args.site,
         version=args.version,
-        pack=args.pack,
-        pack_filter=args.pack_name or None,
+        upload_file=args.upload_file,
+        handle_filter=args.handle_name or None,
         force=args.force,
         images=args.images,
         open_browser=args.open_browser,

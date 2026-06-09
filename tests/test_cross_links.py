@@ -7,7 +7,7 @@ def test_sibling_links(project_env, run_puppy):
     other = project_env['home'] / 'Other'
     other.mkdir(parents=True)
     (other / 'puppy.yaml').write_text(
-        yaml.dump({'pack': 'other', 'modrinth': {'slug': 'other-slug'}})
+        yaml.dump({'handle': 'other', 'modrinth': {'slug': 'other-slug'}})
     )
 
     (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Other']}))

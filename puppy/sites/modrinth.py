@@ -258,7 +258,7 @@ class ModrinthSite(Site):
             mr_spec = explicit_versions.get('modrinth', {})
 
         game_versions = _mr_resolve_game_versions(mr_spec, auth)
-        slug = config.get('modrinth', {}).get('slug') or config.get('pack', '')
+        slug = config.get('modrinth', {}).get('slug') or config.get('handle', '')
         version_data = {
             'name': f'{slug} v{version}',
             'version_number': version,
@@ -326,7 +326,7 @@ class ModrinthSite(Site):
 
     def create(self, *, config: dict, auth: dict, verbosity: int = 0) -> dict:
         mr = config.get('modrinth', {})
-        base_slug = mr.get('slug') or config.get('pack', '')
+        base_slug = mr.get('slug') or config.get('handle', '')
         slug = base_slug
         suffix = 0
         while True:

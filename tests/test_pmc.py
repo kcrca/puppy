@@ -381,7 +381,7 @@ def test_run_push_when_pmc_creds_present(push_env, run_puppy):
     import yaml as _yaml
     (push_env['project'] / 'puppy.yaml').write_text(
         _yaml.dump({
-            'name': 'NeonGlow', 'pack': 'neonglow',
+            'name': 'NeonGlow', 'handle': 'neonglow',
             'curseforge': {'slug': 'neonglow'},
             'modrinth': {'slug': 'neonglow'},
             'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
@@ -406,7 +406,7 @@ def test_run_push_when_pmc_creds_present(push_env, run_puppy):
 
 
 def test_run_pmc_auth_expired_raises_system_exit(tmp_path):
-    project = Project(tmp_path, override_name='Pack', override_pack='pack')
+    project = Project(tmp_path, override_name='Pack', override_handle='pack')
     config = {'name': 'Pack', 'planetminecraft': {'id': _PROJECT_ID}}
 
     with patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
@@ -415,7 +415,7 @@ def test_run_pmc_auth_expired_raises_system_exit(tmp_path):
 
 
 def test_run_pmc_skips_gallery_when_images_false(tmp_path):
-    project = Project(tmp_path, override_name='Pack', override_pack='pack')
+    project = Project(tmp_path, override_name='Pack', override_handle='pack')
     config = {
         'name': 'Pack',
         'planetminecraft': {'id': _PROJECT_ID},
@@ -436,7 +436,7 @@ def test_run_pmc_skips_gallery_when_images_false(tmp_path):
 
 
 def test_run_pmc_passes_image_list_when_images_true(tmp_path):
-    project = Project(tmp_path, override_name='Pack', override_pack='pack')
+    project = Project(tmp_path, override_name='Pack', override_handle='pack')
     config = {
         'name': 'Pack',
         'planetminecraft': {'id': _PROJECT_ID},
@@ -638,7 +638,7 @@ def test_run_pull_when_pmc_creds_present(push_env, run_puppy):
     import yaml as _yaml
     (push_env['project'] / 'puppy.yaml').write_text(
         _yaml.dump({
-            'name': 'NeonGlow', 'pack': 'neonglow',
+            'name': 'NeonGlow', 'handle': 'neonglow',
             'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
         })
     )
@@ -659,7 +659,7 @@ def test_run_pull_when_pmc_creds_present(push_env, run_puppy):
 
 
 def test_run_pmc_pull_images_forced_when_no_image_info(tmp_path):
-    project = Project(tmp_path, override_name='Pack', override_pack='pack')
+    project = Project(tmp_path, override_name='Pack', override_handle='pack')
     config = {'planetminecraft': {'id': _PROJECT_ID}}
 
     pull_calls = []
@@ -676,7 +676,7 @@ def test_run_pmc_pull_images_forced_when_no_image_info(tmp_path):
 
 
 def test_run_pmc_pull_images_skipped_when_info_exists(tmp_path):
-    project = Project(tmp_path, override_name='Pack', override_pack='pack')
+    project = Project(tmp_path, override_name='Pack', override_handle='pack')
     config = {'planetminecraft': {'id': _PROJECT_ID}}
     (tmp_path / 'images.yaml').write_text('[]')
 
@@ -693,7 +693,7 @@ def test_run_pmc_pull_images_skipped_when_info_exists(tmp_path):
 
 
 def test_run_pmc_pull_images_true_fetches_even_when_info_exists(tmp_path):
-    project = Project(tmp_path, override_name='Pack', override_pack='pack')
+    project = Project(tmp_path, override_name='Pack', override_handle='pack')
     config = {'planetminecraft': {'id': _PROJECT_ID}}
     (tmp_path / 'images.yaml').write_text('[]')
 
@@ -710,7 +710,7 @@ def test_run_pmc_pull_images_true_fetches_even_when_info_exists(tmp_path):
 
 
 def test_run_pmc_pull_auth_expired_raises_system_exit(tmp_path):
-    project = Project(tmp_path, override_name='Pack', override_pack='pack')
+    project = Project(tmp_path, override_name='Pack', override_handle='pack')
     config = {'planetminecraft': {'id': _PROJECT_ID}}
 
     with patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
@@ -765,11 +765,11 @@ def test_submit_log_auth_expired_raises_system_exit():
 
 # ── 9. push --pack PMC routing ───────────────────────────────────────────────
 
-def test_upload_pack_pmc_when_pmc_creds_present(push_pack_env, run_puppy, monkeypatch):
+def test_upload_file_pmc_when_pmc_creds_present(push_pack_env, run_puppy, monkeypatch):
     source = push_pack_env['project']
     (source / 'puppy.yaml').write_text(
         yaml.dump({
-            'name': 'NeonGlow', 'pack': 'neonglow', 'minecraft': '1.20',
+            'name': 'NeonGlow', 'handle': 'neonglow', 'minecraft': '1.20',
             'curseforge': {'id': 111, 'slug': 'neonglow'},
             'modrinth': {'id': 'abc123', 'slug': 'neonglow'},
             'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
@@ -783,15 +783,15 @@ def test_upload_pack_pmc_when_pmc_creds_present(push_pack_env, run_puppy, monkey
 
     called = []
     monkeypatch.setattr('puppy.publisher.PMC.submit_log', lambda *a, **k: called.append(True))
-    run_puppy('push', '--pack', '--force', '--version', '1.0.0', '--site', 'pmc')
+    run_puppy('push', '--file', '--force', '--version', '1.0.0', '--site', 'pmc')
     assert called
 
 
-def test_upload_pack_pmc_skips_when_already_current(push_pack_env, run_puppy, monkeypatch):
+def test_upload_file_pmc_skips_when_already_current(push_pack_env, run_puppy, monkeypatch):
     source = push_pack_env['project']
     (source / 'puppy.yaml').write_text(
         yaml.dump({
-            'name': 'NeonGlow', 'pack': 'neonglow', 'minecraft': '1.20',
+            'name': 'NeonGlow', 'handle': 'neonglow', 'minecraft': '1.20',
             'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
         })
     )
@@ -803,15 +803,15 @@ def test_upload_pack_pmc_skips_when_already_current(push_pack_env, run_puppy, mo
 
     called = []
     monkeypatch.setattr('puppy.publisher.PMC.submit_log', lambda *a, **k: called.append(True))
-    run_puppy('push', '--pack', '--version', '1.0.0', '--site', 'pmc')
+    run_puppy('push', '--file', '--version', '1.0.0', '--site', 'pmc')
     assert not called
 
 
-def test_upload_pack_pmc_auth_expired_raises_system_exit(push_pack_env, run_puppy, monkeypatch):
+def test_upload_file_pmc_auth_expired_raises_system_exit(push_pack_env, run_puppy, monkeypatch):
     source = push_pack_env['project']
     (source / 'puppy.yaml').write_text(
         yaml.dump({
-            'name': 'NeonGlow', 'pack': 'neonglow', 'minecraft': '1.20',
+            'name': 'NeonGlow', 'handle': 'neonglow', 'minecraft': '1.20',
             'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
         })
     )
@@ -822,5 +822,5 @@ def test_upload_pack_pmc_auth_expired_raises_system_exit(push_pack_env, run_pupp
         'puppy.publisher.PMC.submit_log',
         lambda *a, **k: (_ for _ in ()).throw(AuthExpiredError(401, 'Expired')),
     )
-    result = run_puppy('push', '--pack', '--force', '--version', '1.0.0', '--site', 'pmc')
+    result = run_puppy('push', '--file', '--force', '--version', '1.0.0', '--site', 'pmc')
     assert result == 'PlanetMinecraft auth expired (HTTP 401) — run: puppy auth --site pmc'

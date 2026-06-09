@@ -10,7 +10,7 @@ def _debug(pack, site, ext):
 def _setup_sibling(home, name, pack, cf_slug=None, mr_slug=None, pmc_slug=None):
     root = home / name
     root.mkdir(parents=True)
-    cfg = {'pack': pack}
+    cfg = {'handle': pack}
     if cf_slug:
         cfg['curseforge'] = {'slug': cf_slug, 'id': 1}
     if mr_slug:

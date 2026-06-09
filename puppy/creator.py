@@ -149,7 +149,7 @@ def _build_config(project: Project, config: dict) -> dict:
         return {k: v for k, v in config.get(s, {}).items() if k not in ('id', 'slug')}
 
     return {
-        'id': project.pack,
+        'id': project.handle,
         'name': project.name,
         'summary': config.get('summary', ''),
         'description': config.get('description', []),

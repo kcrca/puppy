@@ -40,7 +40,7 @@ For the `neon` pack that lives in your home directory (`~/neon`), the puppy-rela
 * **Project Home:** For a single pack, Puppy Home (`~/neon/puppy/`) doubles as Project Home.
   For multiple packs, each has its own subdirectory: `~/neon/puppy/neon/`, `~/neon/puppy/dark/`.
 * **Images:** `~/neon/puppy/images/` or `~/neon/puppy/images.yaml`
-* **Dry Run Output:** `{tempdir}/puppy/{pack}/` (used for `--dry-run`, wiped fresh each run)
+* **Dry Run Output:** `{tempdir}/puppy/{handle}/` (used for `--dry-run`, wiped fresh each run)
 
 Site-specific data is global if it is in the global home, or project specific if it is in the project home.
 
@@ -57,15 +57,16 @@ The information for a run has a priority order where it is found.
 So if a single run of puppy talks to three sites about two packs, there will be six sets of information, built independently for each site interaction.
 
 ## Core Identity & Naming
-* **`pack`** (internal slug): Lowercase alphanumeric only, spaces and special characters stripped.
+* **`handle`** (internal identifier): Lowercase alphanumeric only, spaces and special characters stripped.
   Derived from the directory name unless overridden.
+  Used as the default site slug and as part of artifact file names.
   Example: `'Neon Glow!'` → `neonglow`.
 * **`name`** (display name): Preserves casing and special characters exactly (`'Neon Glow!'` stays `'Neon Glow!'`).
   If the source string is strictly lowercase ASCII, converts to title case (`neon` → `Neon`).
-* **Single override:** If only `name` is provided, `pack` is derived by slugifying `name` (lowercase, strip non-alphanumerics).
-  If only `pack` is provided, `name` is derived by the same casing rules.
+* **Single override:** If only `name` is provided, `handle` is derived by slugifying `name` (lowercase, strip non-alphanumerics).
+  If only `handle` is provided, `name` is derived by the same casing rules.
   Both can be set explicitly.
-* **Auto-update:** Whenever a project is loaded for any action, if either `name` or `pack` was absent from `puppy.yaml`, the derived value is written back automatically.
+* **Auto-update:** Whenever a project is loaded for any action, if either `name` or `handle` was absent from `puppy.yaml`, the derived value is written back automatically.
 
 ### Running Location
 For simplicity, puppy can be invoked from:
@@ -81,12 +82,12 @@ All relative paths named within yaml files are derived relative to that file's l
 Puppy has the following actions:
 
 * **`init`:** Creates four files in `puppy/`: `auth.yaml`, `.gitignore`, `puppy.yaml`, and `description.md`.
-  Derives `name` and `pack` from the directory name.
+  Derives `name` and `handle` from the directory name.
   Any file that already exists is left untouched with a warning.
   `puppy.yaml` is pre-populated with skeleton site entries; `description.md` contains a short comment.
 * **`push`** (Default): Updates metadata, summaries, descriptions, images, and icons.
-  With `-p/--pack`, also uploads the zip artifact.
-  Requires `version` in `puppy.yaml` or `-V/--version` when using `-p`.
+  With `-F/--file`, also uploads the zip artifact.
+  Requires `version` in `puppy.yaml` or `-V/--version` when using `-F`.
 * **`pull`:** Pulls live site data.
   Update yaml in puppy home and the project home (if different).
   Does **not** create description templates (those are created by `init`).
@@ -104,8 +105,8 @@ Puppy has the following actions:
 ### Options & Flags
 * **`-n/--dry-run`:** Valid for `push`.
   Executes the full pipeline without hitting APIs.
-  Writes a per-site preview to `{tempdir}/puppy/{pack}/index.html` — a tabbed HTML page showing rendered descriptions, project metadata, icon, and images for each site.
-  Also writes per-site description files to `{tempdir}/puppy/{pack}/{site}/description.{ext}`.
+  Writes a per-site preview to `{tempdir}/puppy/{handle}/index.html` — a tabbed HTML page showing rendered descriptions, project metadata, icon, and images for each site.
+  Also writes per-site description files to `{tempdir}/puppy/{handle}/{site}/description.{ext}`.
   For sites whose native format is not Markdown but whose source is Markdown (e.g. CurseForge, Planet Minecraft), also writes `description.md` alongside the native file.
   Prints the `file://` URL and opens it in the default browser automatically.
 * **`--no-open`:** Suppress the automatic browser open after a dry run.
@@ -118,7 +119,7 @@ Puppy has the following actions:
 * **`-V/--version [string]`:** Version string override.
   Falls back to `version` in `puppy.yaml`.
   Artifact matched via any `.zip` in `puppy/` whose filename ends with `[-_.]version.zip`.
-* **`-p/--pack`:** Valid for `push`.
+* **`-F/--file`:** Valid for `push`.
   Include zip artifact upload in `push`.
   Requires `minecraft` or `versions` in `puppy.yaml`.
   Upload is skipped per-site if the artifact is already current:
@@ -126,7 +127,7 @@ Puppy has the following actions:
   * **CurseForge:** Compares both version string and file size (bytes) against the most recent uploaded file; uploads if either differs.
   * **Planet Minecraft:** Compares version string against last version recorded in `puppy/.publish_state.yaml`.
 * **`-f/--force`:** Valid for `push` and `create`.
-  With `push -p`, bypasses skip logic and uploads unconditionally on all sites.
+  With `push -F`, bypasses skip logic and uploads unconditionally on all sites.
   With `create`, skips the confirmation prompt.
 * **`-I/--images`:** Controls image gallery handling.
   For `push`: include the image gallery in the upload (default: no images).
@@ -137,7 +138,7 @@ Puppy has the following actions:
   CurseForge and Modrinth provide the icon; PMC does not.
 
 ### Arguments
-* **`project ...`** (positional): Limits action to one or more projects, matched by pack slug.
+* **`project ...`** (positional): Limits action to one or more projects, matched by handle.
   Example: `puppy push neon dark` will push only those two projects in a multi-project repo.
 
 ## Known Sites
@@ -172,7 +173,7 @@ planetminecraft: pmc_autologin=<cookie>
 In puppy.yaml, `minecraft` sets the Minecraft game version for artifact uploads across all sites.
 A string value is treated as an exact version (`minecraft: '26.1'` → `type: exact, version: '26.1'`).
 A dict value is used as-is (`minecraft: {type: latest}`).
-Required when using `push --pack` unless `versions` is fully specified.
+Required when using `push --file` unless `versions` is fully specified.
 
 ## Template Expansion
 
@@ -215,7 +216,7 @@ Example: `sites: [cf, mr]`
 
 **Standard config fields:**
 * `summary` — one-line project description shown in search results
-* `changelog` — release notes text included in version file uploads (`push --pack`) on all sites
+* `changelog` — release notes text included in version file uploads (`push --file`) on all sites
 * `optifine: true/false` — whether the pack requires [OptiFine](https://optifine.net/) (default false)
 * `video: <youtube-id>` — a youtube ID for an associated video (default none)
 * `links:` — external URLs for the project (all optional):
@@ -367,7 +368,7 @@ For resource packs and worlds, MR defaults to `['minecraft']` for the version lo
 
 ### Translation & Shielding
 * **Cross-Linking:** Puppy pre-scans all sibling projects in `puppy_home`, injecting a `projects` dict into the Jinja context.
-  Each entry is keyed by `pack` slug and contains per-site sub-objects (e.g. `{{ projects.other.modrinth.url }}`).
+  Each entry is keyed by `handle` and contains per-site sub-objects (e.g. `{{ projects.other.modrinth.url }}`).
   URLs are built from `slug` if available, falling back to `id`.
   The Modrinth URL path segment is derived from `project_type` (e.g. `pack` → `resourcepack`, `mod` → `mod`, `modpack` → `modpack`).
 * **External Projects (`linked_projects`):** Projects outside the current Puppy Home can be added to the `projects` context via `linked_projects` in the global `puppy.yaml`.

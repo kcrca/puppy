@@ -146,7 +146,7 @@ def test_upload_file_sends_correct_multipart_with_metadata(tmp_path):
     config = {
         'minecraft': '1.21',
         'curseforge': {'slug': 'mypack'},
-        'pack': 'mypack',
+        'handle': 'mypack',
     }
 
     game_versions_resp = [
@@ -196,7 +196,7 @@ def test_upload_file_env_ids_in_game_versions(tmp_path):
     config = {
         'minecraft': '1.21',
         'curseforge': {'slug': 'mypack'},
-        'pack': 'mypack',
+        'handle': 'mypack',
         'client_side': 'required',
         'server_side': 'optional',
     }
@@ -231,7 +231,7 @@ def test_upload_file_no_env_ids_when_unsupported(tmp_path):
     config = {
         'minecraft': '1.21',
         'curseforge': {'slug': 'mypack'},
-        'pack': 'mypack',
+        'handle': 'mypack',
         'client_side': 'unsupported',
         'server_side': 'unsupported',
     }
@@ -265,7 +265,7 @@ def test_upload_file_loaders_resolved_as_game_versions(tmp_path):
     config = {
         'minecraft': '1.21',
         'curseforge': {'slug': 'mymod'},
-        'pack': 'mymod',
+        'handle': 'mymod',
         'loaders': ['fabric', 'quilt'],
     }
 
@@ -369,7 +369,7 @@ def test_upload_file_401_raises_auth_expired(tmp_path):
     zip_path = tmp_path / 'pack.zip'
     with zipfile.ZipFile(zip_path, 'w') as z:
         z.writestr('pack.mcmeta', '{}')
-    config = {'curseforge': {'slug': 'p'}, 'pack': 'p', 'minecraft': '1.21'}
+    config = {'curseforge': {'slug': 'p'}, 'handle': 'p', 'minecraft': '1.21'}
     real_upload = CURSEFORGE.__class__.upload_file
     with patch('urllib.request.urlopen', side_effect=_make_http_error(401, 'Unauthorized')):
         with pytest.raises(AuthExpiredError):
@@ -392,7 +392,7 @@ def test_run_push_when_cf_token_present(tmp_path, monkeypatch):
     }))
     (project_dir / 'puppy.yaml').write_text(yaml.dump({
         'name': 'MyPack',
-        'pack': 'mypack',
+        'handle': 'mypack',
         'curseforge': {'id': 99, 'slug': 'mypack'},
         'modrinth': {'slug': 'mypack'},
         'planetminecraft': {'slug': 'mypack'},
@@ -421,7 +421,7 @@ def test_run_push_when_cf_token_present(tmp_path, monkeypatch):
         puppy_home=home,
         site='curseforge',
         version=None,
-        pack=False,
+        upload_file=False,
         force=False,
         images=False,
         verbosity=0,
@@ -446,7 +446,7 @@ def test_upload_file_in_push_pack(tmp_path, monkeypatch):
         'curseforge': {'token': 'cf456', 'cookie': 'CobaltSession=fake'},
     }))
     (project_dir / 'puppy.yaml').write_text(yaml.dump({
-        'name': 'MyPack', 'pack': 'mypack', 'minecraft': '1.21',
+        'name': 'MyPack', 'handle': 'mypack', 'minecraft': '1.21',
         'curseforge': {'id': 99, 'slug': 'mypack'},
     }))
     Image.new('RGB', (64, 64), color='blue').save(project_dir / 'icon.png')
@@ -466,7 +466,7 @@ def test_upload_file_in_push_pack(tmp_path, monkeypatch):
         verbosity=0,
         site='curseforge',
         version='1.0',
-        pack=True,
+        upload_file=True,
         force=True,
     )
 
@@ -577,7 +577,7 @@ def test_run_pull_when_cf_creds_present(tmp_path, monkeypatch):
         'curseforge': {'token': 'cf-tok', 'cookie': 'CobaltSession=abc'},
     }))
     (project_dir / 'puppy.yaml').write_text(yaml.dump({
-        'name': 'MyPack', 'pack': 'mypack',
+        'name': 'MyPack', 'handle': 'mypack',
         'curseforge': {'id': 99, 'slug': 'mypack'},
     }))
 
@@ -727,19 +727,19 @@ def test_run_cf_pull_auth_expired_raises_system_exit(tmp_path):
 
 # ── publisher auth-expired ────────────────────────────────────────────────────
 
-def test_upload_pack_cf_skips_when_already_current(tmp_path, monkeypatch):
-    from puppy.publisher import upload_pack
+def test_upload_file_cf_skips_when_already_current(tmp_path, monkeypatch):
+    from puppy.publisher import upload_file
     from puppy.core import Project
     zip_path = tmp_path / 'pack-1.0.zip'
     with zipfile.ZipFile(zip_path, 'w') as z:
         z.writestr('pack.mcmeta', '{}')
-    project = Project(tmp_path, override_name='T', override_pack='pack')
+    project = Project(tmp_path, override_name='T', override_handle='pack')
     config = {'minecraft': '1.21', 'curseforge': {'id': 99, 'slug': 'mypack'}}
 
     upload_calls = []
     monkeypatch.setattr('puppy.publisher.CURSEFORGE.needs_upload', lambda *a, **k: False)
     monkeypatch.setattr('puppy.publisher.CURSEFORGE.upload_file', lambda *a, **k: upload_calls.append(a))
-    upload_pack(
+    upload_file(
         project=project,
         config=config,
         site='curseforge',
@@ -751,13 +751,13 @@ def test_upload_pack_cf_skips_when_already_current(tmp_path, monkeypatch):
     assert upload_calls == []
 
 
-def test_upload_pack_cf_auth_expired_raises_system_exit(tmp_path, monkeypatch):
-    from puppy.publisher import upload_pack
+def test_upload_file_cf_auth_expired_raises_system_exit(tmp_path, monkeypatch):
+    from puppy.publisher import upload_file
     from puppy.core import Project
     zip_path = tmp_path / 'pack-1.0.zip'
     with zipfile.ZipFile(zip_path, 'w') as z:
         z.writestr('pack.mcmeta', '{}')
-    project = Project(tmp_path, override_name='T', override_pack='pack')
+    project = Project(tmp_path, override_name='T', override_handle='pack')
     config = {'minecraft': '1.21', 'curseforge': {'id': 99, 'slug': 'mypack'}}
 
     def raise_auth(*a, **k):
@@ -765,7 +765,7 @@ def test_upload_pack_cf_auth_expired_raises_system_exit(tmp_path, monkeypatch):
 
     monkeypatch.setattr('puppy.publisher.CURSEFORGE.upload_file', raise_auth)
     with pytest.raises(SystemExit, match='CurseForge auth expired'):
-        upload_pack(
+        upload_file(
             project=project,
             config=config,
             site='curseforge',

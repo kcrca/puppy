@@ -5,7 +5,7 @@ from pathlib import Path
 
 def test_top_and_puppy_expand_in_description(project_env, run_puppy):
     (project_env['project'] / 'puppy.yaml').write_text(
-        yaml.dump({'pack': 'neonglow', 'name': 'NeonGlow'})
+        yaml.dump({'handle': 'neonglow', 'name': 'NeonGlow'})
     )
     (project_env['project'] / 'description.md').write_text(
         'puppy={{ puppy }}, top={{ top }}'
@@ -26,7 +26,7 @@ def test_top_used_in_yaml_config_value(project_env, run_puppy):
     icon_path.write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x00' * 100)
 
     (project_env['project'] / 'puppy.yaml').write_text(
-        yaml.dump({'pack': 'neonglow', 'name': 'NeonGlow', 'icon': '{{top}}/pack.png'})
+        yaml.dump({'handle': 'neonglow', 'name': 'NeonGlow', 'icon': '{{top}}/pack.png'})
     )
     (project_env['project'] / 'description.md').write_text('hello')
 

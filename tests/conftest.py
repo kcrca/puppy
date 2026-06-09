@@ -96,7 +96,7 @@ def push_env(project_env):
         yaml.dump(
             {
                 'name': 'NeonGlow',
-                'pack': 'neonglow',
+                'handle': 'neonglow',
                 'curseforge': {'slug': 'neonglow'},
                 'modrinth': {'slug': 'neonglow'},
                 'planetminecraft': {'slug': 'neonglow'},

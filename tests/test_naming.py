@@ -12,10 +12,10 @@ def test_naming_derivation_writes_yaml(tmp_path):
     config = {}
     project = Project.from_config(root, config, dry_run=False)
 
-    assert project.pack == 'neonglow'
+    assert project.handle == 'neonglow'
     assert project.name == 'NeonGlow'
     data = yaml.safe_load(yaml_path.read_text())
-    assert data['pack'] == 'neonglow'
+    assert data['handle'] == 'neonglow'
     assert data['name'] == 'NeonGlow'
 
 
@@ -28,10 +28,10 @@ def test_naming_derivation_dry_run_no_yaml_write(tmp_path):
     config = {}
     project = Project.from_config(root, config, dry_run=True)
 
-    assert project.pack == 'neonglow'
+    assert project.handle == 'neonglow'
     assert project.name == 'NeonGlow'
     assert config['name'] == 'NeonGlow'
-    assert config['pack'] == 'neonglow'
+    assert config['handle'] == 'neonglow'
     data = yaml.safe_load(yaml_path.read_text())
-    assert 'pack' not in data
+    assert 'handle' not in data
     assert 'name' not in data

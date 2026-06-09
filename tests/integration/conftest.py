@@ -57,7 +57,7 @@ _PUPPY_HOME = _INTEGRATION_DIR / 'puppy'
 _AUTH_FILE = _PUPPY_HOME / 'auth.yaml'
 
 _PROJECT_NAME = {
-    'pack': 'puppypack',
+    'handle': 'puppypack',
     'mod': 'puppymod',
     'world': 'puppyworld',
 }
@@ -296,7 +296,7 @@ def inject_slug(run_id):
     def _inject(project_dir: Path, project_type: str) -> str:
         slug = f'{_PROJECT_NAME[project_type]}-{run_id}'
         config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-        config['pack'] = slug
+        config['handle'] = slug
         if config.get('name'):
             config['name'] = f'{config["name"]} {run_id}'
         (project_dir / 'puppy.yaml').write_text(yaml.dump(config))
@@ -397,7 +397,7 @@ class LifecycleBase:
         project_dir = home / project_name
         slug = f'{project_name}-{run_id}'
         config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-        config['pack'] = slug
+        config['handle'] = slug
         if config.get('name'):
             config['name'] = f'{config["name"]} {run_id}'
         (project_dir / 'puppy.yaml').write_text(yaml.dump(config))
@@ -464,7 +464,7 @@ class LifecycleBase:
         config = yaml.safe_load((ctx['project_dir'] / 'puppy.yaml').read_text())
         config['minecraft'] = '1.21.4'
         (ctx['project_dir'] / 'puppy.yaml').write_text(yaml.dump(config, default_flow_style=False))
-        self._run(ctx, 'push', '--site', self.SITE, '--pack', '--version', '1.0.0')
+        self._run(ctx, 'push', '--site', self.SITE, '--file', '--version', '1.0.0')
         self._assert_push_pack(ctx)
 
     # ------------------------------------------------------------------

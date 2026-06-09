@@ -19,7 +19,7 @@ def test_batch_index_shows_correct_zip_per_project(project_env, run_puppy):
 
     (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Alpha']}))
 
-    run_puppy('push', '-n', '--pack', '-d', str(project_env['home']))
+    run_puppy('push', '-n', '--file', '-d', str(project_env['home']))
 
     temp_root = Path(tempfile.gettempdir()) / 'puppy'
 

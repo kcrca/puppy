@@ -43,7 +43,7 @@ def test_top_level_and_site_message():
 def test_runner_prints_after_push(project_env, run_puppy, monkeypatch, capsys):
     (project_env['project'] / 'puppy.yaml').write_text(
         yaml.dump({
-            'pack': 'neonglow',
+            'handle': 'neonglow',
             'after_push': 'Remember to fix the URL!',
             'planetminecraft': {'slug': 'neonglow', 'after_push': 'Check PMC link'},
         })

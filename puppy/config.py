@@ -111,26 +111,30 @@ def _apply_neutral_metadata(config: dict) -> dict:
 
 
 def _inject_urls(cfg: dict) -> dict:
-    default_slug = cfg.get('slug')
-    pack = cfg.get('pack')
-    unconfigured = pack and not any(cfg.get(s.name) for s in SITES)
+    explicit_slug = cfg.get('slug')
+    handle = cfg.get('handle')
+    default = handle or explicit_slug
+    unconfigured = default and not any(cfg.get(s.name) for s in SITES)
     project_type = cfg.get('project_type', 'pack')
     for site in SITES:
         site_cfg = cfg.get(site.name, {})
-        if default_slug and 'slug' not in site_cfg:
-            site_cfg = dict(site_cfg, slug=default_slug)
+        if 'slug' not in site_cfg and 'id' not in site_cfg:
+            if explicit_slug:
+                site_cfg = dict(site_cfg, slug=explicit_slug)
+            elif handle and cfg.get(site.name) is not None:
+                site_cfg = dict(site_cfg, slug=handle)
         if 'project_type' not in site_cfg:
             site_cfg = dict(site_cfg, project_type=project_type)
         url = site.url_for(site_cfg)
         if not url and unconfigured:
-            url = site.url_for({'slug': pack, 'project_type': project_type})
+            url = site.url_for({'slug': default, 'project_type': project_type})
         if url:
             cfg.setdefault(site.name, {})['url'] = url
     return cfg
 
 
 def build_projects_context(puppy_home: Path) -> dict:
-    """Scan sibling projects and return a {pack: {site: {url: ...}}} dict."""
+    """Scan sibling projects and return a {handle: {site: {url: ...}}} dict."""
     global_cfg = _load_yaml(puppy_home / 'puppy.yaml')
     projects: dict = {}
     for candidate in puppy_home.iterdir():
@@ -140,8 +144,8 @@ def build_projects_context(puppy_home: Path) -> dict:
         if not yaml_path.exists():
             continue
         cfg = _deep_merge(global_cfg, _load_yaml(yaml_path))
-        pack = cfg.get('pack') or candidate.name.lower()
-        projects[pack] = _inject_urls(cfg)
-    for pack, cfg in global_cfg.get('linked_projects', {}).items():
-        projects[pack] = _inject_urls(dict(cfg))
+        handle = cfg.get('handle') or candidate.name.lower()
+        projects[handle] = _inject_urls(cfg)
+    for handle, cfg in global_cfg.get('linked_projects', {}).items():
+        projects[handle] = _inject_urls(dict(cfg))
     return projects

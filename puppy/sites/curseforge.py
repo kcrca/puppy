@@ -521,7 +521,7 @@ class CurseForgeSite(Site):
         if config.get('server_side') in ('required', 'optional'):
             game_version_ids.append(_CF_ENV_SERVER)
 
-        slug = config.get('curseforge', {}).get('slug') or config.get('pack', '')
+        slug = config.get('curseforge', {}).get('slug') or config.get('handle', '')
         metadata = {
             'changelog': config.get('changelog', ''),
             'changelogType': 'markdown',

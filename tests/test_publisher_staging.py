@@ -9,7 +9,7 @@ def test_save_and_check_pmc_version(tmp_path):
     zip_path = puppy_dir / 'mypack-1.0.0.zip'
     with zipfile.ZipFile(zip_path, 'w') as z:
         z.writestr('pack.mcmeta', '{}')
-    project = Project(tmp_path, override_name='MyPack', override_pack='mypack')
+    project = Project(tmp_path, override_name='MyPack', override_handle='mypack')
 
     assert PMC.needs_upload(999, {}, zip_path, '1.0.0', project) is True
     PMC.post_upload(puppy_dir, '1.0.0')

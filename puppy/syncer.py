@@ -10,7 +10,7 @@ from puppy.creator import (
     _validate_square,
 )
 from puppy.errors import AuthExpiredError
-from puppy.publisher import upload_pack
+from puppy.publisher import upload_file as _upload_file
 from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
 from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
@@ -28,7 +28,7 @@ def run_push(
     puppy_home: Path,
     site: str | None,
     version: str | None,
-    pack: bool,
+    upload_file: bool,
     force: bool,
     images: bool = True,
     verbosity: int,
@@ -115,8 +115,8 @@ def run_push(
     if PMC in visitor and pmc_id:
         _run_pmc(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)
 
-    if pack:
-        upload_pack(
+    if upload_file:
+        _upload_file(
             project=project,
             config=config,
             site=site,

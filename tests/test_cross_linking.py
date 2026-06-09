@@ -9,7 +9,7 @@ def test_site_neutral_url_shorthand(project_env, run_puppy):
     other_proj.mkdir()
     (other_proj / 'puppy.yaml').write_text(
         yaml.dump({
-            'pack': 'other',
+            'handle': 'other',
             'modrinth': {'id': 'abc'},
             'curseforge': {'slug': 'other-cf'},
         })
@@ -19,7 +19,7 @@ def test_site_neutral_url_shorthand(project_env, run_puppy):
         'Link: {{ projects.other.url }}'
     )
     (project_env['project'] / 'puppy.yaml').write_text(
-        yaml.dump({'name': 'NeonGlow', 'pack': 'neonglow'})
+        yaml.dump({'name': 'NeonGlow', 'handle': 'neonglow'})
     )
 
     run_puppy('push', '-n', '-s', 'modrinth')
@@ -40,14 +40,14 @@ def test_site_neutral_missing_returns_empty(project_env, run_puppy):
     other_proj = project_env['home'] / 'OtherMod'
     other_proj.mkdir()
     (other_proj / 'puppy.yaml').write_text(
-        yaml.dump({'pack': 'other', 'modrinth': {'id': 'abc'}})
+        yaml.dump({'handle': 'other', 'modrinth': {'id': 'abc'}})
     )
 
     (project_env['project'] / 'description.md').write_text(
         '[{{ projects.other.url }}]'
     )
     (project_env['project'] / 'puppy.yaml').write_text(
-        yaml.dump({'name': 'NeonGlow', 'pack': 'neonglow'})
+        yaml.dump({'name': 'NeonGlow', 'handle': 'neonglow'})
     )
 
     run_puppy('push', '-n', '-s', 'planetminecraft')
@@ -62,7 +62,7 @@ def test_cross_project_url_resolution(project_env, run_puppy):
     other_proj = project_env['home'] / 'OtherMod'
     other_proj.mkdir()
     (other_proj / 'puppy.yaml').write_text(
-        yaml.dump({'pack': 'other', 'modrinth': {'id': 'abc'}})
+        yaml.dump({'handle': 'other', 'modrinth': {'id': 'abc'}})
     )
 
     (project_env['project'] / 'description.md').write_text(

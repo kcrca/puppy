@@ -38,8 +38,8 @@ pipx install git+https://github.com/kcrca/puppy
 ## Basic Puppy
 
 Now let's get to your specific project.
-We will start with texture packs, and then describe the changes to upload other kinds of projects.
-Most of the work will be the same, and most of the rest will be analogous.
+The examples below use a texture pack, but mods and world saves work the same way — set `project_type: mod` or `project_type: world` in `puppy.yaml` and puppy will use the right fields and sites for that type.
+PMC does not support mods; all other sites support all three types.
 
 Suppose you have a pack called Neon, and you keep it in a git repository in your home directory.
 (We're going to be using Unix paths here, but this works on Windows, too.)
@@ -106,7 +106,8 @@ The file `puppy.yaml` contains global settings for the pack and the sites. Let's
 
 * `sites`: List of sites to use; if absent, all three sites are used.
 * `name`: Name of the pack.
-* `pack`: lowercase version of **name**, often used as a slug or part of a file path.
+* `handle`: Identifier for this project — lowercase, no spaces.
+Used as the default slug on sites that don't have an explicit `slug:` set, and as part of artifact file names.
 * `version`: Current version of your pack.
 * `minecraft`: Version of minecraft your pack is targeted for.
 * `resolution`: Resolution of your pack, as a single integer (8, 16, 32, …)
@@ -124,9 +125,9 @@ If you want to create a new project at a site, here is the information that pupp
 Here is a simple `puppy.yaml` to start with:
 
 ```yaml
-pack: neon
+handle: neon
 version: 1.0
-minecraft: 26.1
+minecraft: 1.21.4
 resolution: 16
 progress: 100
 summary: Neon glow for blocks.
@@ -530,32 +531,33 @@ Some of them only apply to some commands, but others apply universally.
 The overall syntax is:
 
 ```
-puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-p] [-f] [-I] [--no-open] [{auth,push,create,pull,init}] [project ...]
+puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-F] [-f] [-I] [--no-open] [{auth,push,create,pull,init}] [project ...]
 ```
 
 ## Global Options
 
-* **-h**, **--help**: show help.
-* **-v**: High-level progress output.
-* **-vv**: Even more debug output.
-* **-d**, **--dir _PATH_**: Project directory (default: current working directory).
-* **-s**, **--site _SITENAME_**: Limit action to one or more sites (comma-separated). You can use the abbreviations "cf", "mr", and "pmc" for sites.
+* `-h`, `--help`: show help.
+* `-v`: High-level progress output.
+* `-vv`: Even more debug output.
+* `-d`, `--dir PATH`: Project directory (default: current working directory).
+* `-s`, `--site SITENAME`: Limit action to one or more sites (comma-separated). You can use the abbreviations "cf", "mr", and "pmc" for sites.
 
 ## Subcommands
 
-* **init**: Set up the puppy directory in the current directory, or **--dir** points.
+* **init**: Set up the puppy directory in the current directory, or `--dir` points.
 * **auth**: Fetch authorization cookies from a Firefox session.
 * **create**: Create project on the site(s). If run from a terminal, this will prompt for confirmation.
-    * **-f**, **--force**: Skip the confirmation prompt.
+    * `-f`, `--force`: Skip the confirmation prompt.
 * **pull**: Pull data from the site(s). This will not overwrite existing images, but it will merge new data into yaml files.
-    * **-I**, **--images**: Also pull logo, icon, banner, and image gallery.
+    * `-I`, `--images`: Also pull logo, icon, banner, and image gallery.
 * **push**: Push description, metadata, logo, icon, and banner.
-    * **-I**, **--images**: Also push image gallery.
-    * **-p**, **--pack**: Also push the `.zip` file. This will be skipped if site-specific data says it is not needed.
-    * **-f**, **--force**: With `--pack`, pushes the `.zip` no matter what.
-    * **-V**, **--version _VERSION_**: Use this version, overriding other information.
-    * **-n**, **--dry-run**: Create a pre-check HTML page, printing the URL and opening it.
-    * **--no-open**: With `-n`, suppresses opening the file.
+    * `-I`, `--images`: Also push image gallery.
+    * `-F`, `--file`: Also upload the artifact file as a new version.
+      Upload is skipped per-site when that version is already current, but see `--force` below (Modrinth: SHA-512 hash; CurseForge: version string + file size; PMC: version string).
+    * `-f`, `--force`: With `--file`, bypasses the already-current check and uploads unconditionally.
+    * `-V`, `--version VERSION`: Use this version, overriding other information.
+    * `-n`, `--dry-run`: Create a pre-check HTML page, printing the URL and opening it.
+    * `--no-open`: With `-n`, suppresses opening the file.
 
 ## Projects
 
@@ -574,6 +576,7 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 | `name` | Display name. Title-cased if all-lowercase input (`neon` → `Neon`). Derived from directory name if absent; written back automatically. |
 | `pack` | Internal slug. Lowercase alphanumeric only. Derived from `name` or directory if absent; written back automatically. |
 | `slug` | Default slug for all sites. Per-site `slug` overrides this. |
+| `project_type` | Project type: `pack` (default), `mod`, or `world`. Determines which sites are active and which fields apply. |
 | `version` | Version string used by `push`. Overridden by `-V` on the CLI. |
 | `summary` | One-line description shown in site search results. |
 | `github` | Source repository URL. Set automatically from `links.source`; used for CF source link and Modrinth `source_url`/`issues_url`. Can be set directly to override. |
@@ -589,8 +592,11 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 | `optifine` | `true`/`false` — whether the pack requires OptiFine. Default `false`. |
 | `video` | YouTube video ID for an associated video. |
 | `after_push` | Message printed after all projects are pushed (not during dry-run). When set inside a site block, prints only when that site is active, prefixed with the site label. |
-| `minecraft` | Game version for artifact upload. String → exact version; dict → passed as-is. Required for `push --pack` unless `versions` is set. |
+| `minecraft` | Game version for artifact upload. String → exact version; dict → passed as-is. Required for `push --file` unless `versions` is set. |
 | `versions` | Explicit Minecraft version list. Alternative to `minecraft`. |
+| `loaders` | List of mod loaders (e.g. `[fabric, forge]`). Valid for `mod` only. Sets Modrinth `loaders` and resolves to CF game version IDs. |
+| `client_side` | `required`, `optional`, or `unsupported`. Valid for `mod` only. Sets Modrinth `client_side`. |
+| `server_side` | `required`, `optional`, or `unsupported`. Valid for `mod` only. Sets Modrinth `server_side`. |
 
 ## Description & Templates
 
@@ -614,13 +620,16 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 | `license` | SPDX identifier (e.g. `CC-BY-4.0`). Sets CF `license` (last hyphen → space) and Modrinth `license` unchanged. Ignored by PMC. |
 | `links.home` | Project home page URL. Sets CF `socials.website` and PMC `website.link`. |
 | `links.source` | Source repository URL. Sets top-level `github` (used for CF and Modrinth). |
-| `links.issues` | Issue tracker URL. Stored but not yet applied to any site. |
+| `links.issues` | Issue tracker URL. Sets Modrinth `issues_url`. |
+| `links.wiki` | Wiki URL. Sets Modrinth `wiki_url`. |
 | `links.patreon` | Patreon donation URL. CF: first donation key wins as `{type, value}`. Modrinth: `donation.patreon`. |
 | `links.kofi` | Ko-fi donation URL. Same expansion as `patreon`. |
 | `links.paypal` | PayPal donation URL. Same expansion. |
 | `links.buyMeACoffee` | Buy Me a Coffee URL. Same expansion. |
 | `links.github_sponsors` | GitHub Sponsors URL. CF: `type: github`. Modrinth: `donation.github`. |
 | `links.other` | Catch-all donation URL. Same expansion. |
+| `socials.discord` | Discord server URL. Sets Modrinth `discord_url` and CF `socials.discord`. Per-site `modrinth.discord` and `curseforge.socials.discord` override this. |
+| `changelog` | Release notes text included in version file uploads (`push --file`) on all sites. |
 
 ## CurseForge block (`curseforge:`)
 

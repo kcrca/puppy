@@ -1,5 +1,5 @@
 name: puppytest
-pack: testpack
+handle: testpack
 minecraft: '1.21'
 summary: A minimal resource pack for testing puppy workflows.
 license: MIT
