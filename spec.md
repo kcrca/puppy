@@ -215,6 +215,7 @@ Example: `sites: [cf, mr]`
 
 **Standard config fields:**
 * `summary` — one-line project description shown in search results
+* `changelog` — release notes text included in version file uploads (`push --pack`) on all sites
 * `optifine: true/false` — whether the pack requires [OptiFine](https://optifine.net/) (default false)
 * `video: <youtube-id>` — a youtube ID for an associated video (default none)
 * `links:` — external URLs for the project (all optional):

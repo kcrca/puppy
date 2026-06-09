@@ -75,8 +75,10 @@ def test_pack_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api, artifa
     run_cli(project_dir, 'push', '--site', 'modrinth', '--pack', '--version', '1.0.0')
 
     versions = mr_api(f'/project/{project_id}/version')
-    assert any(v.get('version_number') == '1.0.0' for v in versions), \
-        f'version 1.0.0 not found on Modrinth: {[v.get("version_number") for v in versions]}'
+    v100 = next((v for v in versions if v.get('version_number') == '1.0.0'), None)
+    assert v100, f'version 1.0.0 not found on Modrinth: {[v.get("version_number") for v in versions]}'
+    assert v100.get('changelog') == 'Initial release for integration testing.', \
+        f'changelog mismatch: {v100.get("changelog")!r}'
 
 
 def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api, artifacts):
@@ -123,6 +125,8 @@ def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api, artifac
     assert len(gallery) >= 1, 'gallery empty after push with images'
     donation_urls = mr_data.get('donation_urls') or []
     assert any(d.get('id') == 'ko-fi' for d in donation_urls), f'kofi donation_url missing: {donation_urls!r}'
+    assert mr_data.get('discord_url') == 'https://discord.gg/puppymod', \
+        f'per-site discord override not applied: {mr_data.get("discord_url")!r}'
 
     # Step 9: pull with images — summary and images.yaml updated
     run_cli(project_dir, 'pull', '--site', 'modrinth', '--images')
@@ -146,3 +150,5 @@ def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api, artifac
     v100 = next((v for v in versions if v.get('version_number') == '1.0.0'), None)
     assert v100, f'version 1.0.0 not found on Modrinth: {[v.get("version_number") for v in versions]}'
     assert 'fabric' in (v100.get('loaders') or []), f'fabric not in loaders: {v100.get("loaders")!r}'
+    assert v100.get('changelog') == 'Initial release for integration testing.', \
+        f'changelog mismatch: {v100.get("changelog")!r}'
