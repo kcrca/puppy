@@ -11,6 +11,44 @@ import yaml
 
 import puppy.__main__
 
+
+# Override the unit-test no-op fixtures so integration tests hit real site code.
+@pytest.fixture(autouse=True)
+def _no_cf_push():
+    pass
+
+@pytest.fixture(autouse=True)
+def _no_mr_push():
+    pass
+
+@pytest.fixture(autouse=True)
+def _no_pmc_push():
+    pass
+
+@pytest.fixture(autouse=True)
+def _no_cf_pull():
+    pass
+
+@pytest.fixture(autouse=True)
+def _no_mr_pull():
+    pass
+
+@pytest.fixture(autouse=True)
+def _no_pmc_pull():
+    pass
+
+@pytest.fixture(autouse=True)
+def _no_mr_upload():
+    pass
+
+@pytest.fixture(autouse=True)
+def _no_cf_upload():
+    pass
+
+@pytest.fixture(autouse=True)
+def _no_pmc_upload():
+    pass
+
 _INTEGRATION_DIR = Path(__file__).parent
 _PUPPY_HOME = _INTEGRATION_DIR / 'puppy'
 _AUTH_FILE = _PUPPY_HOME / 'auth.yaml'
@@ -25,9 +63,11 @@ _MR_API = 'https://api.modrinth.com/v2'
 _MR_UA = 'puppy-test/1.0'
 
 _CF_DASH = 'https://authors.curseforge.com/_api'
+_CF_API = 'https://api.curseforge.com/v1'
 _CF_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
 
 _TEST_SLUG_RE = re.compile(r'^puppy(?:pack|mod|world)-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$')
+_CF_TEST_SLUG_RE = re.compile(r'^puppy-test-(?:pack|mod|world)-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$')
 
 
 def _load_auth() -> dict:
@@ -55,6 +95,18 @@ def _cf_fetch(url: str, cookie: str) -> dict:
     })
     with urllib.request.urlopen(req) as r:
         return json.loads(r.read())
+
+
+def _cf_v1_fetch(path: str, token: str) -> dict:
+    req = urllib.request.Request(
+        f'{_CF_API}{path}',
+        headers={'X-Api-Token': token, 'User-Agent': _CF_UA},
+    )
+    try:
+        with urllib.request.urlopen(req) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError:
+        return {}
 
 
 def _mr_cleanup(token: str) -> None:
@@ -89,7 +141,7 @@ def _cf_cleanup(cookie: str) -> None:
         return
     if not isinstance(data, list):
         return
-    stale = [p for p in data if _TEST_SLUG_RE.match(p.get('slug', ''))]
+    stale = [p for p in data if _TEST_SLUG_RE.match(p.get('slug', '')) or _CF_TEST_SLUG_RE.match(p.get('slug', ''))]
     for p in stale:
         print(f'\n[cleanup] Deleting CurseForge: {p["slug"]}')
         try:
@@ -197,6 +249,12 @@ def mr_api(_auth):
 def cf_api(_auth):
     cookie = _auth.get('curseforge', {}).get('cookie', '')
     return lambda path: _cf_fetch(f'{_CF_DASH}{path}', cookie)
+
+
+@pytest.fixture
+def cf_v1_api(_auth):
+    token = _auth.get('curseforge', {}).get('token', '')
+    return lambda path: _cf_v1_fetch(path, token)
 
 
 @pytest.fixture

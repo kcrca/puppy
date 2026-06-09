@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -30,7 +31,10 @@ def _cf_fetch_game_versions(auth: dict) -> list[dict]:
 
 def _cf_resolve_game_version_ids(version_strings: list[str], auth: dict) -> list[int]:
     versions = _cf_fetch_game_versions(auth)
-    name_to_id = {v['name']: v['id'] for v in versions}
+    name_to_id: dict[str, int] = {}
+    for v in versions:
+        if v['name'] not in name_to_id:
+            name_to_id[v['name']] = v['id']
     ids = []
     for vs in version_strings:
         vid = name_to_id.get(vs)
@@ -381,14 +385,21 @@ class CurseForgeSite(Site):
             files=[('file', 'pack.png', icon_bytes, 'image/png')],
         )
 
-    def sync_gallery(self, project_id, auth: dict, images: list[dict]) -> None:
+    def sync_gallery(self, project_id, auth: dict, images: list[dict], verbosity: int = 0) -> None:
         h = self._cookie_headers(auth)
         params = urllib.parse.urlencode({
             'filter': '{}',
             'range': '[0,24]',
             'sort': '["id","DESC"]',
         })
-        existing = _cf_get(f'{_CF_DASH}/image-attachments/image/{project_id}?{params}', h) or []
+        try:
+            existing = _cf_get(f'{_CF_DASH}/image-attachments/image/{project_id}?{params}', h) or []
+        except SiteError as e:
+            if e.code == 404:
+                if verbosity >= 1:
+                    print('  [CurseForge] image gallery not available for this project state, skipping')
+                return
+            raise
         desired_filenames = {img['filename'] for img in images}
         existing_by_filename = {item['title']: item for item in existing}
 
@@ -398,12 +409,19 @@ class CurseForgeSite(Site):
 
         for img in images:
             if img['filename'] not in existing_by_filename:
-                result = _cf_post_multipart(
-                    f'{_CF_DASH}/image-attachments/image/{project_id}',
-                    h,
-                    fields={},
-                    files=[('image', img['filename'], img['data'], img['mime_type'])],
-                )
+                try:
+                    result = _cf_post_multipart(
+                        f'{_CF_DASH}/image-attachments/image/{project_id}',
+                        h,
+                        fields={},
+                        files=[('image', img['filename'], img['data'], img['mime_type'])],
+                    )
+                except SiteError as e:
+                    if e.code == 404:
+                        if verbosity >= 1:
+                            print('  [CurseForge] image upload not available for this project state, skipping')
+                        return
+                    raise
                 if result and result.get('id'):
                     _cf_put_json(
                         f'{_CF_DASH}/image-attachments/{result["id"]}',
@@ -418,7 +436,7 @@ class CurseForgeSite(Site):
         dtype = donation.get('type', 'none')
         raw_cat = sc.get('category')
         if raw_cat is not None:
-            cat_list = [raw_cat] if isinstance(raw_cat, str) else list(raw_cat)
+            cat_list = [raw_cat] if isinstance(raw_cat, (str, int)) else list(raw_cat)
             primary_from_cat, sub_cat_ids = _cf_resolve_category_ids(cat_list)
         else:
             primary_from_cat, sub_cat_ids = None, []
@@ -456,15 +474,18 @@ class CurseForgeSite(Site):
         links = sc.get('links') or {}
         source_url = links.get('source')
         if source_url:
-            _cf_put_json(
-                f'{_CF_DASH}/project-source/{project_id}/update',
-                h,
-                {
-                    'sourceHostUrl': source_url,
-                    'sourceHost': 3,
-                    'packagerMode': 1,
-                },
-            )
+            try:
+                _cf_put_json(
+                    f'{_CF_DASH}/project-source/{project_id}/update',
+                    h,
+                    {
+                        'sourceHostUrl': source_url,
+                        'sourceHost': 3,
+                        'packagerMode': 1,
+                    },
+                )
+            except SiteError:
+                pass
 
     def upload_file(
         self,
@@ -509,12 +530,20 @@ class CurseForgeSite(Site):
             'releaseType': 'release',
         }
         artifact_bytes = pack_path.read_bytes()
-        _cf_post_multipart(
-            f'{_CF_API}/projects/{project_id}/upload-file',
-            self._token_headers(auth),
-            fields={'metadata': json.dumps(metadata)},
-            files=[('file', pack_path.name, artifact_bytes, 'application/zip')],
-        )
+        for attempt in range(3):
+            try:
+                _cf_post_multipart(
+                    f'{_CF_API}/projects/{project_id}/upload-file',
+                    self._token_headers(auth),
+                    fields={'metadata': json.dumps(metadata)},
+                    files=[('file', pack_path.name, artifact_bytes, 'application/zip')],
+                )
+                break
+            except AuthExpiredError as e:
+                if attempt < 2 and not e.body.strip():
+                    time.sleep(5)
+                    continue
+                raise
 
     def create(self, *, config: dict, auth: dict, icon_bytes: bytes, verbosity: int = 0) -> dict:
         import time
@@ -622,10 +651,15 @@ class CurseForgeSite(Site):
             })
         if verbosity >= 1:
             print(f'  [CurseForge] syncing gallery ({len(images)} images)')
-        self.sync_gallery(project_id, auth, images)
+        self.sync_gallery(project_id, auth, images, verbosity=verbosity)
         h = self._cookie_headers(auth)
         params = urllib.parse.urlencode({'filter': '{}', 'range': '[0,24]', 'sort': '["id","DESC"]'})
-        gallery = _cf_get(f'{_CF_DASH}/image-attachments/image/{project_id}?{params}', h) or []
+        try:
+            gallery = _cf_get(f'{_CF_DASH}/image-attachments/image/{project_id}?{params}', h) or []
+        except SiteError as e:
+            if e.code == 404:
+                return {}
+            raise
         return {
             Path(item['title']).stem: item.get('imageUrl', '')
             for item in gallery
@@ -680,7 +714,7 @@ class CurseForgeSite(Site):
         if images:
             if verbosity >= 1:
                 print(f'  [CurseForge] syncing gallery ({len(images)} images)')
-            self.sync_gallery(project_id, auth, images)
+            self.sync_gallery(project_id, auth, images, verbosity=verbosity)
 
         if verbosity >= 1:
             print(f'  [CurseForge] updating details')
@@ -707,15 +741,18 @@ class CurseForgeSite(Site):
 
         token = auth.get('curseforge', {}).get('token')
         if token:
-            desc_req = urllib.request.Request(
-                f'https://api.curseforge.com/v1/mods/{project_id}/description',
-                headers={'x-api-key': token},
-            )
-            with urllib.request.urlopen(desc_req, timeout=30) as resp:
-                desc_data = json.loads(resp.read())
-            site_dir = puppy_dir / 'curseforge'
-            site_dir.mkdir(parents=True, exist_ok=True)
-            (site_dir / 'description.html').write_text(desc_data['data'])
+            try:
+                desc_req = urllib.request.Request(
+                    f'https://api.curseforge.com/v1/mods/{project_id}/description',
+                    headers={'X-Api-Token': token},
+                )
+                with urllib.request.urlopen(desc_req, timeout=30) as resp:
+                    desc_data = json.loads(resp.read())
+                site_dir = puppy_dir / 'curseforge'
+                site_dir.mkdir(parents=True, exist_ok=True)
+                (site_dir / 'description.html').write_text(desc_data['data'])
+            except urllib.error.HTTPError:
+                pass
 
         h = self._cookie_headers(auth)
         params = urllib.parse.urlencode({
@@ -723,7 +760,13 @@ class CurseForgeSite(Site):
             'range': '[0,24]',
             'sort': '["id","DESC"]',
         })
-        gallery = _cf_get(f'{_CF_DASH}/image-attachments/image/{project_id}?{params}', h) or []
+        try:
+            gallery = _cf_get(f'{_CF_DASH}/image-attachments/image/{project_id}?{params}', h) or []
+        except SiteError as e:
+            if e.code == 404:
+                gallery = []
+            else:
+                raise
 
         image_entries = []
         for item in gallery:

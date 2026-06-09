@@ -7,7 +7,7 @@ class ArtifactFinder:
         self.search_dir = Path(search_dir)
 
     def find(self, *, project: str, version: str) -> Path:
-        pattern = re.compile(rf'[-_.]{re.escape(version)}\.zip$')
+        pattern = re.compile(rf'[-_.]{re.escape(version)}\.(zip|jar)$')
         matches = [p for p in self.search_dir.iterdir() if pattern.search(p.name)]
         if not matches:
             raise FileNotFoundError(
