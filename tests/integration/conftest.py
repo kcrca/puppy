@@ -1,6 +1,8 @@
 import json
+import os
 import re
 import shutil
+import sys
 import urllib.parse
 import urllib.request
 from datetime import datetime
@@ -356,3 +358,129 @@ def pmc_page(_auth):
             browser.close()
             return html
     return _fetch
+
+
+# ---------------------------------------------------------------------------
+# Shared lifecycle constants
+# ---------------------------------------------------------------------------
+
+_NEW_SENTENCE = 'Updated by integration test.'
+
+
+# ---------------------------------------------------------------------------
+# Base class for per-site lifecycle test classes
+# ---------------------------------------------------------------------------
+
+class LifecycleBase:
+    """
+    Base class for integration lifecycle tests.
+
+    Subclasses set SITE, SITE_KEY, PROJECT_TYPE and override _assert_* methods.
+    The five test methods (test_01_create … test_05_push_pack) run in definition
+    order, sharing state via the class-scoped `ctx` fixture.
+    """
+    SITE = ''         # CLI site argument: 'modrinth', 'cf', 'pmc'
+    SITE_KEY = ''     # auth.yaml / puppy.yaml key: 'modrinth', 'curseforge', 'planetminecraft'
+    PROJECT_TYPE = 'pack'
+
+    @pytest.fixture(scope='class')
+    def ctx(self, tmp_path_factory, run_id, artifacts, _auth):
+        site_auth = _auth.get(self.SITE_KEY)
+        if not site_auth:
+            pytest.skip(f'no {self.SITE_KEY} credentials')
+
+        project_name = _PROJECT_NAME[self.PROJECT_TYPE]
+        root = tmp_path_factory.mktemp(f'{self.SITE}_{self.PROJECT_TYPE}')
+        home = root / 'puppy'
+        home.mkdir()
+        shutil.copytree(_PUPPY_HOME / project_name, home / project_name)
+
+        home_config = yaml.safe_load((_PUPPY_HOME / 'puppy.yaml').read_text()) or {}
+        home_config['projects'] = [project_name]
+        (home / 'puppy.yaml').write_text(yaml.dump(home_config, default_flow_style=False))
+        shutil.copy(_PUPPY_HOME / '.gitignore', home / '.gitignore')
+        (home / 'auth.yaml').write_text(yaml.dump({self.SITE_KEY: site_auth}))
+
+        project_dir = home / project_name
+        slug = f'{project_name}-{run_id}'
+        config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
+        config['pack'] = slug
+        if config.get('name'):
+            config['name'] = f'{config["name"]} {run_id}'
+        (project_dir / 'puppy.yaml').write_text(yaml.dump(config))
+
+        return {
+            'project_dir': project_dir,
+            'slug': slug,
+            'project_name': config.get('name', ''),
+            'project_id': None,
+            'artifacts': artifacts,
+            'auth': _auth,
+            'updated_summary': f'Updated summary for {self.SITE} {self.PROJECT_TYPE} integration testing.',
+        }
+
+    def _run(self, ctx, *args):
+        orig_argv = sys.argv[:]
+        orig_dir = os.getcwd()
+        os.chdir(ctx['project_dir'])
+        sys.argv = ['puppy', '--no-open'] + list(args)
+        try:
+            puppy.__main__.main()
+        except SystemExit as e:
+            if e.code and e.code != 0:
+                raise AssertionError(f'puppy {list(args)!r} failed with exit code {e.code}')
+        finally:
+            sys.argv = orig_argv
+            os.chdir(orig_dir)
+
+    # ------------------------------------------------------------------
+    # Test steps
+    # ------------------------------------------------------------------
+
+    def test_01_create(self, ctx):
+        self._run(ctx, 'create', '--site', self.SITE)
+        config = yaml.safe_load((ctx['project_dir'] / 'puppy.yaml').read_text())
+        assert config.get(self.SITE_KEY, {}).get('id'), f'{self.SITE_KEY}.id not set after create'
+        ctx['project_id'] = config[self.SITE_KEY]['id']
+        self._assert_create(ctx, config)
+
+    def test_02_pull(self, ctx):
+        self._run(ctx, 'pull', '--site', self.SITE)
+        config = yaml.safe_load((ctx['project_dir'] / 'puppy.yaml').read_text())
+        assert config.get(self.SITE_KEY, {}).get('id'), f'{self.SITE_KEY}.id missing after pull'
+        self._assert_pull(ctx, config)
+
+    def test_03_push_images(self, ctx):
+        desc_file = ctx['project_dir'] / 'description.md'
+        desc_file.write_text(desc_file.read_text() + f'\n{_NEW_SENTENCE}\n\n{{{{ img(\'img1\') }}}}\n')
+        config = yaml.safe_load((ctx['project_dir'] / 'puppy.yaml').read_text())
+        config['summary'] = ctx['updated_summary']
+        (ctx['project_dir'] / 'puppy.yaml').write_text(yaml.dump(config, default_flow_style=False))
+        self._before_push_images(ctx)
+        self._run(ctx, 'push', '--site', self.SITE, '--images')
+        self._assert_push_images(ctx)
+
+    def test_04_pull_images(self, ctx):
+        self._run(ctx, 'pull', '--site', self.SITE, '--images')
+        config = yaml.safe_load((ctx['project_dir'] / 'puppy.yaml').read_text())
+        self._assert_pull_images(ctx, config)
+
+    def test_05_push_pack(self, ctx):
+        artifact_src = ctx['artifacts'][f'puppy{self.PROJECT_TYPE}']
+        shutil.copy(artifact_src, ctx['project_dir'] / artifact_src.name)
+        config = yaml.safe_load((ctx['project_dir'] / 'puppy.yaml').read_text())
+        config['minecraft'] = '1.21.4'
+        (ctx['project_dir'] / 'puppy.yaml').write_text(yaml.dump(config, default_flow_style=False))
+        self._run(ctx, 'push', '--site', self.SITE, '--pack', '--version', '1.0.0')
+        self._assert_push_pack(ctx)
+
+    # ------------------------------------------------------------------
+    # Override in subclasses
+    # ------------------------------------------------------------------
+
+    def _assert_create(self, ctx, config): pass
+    def _assert_pull(self, ctx, config): pass
+    def _before_push_images(self, ctx): pass
+    def _assert_push_images(self, ctx): pass
+    def _assert_pull_images(self, ctx, config): pass
+    def _assert_push_pack(self, ctx): pass

@@ -1,154 +1,109 @@
-import shutil
+import urllib.request
+import json
 import yaml
 import pytest
-from pathlib import Path
 
 pytestmark = pytest.mark.integration
 
-_INTEGRATION_DIR = Path(__file__).parent
-_UPDATED_SUMMARY = 'Updated summary for MR integration testing.'
-_NEW_SENTENCE = 'Updated by integration test.'
+from conftest import LifecycleBase, _NEW_SENTENCE, _MR_API, _MR_UA
 
 
-def test_pack_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api, artifacts):
-    home, project_dir = make_home('pack', {'modrinth': mr_auth['modrinth']})
-    slug = inject_slug(project_dir, 'pack')
-
-    # Step 4: create registers the project slot and writes id/slug to config
-    run_cli(project_dir, 'create', '--site', 'modrinth')
-
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    assert config.get('modrinth', {}).get('id'), 'modrinth.id not set after create'
-    assert config['modrinth'].get('slug') == slug
-
-    # Step 5: verify metadata sent during create (not push — body/icon/gallery tested in step 8)
-    project_id = config['modrinth']['id']
-    mr_data = mr_api(f'/project/{project_id}')
-    assert mr_data['title'] == config['name'], f'title mismatch: {mr_data["title"]!r}'
-    assert mr_data['description'] == 'A minimal resource pack for puppy integration testing.'
-    assert set(mr_data.get('categories', [])) >= {'blocks', 'environment', 'simplistic'}
-    assert '16x' in (mr_data.get('additional_categories') or [])
-    assert (mr_data.get('license') or {}).get('id') == 'MIT', f'license not MIT: {mr_data.get("license")!r}'
-    assert mr_data.get('source_url') == 'https://github.com/example/puppy-integration-test', f'source_url mismatch: {mr_data.get("source_url")!r}'
-    assert mr_data.get('discord_url') == 'https://discord.gg/puppytest', f'discord_url mismatch: {mr_data.get("discord_url")!r}'
-
-    # Step 6: pull round-trips id/slug
-    run_cli(project_dir, 'pull', '--site', 'modrinth')
-
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    assert config['modrinth'].get('id'), 'modrinth.id missing after pull'
-    assert config['modrinth'].get('slug') == slug
-
-    # Step 7: modify description + summary, push with images
-    desc_file = project_dir / 'description.md'
-    desc_file.write_text(desc_file.read_text() + f'\n{_NEW_SENTENCE}\n\n{{{{ img(\'img1\') }}}}\n')
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    config['summary'] = _UPDATED_SUMMARY
-    (project_dir / 'puppy.yaml').write_text(yaml.dump(config, default_flow_style=False))
-    run_cli(project_dir, 'push', '--site', 'modrinth', '--images')
-
-    # Step 8: validate updated page via authenticated API
-    mr_data = mr_api(f'/project/{project_id}')
-    assert _NEW_SENTENCE in (mr_data.get('body') or ''), 'new sentence not in body after push'
-    assert mr_data.get('icon_url'), 'icon_url missing after push'
-    gallery = mr_data.get('gallery') or []
-    assert len(gallery) >= 1, 'gallery empty after push with images'
-    donation_urls = mr_data.get('donation_urls') or []
-    assert any(d.get('id') == 'ko-fi' for d in donation_urls), f'kofi donation_url missing: {donation_urls!r}'
-
-    # Step 9: pull with images — summary and images.yaml updated
-    run_cli(project_dir, 'pull', '--site', 'modrinth', '--images')
-
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    assert config.get('summary') == _UPDATED_SUMMARY, f'summary not updated after pull: {config.get("summary")!r}'
-    images_yaml = project_dir / 'images' / 'images.yaml'
-    assert images_yaml.exists(), 'images/images.yaml missing after pull --images'
-    img_entries = yaml.safe_load(images_yaml.read_text())
-    assert len(img_entries) >= 1, 'images/images.yaml has no entries'
-
-    # Step 10: copy artifact, inject minecraft version, push pack file
-    artifact_src = artifacts['puppypack']
-    shutil.copy(artifact_src, project_dir / artifact_src.name)
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    config['minecraft'] = '1.21.4'
-    (project_dir / 'puppy.yaml').write_text(yaml.dump(config, default_flow_style=False))
-    run_cli(project_dir, 'push', '--site', 'modrinth', '--pack', '--version', '1.0.0')
-
-    versions = mr_api(f'/project/{project_id}/version')
-    v100 = next((v for v in versions if v.get('version_number') == '1.0.0'), None)
-    assert v100, f'version 1.0.0 not found on Modrinth: {[v.get("version_number") for v in versions]}'
-    assert v100.get('changelog') == 'Initial release for integration testing.', \
-        f'changelog mismatch: {v100.get("changelog")!r}'
+def _mr_get(path, token):
+    req = urllib.request.Request(
+        f'{_MR_API}{path}',
+        headers={'Authorization': token, 'User-Agent': _MR_UA},
+    )
+    with urllib.request.urlopen(req) as r:
+        return json.loads(r.read())
 
 
-def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api, artifacts):
-    home, project_dir = make_home('mod', {'modrinth': mr_auth['modrinth']})
-    slug = inject_slug(project_dir, 'mod')
+class TestMRPackLifecycle(LifecycleBase):
+    SITE = 'modrinth'
+    SITE_KEY = 'modrinth'
+    PROJECT_TYPE = 'pack'
 
-    # Step 4: create registers the project slot and writes id/slug to config
-    run_cli(project_dir, 'create', '--site', 'modrinth')
+    def _token(self, ctx):
+        return ctx['auth']['modrinth']['token']
 
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    assert config.get('modrinth', {}).get('id'), 'modrinth.id not set after create'
-    assert config['modrinth'].get('slug') == slug
+    def _assert_create(self, ctx, config):
+        mr = _mr_get(f'/project/{ctx["project_id"]}', self._token(ctx))
+        assert mr['title'] == config['name'], f'title mismatch: {mr["title"]!r}'
+        assert mr['description'] == 'A minimal resource pack for puppy integration testing.'
+        assert set(mr.get('categories', [])) >= {'blocks', 'environment', 'simplistic'}
+        assert '16x' in (mr.get('additional_categories') or [])
+        assert (mr.get('license') or {}).get('id') == 'MIT', f'license not MIT: {mr.get("license")!r}'
+        assert mr.get('source_url') == 'https://github.com/example/puppy-integration-test'
+        assert mr.get('discord_url') == 'https://discord.gg/puppytest'
 
-    # Step 5: verify metadata sent during create (not push — body/icon/gallery tested in step 8)
-    project_id = config['modrinth']['id']
-    mr_data = mr_api(f'/project/{project_id}')
-    assert mr_data['title'] == config['name'], f'title mismatch: {mr_data["title"]!r}'
-    assert mr_data['description'] == 'A minimal Fabric mod for puppy integration testing.'
-    assert set(mr_data.get('categories', [])) >= {'utility', 'library'}
-    assert (mr_data.get('license') or {}).get('id') == 'MIT', f'license not MIT: {mr_data.get("license")!r}'
-    assert mr_data.get('source_url') == 'https://github.com/example/puppy-integration-test', f'source_url mismatch: {mr_data.get("source_url")!r}'
-    assert mr_data.get('discord_url') == 'https://discord.gg/puppytest', f'discord_url mismatch: {mr_data.get("discord_url")!r}'
+    def _assert_pull(self, ctx, config):
+        assert config['modrinth'].get('slug') == ctx['slug']
 
-    # Step 6: pull round-trips id/slug
-    run_cli(project_dir, 'pull', '--site', 'modrinth')
+    def _assert_push_images(self, ctx):
+        mr = _mr_get(f'/project/{ctx["project_id"]}', self._token(ctx))
+        assert _NEW_SENTENCE in (mr.get('body') or ''), 'new sentence not in body after push'
+        assert mr.get('icon_url'), 'icon_url missing after push'
+        assert len(mr.get('gallery') or []) >= 1, 'gallery empty after push with images'
+        assert any(d.get('id') == 'ko-fi' for d in (mr.get('donation_urls') or [])), \
+            f'kofi donation_url missing: {mr.get("donation_urls")!r}'
+        assert mr.get('discord_url') == 'https://discord.gg/puppytest', \
+            f'discord_url mismatch: {mr.get("discord_url")!r}'
 
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    assert config['modrinth'].get('id'), 'modrinth.id missing after pull'
-    assert config['modrinth'].get('slug') == slug
+    def _assert_pull_images(self, ctx, config):
+        assert config.get('summary') == ctx['updated_summary'], \
+            f'summary not updated after pull: {config.get("summary")!r}'
+        images_yaml = ctx['project_dir'] / 'images' / 'images.yaml'
+        assert images_yaml.exists(), 'images/images.yaml missing after pull --images'
+        assert len(yaml.safe_load(images_yaml.read_text())) >= 1, 'images/images.yaml has no entries'
 
-    # Step 7: modify description + summary, push with images
-    desc_file = project_dir / 'description.md'
-    desc_file.write_text(desc_file.read_text() + f'\n{_NEW_SENTENCE}\n\n{{{{ img(\'img1\') }}}}\n')
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    config['summary'] = _UPDATED_SUMMARY
-    (project_dir / 'puppy.yaml').write_text(yaml.dump(config, default_flow_style=False))
-    run_cli(project_dir, 'push', '--site', 'modrinth', '--images')
+    def _assert_push_pack(self, ctx):
+        versions = _mr_get(f'/project/{ctx["project_id"]}/version', self._token(ctx))
+        v100 = next((v for v in versions if v.get('version_number') == '1.0.0'), None)
+        assert v100, f'version 1.0.0 not found on Modrinth: {[v.get("version_number") for v in versions]}'
+        assert v100.get('changelog') == 'Initial release for integration testing.', \
+            f'changelog mismatch: {v100.get("changelog")!r}'
 
-    # Step 8: validate updated page via authenticated API
-    mr_data = mr_api(f'/project/{project_id}')
-    assert _NEW_SENTENCE in (mr_data.get('body') or ''), 'new sentence not in body after push'
-    assert mr_data.get('icon_url'), 'icon_url missing after push'
-    gallery = mr_data.get('gallery') or []
-    assert len(gallery) >= 1, 'gallery empty after push with images'
-    donation_urls = mr_data.get('donation_urls') or []
-    assert any(d.get('id') == 'ko-fi' for d in donation_urls), f'kofi donation_url missing: {donation_urls!r}'
-    assert mr_data.get('discord_url') == 'https://discord.gg/puppymod', \
-        f'per-site discord override not applied: {mr_data.get("discord_url")!r}'
 
-    # Step 9: pull with images — summary and images.yaml updated
-    run_cli(project_dir, 'pull', '--site', 'modrinth', '--images')
+class TestMRModLifecycle(LifecycleBase):
+    SITE = 'modrinth'
+    SITE_KEY = 'modrinth'
+    PROJECT_TYPE = 'mod'
 
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    assert config.get('summary') == _UPDATED_SUMMARY, f'summary not updated after pull: {config.get("summary")!r}'
-    images_yaml = project_dir / 'images' / 'images.yaml'
-    assert images_yaml.exists(), 'images/images.yaml missing after pull --images'
-    img_entries = yaml.safe_load(images_yaml.read_text())
-    assert len(img_entries) >= 1, 'images/images.yaml has no entries'
+    def _token(self, ctx):
+        return ctx['auth']['modrinth']['token']
 
-    # Step 10: copy artifact, inject minecraft version, push pack file
-    artifact_src = artifacts['puppymod']
-    shutil.copy(artifact_src, project_dir / artifact_src.name)
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    config['minecraft'] = '1.21.4'
-    (project_dir / 'puppy.yaml').write_text(yaml.dump(config, default_flow_style=False))
-    run_cli(project_dir, 'push', '--site', 'modrinth', '--pack', '--version', '1.0.0')
+    def _assert_create(self, ctx, config):
+        mr = _mr_get(f'/project/{ctx["project_id"]}', self._token(ctx))
+        assert mr['title'] == config['name'], f'title mismatch: {mr["title"]!r}'
+        assert mr['description'] == 'A minimal Fabric mod for puppy integration testing.'
+        assert set(mr.get('categories', [])) >= {'utility', 'library'}
+        assert (mr.get('license') or {}).get('id') == 'MIT', f'license not MIT: {mr.get("license")!r}'
+        assert mr.get('source_url') == 'https://github.com/example/puppy-integration-test'
+        assert mr.get('discord_url') == 'https://discord.gg/puppytest'
 
-    versions = mr_api(f'/project/{project_id}/version')
-    v100 = next((v for v in versions if v.get('version_number') == '1.0.0'), None)
-    assert v100, f'version 1.0.0 not found on Modrinth: {[v.get("version_number") for v in versions]}'
-    assert 'fabric' in (v100.get('loaders') or []), f'fabric not in loaders: {v100.get("loaders")!r}'
-    assert v100.get('changelog') == 'Initial release for integration testing.', \
-        f'changelog mismatch: {v100.get("changelog")!r}'
+    def _assert_pull(self, ctx, config):
+        assert config['modrinth'].get('slug') == ctx['slug']
+
+    def _assert_push_images(self, ctx):
+        mr = _mr_get(f'/project/{ctx["project_id"]}', self._token(ctx))
+        assert _NEW_SENTENCE in (mr.get('body') or ''), 'new sentence not in body after push'
+        assert mr.get('icon_url'), 'icon_url missing after push'
+        assert len(mr.get('gallery') or []) >= 1, 'gallery empty after push with images'
+        assert any(d.get('id') == 'ko-fi' for d in (mr.get('donation_urls') or [])), \
+            f'kofi donation_url missing: {mr.get("donation_urls")!r}'
+        assert mr.get('discord_url') == 'https://discord.gg/puppymod', \
+            f'per-site discord override not applied: {mr.get("discord_url")!r}'
+
+    def _assert_pull_images(self, ctx, config):
+        assert config.get('summary') == ctx['updated_summary'], \
+            f'summary not updated after pull: {config.get("summary")!r}'
+        images_yaml = ctx['project_dir'] / 'images' / 'images.yaml'
+        assert images_yaml.exists(), 'images/images.yaml missing after pull --images'
+        assert len(yaml.safe_load(images_yaml.read_text())) >= 1, 'images/images.yaml has no entries'
+
+    def _assert_push_pack(self, ctx):
+        versions = _mr_get(f'/project/{ctx["project_id"]}/version', self._token(ctx))
+        v100 = next((v for v in versions if v.get('version_number') == '1.0.0'), None)
+        assert v100, f'version 1.0.0 not found on Modrinth: {[v.get("version_number") for v in versions]}'
+        assert 'fabric' in (v100.get('loaders') or []), f'fabric not in loaders: {v100.get("loaders")!r}'
+        assert v100.get('changelog') == 'Initial release for integration testing.', \
+            f'changelog mismatch: {v100.get("changelog")!r}'

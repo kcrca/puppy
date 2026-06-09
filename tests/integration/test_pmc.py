@@ -1,15 +1,32 @@
 import re
-import shutil
 import yaml
 import pytest
 from bs4 import BeautifulSoup
-from pathlib import Path
 
 pytestmark = pytest.mark.integration
 
-_INTEGRATION_DIR = Path(__file__).parent
-_NEW_SENTENCE = 'Updated by integration test.'
-_PMC_BASE = 'https://www.planetminecraft.com'
+from conftest import LifecycleBase, _PMC_BASE
+
+
+def _pmc_fetch(manage_path, ctx, project_id=None):
+    from playwright.sync_api import sync_playwright
+    if project_id is None:
+        project_id = ctx['project_id']
+    url = f'{_PMC_BASE}{manage_path}{project_id}/'
+    cookie_str = ctx['auth']['planetminecraft']['cookie']
+    c_name, _, c_value = cookie_str.partition('=')
+    with sync_playwright() as p:
+        browser = p.firefox.launch(headless=True)
+        pctx = browser.new_context()
+        pctx.add_cookies([{
+            'name': c_name.strip(), 'value': c_value.strip(),
+            'domain': 'www.planetminecraft.com', 'path': '/',
+        }])
+        page = pctx.new_page()
+        page.goto(url, wait_until='networkidle')
+        html = page.content()
+        browser.close()
+    return html
 
 
 def test_pmc_account_empty(pmc_auth, pmc_page):
@@ -24,107 +41,43 @@ def test_pmc_account_empty(pmc_auth, pmc_page):
     assert not remaining, f'PMC cleanup incomplete — {len(remaining)} project(s) still present: {remaining}'
 
 
-def test_pack_lifecycle(pmc_auth, make_home, inject_slug, run_cli, pmc_page, artifacts):
-    home, project_dir = make_home('pack', {'planetminecraft': pmc_auth['planetminecraft']})
-    slug = inject_slug(project_dir, 'pack')
+class TestPMCPackLifecycle(LifecycleBase):
+    SITE = 'pmc'
+    SITE_KEY = 'planetminecraft'
+    PROJECT_TYPE = 'pack'
+    PMC_MANAGE_PATH = '/account/manage/texture-packs/'
 
-    # Step 4: create registers the project slot and writes id/slug to config
-    run_cli(project_dir, 'create', '--site', 'pmc')
+    def _assert_create(self, ctx, config):
+        html = _pmc_fetch(self.PMC_MANAGE_PATH, ctx)
+        assert ctx['project_name'] in html, 'project name not found in PMC management page'
 
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    assert config.get('planetminecraft', {}).get('id'), 'planetminecraft.id not set after create'
-    assert config['planetminecraft'].get('slug'), 'planetminecraft.slug not set after create'
+    def _assert_pull(self, ctx, config):
+        assert config['planetminecraft'].get('id'), 'planetminecraft.id missing after pull'
+        assert config['planetminecraft'].get('slug'), 'planetminecraft.slug missing after pull'
 
-    # Step 5: verify title visible in management page (public page held for moderation)
-    project_id = config['planetminecraft']['id']
-    html = pmc_page(f'https://www.planetminecraft.com/account/manage/texture-packs/{project_id}/')
-    assert 'Puppy Test Pack' in html, 'project name not found in PMC management page'
+    def _assert_push_images(self, ctx):
+        html = _pmc_fetch(self.PMC_MANAGE_PATH, ctx)
+        assert ctx['project_name'] in html, 'project name not found in PMC management page after push'
 
-    # Step 6: pull round-trips id/slug
-    run_cli(project_dir, 'pull', '--site', 'pmc')
+    def _assert_pull_images(self, ctx, config):
+        images_yaml = ctx['project_dir'] / 'images' / 'images.yaml'
+        assert images_yaml.exists(), 'images/images.yaml missing after pull --images'
+        assert len(yaml.safe_load(images_yaml.read_text())) >= 1, 'images/images.yaml has no entries'
 
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    assert config['planetminecraft'].get('id'), 'planetminecraft.id missing after pull'
-    assert config['planetminecraft'].get('slug'), 'planetminecraft.slug missing after pull'
-
-    # Step 7: modify description, push with images
-    desc_file = project_dir / 'description.md'
-    desc_file.write_text(desc_file.read_text() + f'\n{_NEW_SENTENCE}\n\n{{{{ img(\'img1\') }}}}\n')
-    run_cli(project_dir, 'push', '--site', 'pmc', '--images')
-
-    # Step 8: validate management page still shows project name
-    html = pmc_page(f'https://www.planetminecraft.com/account/manage/texture-packs/{project_id}/')
-    assert 'Puppy Test Pack' in html, 'project name not found in PMC management page after push'
-
-    # Step 9: pull with images — images.yaml written
-    run_cli(project_dir, 'pull', '--site', 'pmc', '--images')
-
-    images_yaml = project_dir / 'images' / 'images.yaml'
-    assert images_yaml.exists(), 'images/images.yaml missing after pull --images'
-    img_entries = yaml.safe_load(images_yaml.read_text())
-    assert len(img_entries) >= 1, 'images/images.yaml has no entries'
-
-    # Step 10: copy artifact, inject minecraft version, push pack file (PMC records version log)
-    artifact_src = artifacts['puppypack']
-    shutil.copy(artifact_src, project_dir / artifact_src.name)
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    config['minecraft'] = '1.21.4'
-    (project_dir / 'puppy.yaml').write_text(yaml.dump(config, default_flow_style=False))
-    run_cli(project_dir, 'push', '--site', 'pmc', '--pack', '--version', '1.0.0')
-
-    state = yaml.safe_load((project_dir / '.publish_state.yaml').read_text())
-    assert state.get('planetminecraft', {}).get('version') == '1.0.0', \
-        f'PMC version log not recorded: {state!r}'
+    def _assert_push_pack(self, ctx):
+        state = yaml.safe_load((ctx['project_dir'] / '.publish_state.yaml').read_text())
+        assert state.get('planetminecraft', {}).get('version') == '1.0.0', \
+            f'PMC version log not recorded: {state!r}'
 
 
-def test_world_lifecycle(pmc_auth, make_home, inject_slug, run_cli, pmc_page, artifacts):
-    home, project_dir = make_home('world', {'planetminecraft': pmc_auth['planetminecraft']})
-    slug = inject_slug(project_dir, 'world')
+class TestPMCWorldLifecycle(TestPMCPackLifecycle):
+    PROJECT_TYPE = 'world'
+    PMC_MANAGE_PATH = '/account/manage/projects/'
 
-    # Step 4: create registers the project slot and writes id/slug to config
-    run_cli(project_dir, 'create', '--site', 'pmc')
+    def _assert_create(self, ctx, config):
+        html = _pmc_fetch(self.PMC_MANAGE_PATH, ctx)
+        assert ctx['project_name'] in html, 'project name not found in PMC management page'
 
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    assert config.get('planetminecraft', {}).get('id'), 'planetminecraft.id not set after create'
-    assert config['planetminecraft'].get('slug'), 'planetminecraft.slug not set after create'
-
-    # Step 5: verify title visible in management page
-    project_id = config['planetminecraft']['id']
-    html = pmc_page(f'https://www.planetminecraft.com/account/manage/projects/{project_id}/')
-    assert 'Puppy Test World' in html, 'project name not found in PMC management page'
-
-    # Step 6: pull round-trips id/slug
-    run_cli(project_dir, 'pull', '--site', 'pmc')
-
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    assert config['planetminecraft'].get('id'), 'planetminecraft.id missing after pull'
-    assert config['planetminecraft'].get('slug'), 'planetminecraft.slug missing after pull'
-
-    # Step 7: modify description, push with images
-    desc_file = project_dir / 'description.md'
-    desc_file.write_text(desc_file.read_text() + f'\n{_NEW_SENTENCE}\n\n{{{{ img(\'img1\') }}}}\n')
-    run_cli(project_dir, 'push', '--site', 'pmc', '--images')
-
-    # Step 8: validate management page still shows project name
-    html = pmc_page(f'https://www.planetminecraft.com/account/manage/projects/{project_id}/')
-    assert 'Puppy Test World' in html, 'project name not found in PMC management page after push'
-
-    # Step 9: pull with images — images.yaml written
-    run_cli(project_dir, 'pull', '--site', 'pmc', '--images')
-
-    images_yaml = project_dir / 'images' / 'images.yaml'
-    assert images_yaml.exists(), 'images/images.yaml missing after pull --images'
-    img_entries = yaml.safe_load(images_yaml.read_text())
-    assert len(img_entries) >= 1, 'images/images.yaml has no entries'
-
-    # Step 10: copy artifact, inject minecraft version, push pack file (PMC records version log)
-    artifact_src = artifacts['puppyworld']
-    shutil.copy(artifact_src, project_dir / artifact_src.name)
-    config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
-    config['minecraft'] = '1.21.4'
-    (project_dir / 'puppy.yaml').write_text(yaml.dump(config, default_flow_style=False))
-    run_cli(project_dir, 'push', '--site', 'pmc', '--pack', '--version', '1.0.0')
-
-    state = yaml.safe_load((project_dir / '.publish_state.yaml').read_text())
-    assert state.get('planetminecraft', {}).get('version') == '1.0.0', \
-        f'PMC version log not recorded: {state!r}'
+    def _assert_push_images(self, ctx):
+        html = _pmc_fetch(self.PMC_MANAGE_PATH, ctx)
+        assert ctx['project_name'] in html, 'project name not found in PMC management page after push'

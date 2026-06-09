@@ -1,204 +1,140 @@
-# Integration Tests
+# Integration Test Specification
 
-## File structure
+## Test structure
 
-Checked in to `tests/integration/`:
+Tests use a class-per-site-type layout.
+Each class inherits from `LifecycleBase` (defined in `conftest.py`), which provides five ordered test methods.
+Site-specific assertions are overridden in each class.
+Different classes are independent and can run in parallel (e.g. `pytest-xdist --dist=class`).
+
+| File | Classes |
+|---|---|
+| `test_mr.py` | `TestMRPackLifecycle`, `TestMRModLifecycle` |
+| `test_cf.py` | `TestCFPackLifecycle`, `TestCFWorldLifecycle` |
+| `test_pmc.py` | `test_pmc_account_empty` (standalone), `TestPMCPackLifecycle`, `TestPMCWorldLifecycle` |
+
+All are marked `pytest.mark.integration` and require credentials in `tests/integration/puppy/auth.yaml`.
+
+Each lifecycle class runs five tests in order:
+
+| Method | What it exercises |
+|---|---|
+| `test_01_create` | `puppy create` — id/slug written to config; site metadata verified |
+| `test_02_pull` | `puppy pull` — id/slug round-trip |
+| `test_03_push_images` | `puppy push --images` — description body, icon, gallery, donation, discord |
+| `test_04_pull_images` | `puppy pull --images` — summary and images.yaml updated |
+| `test_05_push_pack` | `puppy push --pack` — version file appears on site |
+
+State (project dir, project id) is shared between test methods within a class via a class-scoped `ctx` fixture.
+If an earlier test fails, later tests in the same class will also fail (no explicit skip-on-failure guards).
+
+---
+
+## What each lifecycle test covers
+
+Each lifecycle test exercises the full create → pull → push → pull → push-pack sequence for one project type on one site.
+A timestamp-based slug is injected per run to keep projects unique and cleanable.
+
+### create
+- `id` (and `slug` where the site returns one) written back to `puppy.yaml`
+- Metadata sent during create verifiable via API: title, summary, categories
+- Modrinth also: `license.id`, `source_url`, `discord_url`
+- CurseForge also: `primaryCategoryId`
+- PMC: project name present on authenticated management page
+
+### pull (first)
+- `id` and `slug` round-trip correctly (still present in `puppy.yaml` after pull)
+
+### push --images
+- Description body updated (new sentence appended to `description.md`)
+- Modrinth: `body` contains new sentence, `icon_url` set, gallery non-empty, `donation_urls` contains ko-fi
+- Modrinth mod: `discord_url` reflects `modrinth.discord` per-site override (not neutral `socials.discord`)
+- Modrinth pack: `discord_url` reflects neutral `socials.discord`
+- CurseForge: `summary` updated (body conditional — see CF notes below)
+- PMC: project name still present on management page
+
+### pull --images
+- `summary` in `puppy.yaml` updated (MR, CF)
+- `images/images.yaml` written with at least one entry (MR, PMC always; CF conditional)
+
+### push --pack
+- Modrinth: version with `version_number: 1.0.0` present; `changelog` matches `puppy.yaml`; mod: `loaders` contains `fabric`
+- CurseForge: file with `displayName` containing `v1.0.0` in project files list
+- PMC: `.publish_state.yaml` records `planetminecraft.version == 1.0.0`
+
+---
+
+## test_pmc_account_empty
+
+Runs before PMC lifecycle tests.
+Loads both PMC management listing pages via Playwright and asserts zero project links.
+Fails as a test (not a fixture error) if cleanup left projects — other tests still run.
+
+---
+
+## Fixture data
 
 ```
-puppy/
-├── puppy.yaml          # home config: projects list + all universal neutral fields
-├── .gitignore          # ignores auth.yaml
-├── auth.yaml           # gitignored; populated via `puppy auth`
+tests/integration/puppy/
+├── puppy.yaml          # home config: shared neutral fields (license, links, socials, changelog)
 ├── puppypack/
-│   ├── puppy.yaml      # all neutral fields applicable to packs
-│   ├── description.md  # markdown with bold, italic, header, subsection
-│   ├── icon.png        # square, ≥128×128
-│   ├── images.yaml
-│   └── images/
-│       ├── img1.png    # small images (speed)
-│       ├── img2.jpg
-│       └── img3.png
-├── puppymod/
-│   ├── puppy.yaml      # all neutral fields applicable to mods
+│   ├── puppy.yaml      # pack-specific neutral fields; no modrinth.discord (uses neutral)
 │   ├── description.md
 │   ├── icon.png
-│   ├── images.yaml
-│   └── images/
-│       ├── img1.png
-│       ├── img2.jpg
-│       └── img3.png
+│   ├── images.yaml + images/
+├── puppymod/
+│   ├── puppy.yaml      # mod-specific fields; modrinth.discord set (tests per-site override)
+│   ├── description.md
+│   ├── icon.png
+│   ├── images.yaml + images/
 └── puppyworld/
-    ├── puppy.yaml      # all neutral fields applicable to worlds
+    ├── puppy.yaml
     ├── description.md
     ├── icon.png
-    ├── images.yaml
-    └── images/
-        ├── img1.png
-        ├── img2.jpg
-        └── img3.png
-puppypack/
-└── puppypack-1.0.0.zip  # minimal valid pack (version suffix required by artifact finder)
-puppymod/
-└── puppymod-1.0.0.jar   # minimal valid mod (version suffix required by artifact finder)
-puppyworld/
-└── puppyworld-1.0.0.zip # minimal valid world save
+    ├── images.yaml + images/
+tests/integration/puppypack/puppypack-1.0.0.zip   # artifact for pack push --pack
+tests/integration/puppymod/puppymod-1.0.0.jar     # artifact for mod push --pack
+tests/integration/puppyworld/puppyworld-1.0.0.zip # artifact for world push --pack
 ```
 
-The three descriptions must differ from each other.
-Each `puppy/*/description.md` should exercise: bold, italic, a header, a subsection.
-The `{{ img('img1') }}` reference is added to the description in the push step (step 7) — not checked in initially.
-
-Create test accounts on each site for integration testing.
-Populate `puppy/auth.yaml` by running `puppy auth` from `tests/integration/`.
+Artifacts are made unique per test session by appending `puppy-run-id.txt` to each zip/jar.
+This avoids Modrinth's global file-hash deduplication rejecting re-uploads across runs.
 
 ---
 
-## Test sequence
+## Cleanup (session start)
 
-### Step 1 — Clean up prior runs
+Runs once per session before any tests, deleting all stale test projects.
 
-Remove all stale test projects from each site:
-
-- **Modrinth**: `GET /v2/user/me` (authed) → username → `GET /v2/user/{username}/projects` →
-  filter slugs matching `puppypack-YY-MM-DD-HH-mm` / `puppymod-*` / `puppyworld-*` → `DELETE /v2/project/{id}` for each.
-- **CurseForge**: `GET _CF_DASH/projects?filter={}&range=[0,99]&sort=["id","DESC"]` →
-  filter slugs matching `puppypack-YY-MM-DD-HH-mm` / `puppymod-*` / `puppyworld-*`
-  or `puppy-test-pack-*` / `puppy-test-world-*` (CF auto-derives slugs from name) →
-  `DELETE _CF_DASH/projects/{id}` for each.
-- **PMC**: no delete API — projects accumulate; remove manually at planetminecraft.com/dashboard/.
-
-### Step 2 — Prepare tmp tree
-
-Copy the entire `tests/integration/` tree into a `tmp/` directory.
-Run all subsequent steps from within `tmp/`.
-
-### Step 3 — Inject slugs
-
-Generate a timestamp: `YY-MM-DD-HH-mm` (e.g. `26-06-07-14-30`).
-
-Write `pack:` and `name:` into each project's `puppy.yaml`:
-- `puppypack-26-06-07-14-30` / `Puppy Test Pack 26-06-07-14-30`
-- `puppymod-26-06-07-14-30` / `Puppy Test Mod 26-06-07-14-30`
-- `puppyworld-26-06-07-14-30` / `Puppy Test World 26-06-07-14-30`
-
-Note: `pack:` is used as the slug on Modrinth and PMC.
-CurseForge auto-derives its slug from the `name:` field (e.g. `puppy-test-pack-26-06-07-14-30`).
-
-### Step 4 — Create projects
-
-For each project, run:
-
-```
-puppy create --site <sites>
-```
-
-This registers the project slot on each site and writes `id` and `slug` back to `puppy.yaml`.
-Create does **not** push description body, icon, or gallery — those are pushed in step 7.
-
-Sites per project type:
-- pack: Modrinth, CurseForge, PMC
-- mod: Modrinth
-- world: CurseForge, PMC
-
-Assert `puppy.yaml` contains `id` (and `slug` where returned by create).
-
-### Step 5 — Validate metadata sent during create
-
-For each project × each applicable site, verify the fields sent in the create call:
-
-- **Modrinth** (authenticated API, draft not publicly visible):
-  `GET /v2/project/{id}` → assert title, summary (description field), categories, additional_categories (resolution for packs).
-  Body is empty — description not pushed yet.
-
-- **CurseForge** (authors API):
-  `GET _CF_DASH/projects/{id}` → assert name, summary, primaryCategoryId.
-  Description body is placeholder — not pushed yet.
-
-- **PMC** (Playwright, management page — public page held for moderation on texture packs):
-  Load `/account/manage/texture-packs/{id}/` or `/account/manage/projects/{id}/` → assert project name present.
-
-Gallery images: none uploaded yet (images pushed in step 7).
-
-### Step 6 — Pull
-
-For each project, run:
-
-```
-puppy pull --site <sites>
-```
-
-Assert `puppy.yaml` contains the site-assigned `id` and `slug`.
-
-### Step 7 — Modify and push with images
-
-For each project:
-
-1. Append a new sentence to `description.md`.
-2. Also append `{{ img('img1') }}` to `description.md` (will resolve to CDN URL after upload).
-3. Change `summary` in `puppy.yaml` to a new value.
-4. **CurseForge only**: remove `curseforge/description.html` if it was written by the pull step,
-   so that `description.md` takes priority over the pulled HTML.
-5. Run:
-
-   ```
-   puppy push --site <sites> --images
-   ```
-
-   Gallery images are uploaded first; CDN URLs become available to the renderer for `{{ img('img1') }}`.
-
-### Step 8 — Validate updated pages
-
-For each project × each applicable site, load the project page and assert:
-
-- **Modrinth**: authenticated API — body contains new sentence, icon present, gallery has images.
-- **CurseForge**: authors API — summary reflects new value.
-  Body check via `GET /v1/mods/{id}/description` (public API): conditional — newly created projects
-  may not yet be approved; skip assertion if the endpoint returns no data.
-- **PMC**: management page — project name present.
-
-### Step 9 — Pull with images
-
-For each project, run:
-
-```
-puppy pull --site <sites> --images
-```
-
-Assert:
-- Updated summary in `puppy.yaml`.
-- **Modrinth, PMC**: `images/images.yaml` written with at least one entry.
-- **CurseForge**: `images/images.yaml` written *if* gallery was available; newly created projects
-  may not yet have gallery access, so this assertion is conditional.
-
-### Step 10 — Push pack file
-
-Copy the versioned artifact (`puppypack-1.0.0.zip`, `puppymod-1.0.0.jar`, or `puppyworld-1.0.0.zip`)
-into the project root directory.
-Inject `minecraft: 1.21.4` into `puppy.yaml`.
-Run:
-
-```
-puppy push --site <sites> --pack --version 1.0.0
-```
-
-Validate per site:
-
-- **Modrinth**: `GET /v2/project/{id}/version` — assert version with `version_number: 1.0.0` present.
-- **CurseForge**: `GET _CF_DASH/project-files?filter={"projectId":...}&range=[0,0]&sort=["DateCreated","DESC"]` —
-  assert at least one file, `displayName` contains `v1.0.0`.
-- **PMC**: `.publish_state.yaml` in project root — assert `planetminecraft.version == 1.0.0`.
+- **Modrinth**: API `DELETE /v2/project/{id}` for all projects matching the slug pattern.
+- **CurseForge**: `DELETE _CF_DASH/projects/{id}` for all projects matching the slug pattern.
+- **PMC**: Playwright — loads both management listing pages, navigates to each project's manage page,
+  clicks "Delete", confirms in the modal, then waits 3 s and re-lists to check all are gone.
+  Prints a warning if any remain (verified separately by `test_pmc_account_empty`).
 
 ---
 
-## Notes
+## Site-specific notes
 
-- Projects are left alive at the end of each run for inspection.
-  The next run's step 1 cleans them up.
-- PMC projects accumulate until manually deleted (no delete API).
-- Re-using slugs after deletion may be restricted on some sites; the timestamp format ensures unique slugs per run.
-- Modrinth projects are created as drafts (`is_draft: true`); they are not publicly visible.
-  All Modrinth validation uses the authenticated API.
-- PMC texture packs are held in a moderation queue after creation; the public page is not immediately accessible.
-  PMC validation uses the authenticated management page via Playwright.
-- CurseForge file uploads may return a transient 403 when two uploads happen in quick succession (rate limit).
-  The upload is retried up to 3 times with a 5-second back-off before failing.
+### Modrinth
+- Projects created as drafts (`is_draft: true`) — not publicly visible.
+  All validation uses the authenticated API.
+- `client_side` / `server_side` always return `'unknown'` from the MR API regardless of what was sent — don't assert these.
+- File-hash deduplication is global: the same zip/jar bytes cannot be uploaded to any MR project twice.
+
+### CurseForge
+- Authors API (`authors.curseforge.com/_api`) does not expose `licenseId`, social links, or donation URLs.
+  These fields are sent during create/push but cannot be read back via this endpoint — they are not asserted.
+- Description body check (`GET /v1/mods/{id}/description`) is conditional: newly created projects
+  may not be approved yet; skip if the endpoint returns no data.
+- `images/images.yaml` after pull is conditional: gallery may not be available until the project is approved.
+- File upload may return a transient 403 (empty body) under rate limiting.
+  Retried up to 3 times with a 5 s back-off.
+- `category` in `puppy.yaml` may be an integer (bare category ID) or a string name.
+
+### Planet Minecraft
+- Texture packs are held in a moderation queue after creation — the public page is not immediately accessible.
+  All PMC validation uses the authenticated management page via Playwright.
+- PMC has a daily version-log submission limit.
+  If `push --pack` (step 10) fails with "daily update limit reached", wait until the next day.
+- Only packs and worlds are supported (no mod type on PMC).
