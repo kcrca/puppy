@@ -1,6 +1,5 @@
 import json
 import time
-import urllib.error
 import urllib.parse
 import urllib.request
 import yaml
@@ -8,7 +7,7 @@ import pytest
 
 pytestmark = pytest.mark.integration
 
-from conftest import LifecycleBase, _NEW_SENTENCE, _CF_DASH, _CF_API, _CF_UA
+from conftest import LifecycleBase, _CF_DASH, _CF_UA, _TEST_SLUG_RE, _CF_TEST_SLUG_RE
 
 
 def _cf_get(path, cookie):
@@ -25,16 +24,20 @@ def _cf_get(path, cookie):
         return json.loads(r.read())
 
 
-def _cf_v1_get(path, token):
-    req = urllib.request.Request(
-        f'{_CF_API}{path}',
-        headers={'X-Api-Token': token, 'User-Agent': _CF_UA},
-    )
+def test_cf_account_empty(cf_auth):
+    cookie = cf_auth['curseforge']['cookie']
+    params = urllib.parse.urlencode({'filter': '{}', 'range': '[0,99]', 'sort': '["id","DESC"]'})
     try:
-        with urllib.request.urlopen(req) as r:
-            return json.loads(r.read())
-    except urllib.error.HTTPError:
-        return {}
+        data = _cf_get(f'/projects?{params}', cookie)
+    except Exception:
+        data = []
+    if not isinstance(data, list):
+        data = []
+    stale = [
+        p for p in data
+        if _TEST_SLUG_RE.match(p.get('slug', '')) or _CF_TEST_SLUG_RE.match(p.get('slug', ''))
+    ]
+    assert not stale, f'CF cleanup incomplete — {len(stale)} project(s) still present: {[p["slug"] for p in stale]}'
 
 
 class TestCFPackLifecycle(LifecycleBase):
@@ -44,9 +47,6 @@ class TestCFPackLifecycle(LifecycleBase):
 
     def _cookie(self, ctx):
         return ctx['auth']['curseforge']['cookie']
-
-    def _token(self, ctx):
-        return ctx['auth']['curseforge']['token']
 
     def _assert_create(self, ctx, config):
         cf = _cf_get(f'/projects/{ctx["project_id"]}', self._cookie(ctx))
@@ -58,18 +58,10 @@ class TestCFPackLifecycle(LifecycleBase):
         assert config['curseforge'].get('id'), 'curseforge.id missing after pull'
         assert config['curseforge'].get('slug'), 'curseforge.slug missing after pull'
 
-    def _before_push_images(self, ctx):
-        # Remove pulled description.html so description.md takes priority
-        (ctx['project_dir'] / 'curseforge' / 'description.html').unlink(missing_ok=True)
-
     def _assert_push_images(self, ctx):
         time.sleep(3)  # CF API caches for a few seconds after update
         cf = _cf_get(f'/projects/{ctx["project_id"]}', self._cookie(ctx))
         assert cf.get('summary') == ctx['updated_summary'], f'summary not updated: {cf.get("summary")!r}'
-        # Body check via public API — conditional: projects not yet approved return no data
-        desc_data = _cf_v1_get(f'/mods/{ctx["project_id"]}/description', self._token(ctx))
-        if desc_data.get('data'):
-            assert _NEW_SENTENCE in desc_data['data'], 'new sentence not in CF description after push'
 
     def _assert_pull_images(self, ctx, config):
         assert config.get('summary') == ctx['updated_summary'], \

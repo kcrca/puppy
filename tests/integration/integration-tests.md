@@ -7,11 +7,11 @@ Each class inherits from `LifecycleBase` (defined in `conftest.py`), which provi
 Site-specific assertions are overridden in each class.
 Different classes are independent and can run in parallel (e.g. `pytest-xdist --dist=class`).
 
-| File | Classes |
-|---|---|
-| `test_mr.py` | `TestMRPackLifecycle`, `TestMRModLifecycle` |
-| `test_cf.py` | `TestCFPackLifecycle`, `TestCFWorldLifecycle` |
-| `test_pmc.py` | `test_pmc_account_empty` (standalone), `TestPMCPackLifecycle`, `TestPMCWorldLifecycle` |
+| File | Standalone tests | Classes |
+|---|---|---|
+| `test_mr.py` | `test_mr_account_empty` | `TestMRPackLifecycle`, `TestMRModLifecycle` |
+| `test_cf.py` | `test_cf_account_empty` | `TestCFPackLifecycle`, `TestCFWorldLifecycle` |
+| `test_pmc.py` | `test_pmc_account_empty` | `TestPMCPackLifecycle`, `TestPMCWorldLifecycle` |
 
 All are marked `pytest.mark.integration` and require credentials in `tests/integration/puppy/auth.yaml`.
 
@@ -47,14 +47,16 @@ A timestamp-based slug is injected per run to keep projects unique and cleanable
 
 ### push --images
 - Description body updated (new sentence appended to `description.md`)
-- Modrinth: `body` contains new sentence, `icon_url` set, gallery non-empty, `donation_urls` contains ko-fi
+- Modrinth: `body` contains new sentence; `description` (summary) updated; `source_url`, `issues_url`, `wiki_url` all set; `license.id` == MIT; `icon_url` set; gallery non-empty; `donation_urls` contains ko-fi
 - Modrinth mod: `discord_url` reflects `modrinth.discord` per-site override (not neutral `socials.discord`)
 - Modrinth pack: `discord_url` reflects neutral `socials.discord`
-- CurseForge: `summary` updated (body conditional — see CF notes below)
+- CurseForge: `summary` updated
 - PMC: project name still present on management page
 
 ### pull --images
-- `summary` in `puppy.yaml` updated (MR, CF)
+- Modrinth: `summary`, `license`, `links.source`, `links.issues`, `links.wiki`, `socials.discord` all written back to `puppy.yaml`
+- Modrinth mod: `socials.discord` reflects the per-site `modrinth.discord` value (what MR actually stored)
+- CurseForge: `summary` updated
 - `images/images.yaml` written with at least one entry (MR, PMC always; CF conditional)
 
 ### push --pack
@@ -64,11 +66,14 @@ A timestamp-based slug is injected per run to keep projects unique and cleanable
 
 ---
 
-## test_pmc_account_empty
+## Account-empty tests
 
-Runs before PMC lifecycle tests.
-Loads both PMC management listing pages via Playwright and asserts zero project links.
-Fails as a test (not a fixture error) if cleanup left projects — other tests still run.
+Each site has a standalone `test_<site>_account_empty` that runs after session cleanup and asserts no stale test projects remain.
+Fails as a test (not a fixture error) so other tests still run on partial cleanup.
+
+- **MR**: queries `/user/{username}/projects`, matches against the test slug pattern.
+- **CF**: queries the authors dash project list, matches against both test slug patterns.
+- **PMC**: loads both management listing pages via Playwright, checks for project links.
 
 ---
 
@@ -125,8 +130,6 @@ Runs once per session before any tests, deleting all stale test projects.
 ### CurseForge
 - Authors API (`authors.curseforge.com/_api`) does not expose `licenseId`, social links, or donation URLs.
   These fields are sent during create/push but cannot be read back via this endpoint — they are not asserted.
-- Description body check (`GET /v1/mods/{id}/description`) is conditional: newly created projects
-  may not be approved yet; skip if the endpoint returns no data.
 - `images/images.yaml` after pull is conditional: gallery may not be available until the project is approved.
 - File upload may return a transient 403 (empty body) under rate limiting.
   Retried up to 3 times with a 5 s back-off.
