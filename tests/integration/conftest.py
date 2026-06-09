@@ -372,13 +372,6 @@ _NEW_SENTENCE = 'Updated by integration test.'
 # ---------------------------------------------------------------------------
 
 class LifecycleBase:
-    """
-    Base class for integration lifecycle tests.
-
-    Subclasses set SITE, SITE_KEY, PROJECT_TYPE and override _assert_* methods.
-    The five test methods (test_01_create … test_05_push_pack) run in definition
-    order, sharing state via the class-scoped `ctx` fixture.
-    """
     SITE = ''         # CLI site argument: 'modrinth', 'cf', 'pmc'
     SITE_KEY = ''     # auth.yaml / puppy.yaml key: 'modrinth', 'curseforge', 'planetminecraft'
     PROJECT_TYPE = 'pack'

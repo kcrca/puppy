@@ -21,8 +21,8 @@ Each lifecycle class runs five tests in order:
 |---|---|
 | `test_01_create` | `puppy create` — id/slug written to config; site metadata verified |
 | `test_02_pull` | `puppy pull` — id/slug round-trip |
-| `test_03_push_images` | `puppy push --images` — description body, icon, gallery, donation, discord |
-| `test_04_pull_images` | `puppy pull --images` — summary and images.yaml updated |
+| `test_03_push_images` | `puppy push --images` — description body, summary, links, license, icon, gallery, donation, discord |
+| `test_04_pull_images` | `puppy pull --images` — summary, license, links, socials, images.yaml written back |
 | `test_05_push_pack` | `puppy push --pack` — version file appears on site |
 
 State (project dir, project id) is shared between test methods within a class via a class-scoped `ctx` fixture.
@@ -86,17 +86,20 @@ tests/integration/puppy/
 │   ├── puppy.yaml      # pack-specific neutral fields; no modrinth.discord (uses neutral)
 │   ├── description.md
 │   ├── icon.png
-│   ├── images.yaml + images/
+│   ├── images.yaml     # gallery manifest
+│   └── images/         # img1.png, img2.jpg, img3.png
 ├── puppymod/
 │   ├── puppy.yaml      # mod-specific fields; modrinth.discord set (tests per-site override)
 │   ├── description.md
 │   ├── icon.png
-│   ├── images.yaml + images/
+│   ├── images.yaml
+│   └── images/
 └── puppyworld/
     ├── puppy.yaml
     ├── description.md
     ├── icon.png
-    ├── images.yaml + images/
+    ├── images.yaml
+    └── images/
 tests/integration/puppypack/puppypack-1.0.0.zip   # artifact for pack push --pack
 tests/integration/puppymod/puppymod-1.0.0.jar     # artifact for mod push --pack
 tests/integration/puppyworld/puppyworld-1.0.0.zip # artifact for world push --pack
@@ -115,7 +118,7 @@ Runs once per session before any tests, deleting all stale test projects.
 - **CurseForge**: `DELETE _CF_DASH/projects/{id}` for all projects matching the slug pattern.
 - **PMC**: Playwright — loads both management listing pages, navigates to each project's manage page,
   clicks "Delete", confirms in the modal, then waits 3 s and re-lists to check all are gone.
-  Prints a warning if any remain (verified separately by `test_pmc_account_empty`).
+  Prints a warning if any remain.
 
 ---
 
@@ -139,5 +142,5 @@ Runs once per session before any tests, deleting all stale test projects.
 - Texture packs are held in a moderation queue after creation — the public page is not immediately accessible.
   All PMC validation uses the authenticated management page via Playwright.
 - PMC has a daily version-log submission limit.
-  If `push --pack` (step 10) fails with "daily update limit reached", wait until the next day.
+  If `test_05_push_pack` fails with "daily update limit reached", wait until the next day.
 - Only packs and worlds are supported (no mod type on PMC).
