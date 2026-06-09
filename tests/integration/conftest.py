@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from bs4 import BeautifulSoup
 
 import puppy.__main__
 
@@ -58,6 +59,9 @@ _PROJECT_NAME = {
     'mod': 'puppymod',
     'world': 'puppyworld',
 }
+
+_PMC_BASE = 'https://www.planetminecraft.com'
+_PMC_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
 
 _MR_API = 'https://api.modrinth.com/v2'
 _MR_UA = 'puppy-test/1.0'
@@ -133,6 +137,53 @@ def _cf_delete_project(project_id: int, cookie: str) -> None:
         pass
 
 
+def _pmc_list_projects(page) -> list[tuple[int, str]]:
+    projects = []
+    for path in ('/account/manage/texture-packs/', '/account/manage/projects/'):
+        page.goto(f'{_PMC_BASE}{path}', wait_until='networkidle')
+        soup = BeautifulSoup(page.content(), 'html.parser')
+        for a in soup.find_all('a', href=re.compile(rf'{re.escape(path)}\d+/')):
+            m = re.search(r'/(\d+)/', a['href'])
+            if m:
+                projects.append((int(m.group(1)), path))
+    seen = set()
+    return [(pid, path) for pid, path in projects if not (pid in seen or seen.add(pid))]
+
+
+def _pmc_cleanup(cookie: str) -> None:
+    from playwright.sync_api import sync_playwright
+    c_name, _, c_value = cookie.partition('=')
+
+    with sync_playwright() as p:
+        browser = p.firefox.launch(headless=True)
+        ctx = browser.new_context()
+        ctx.add_cookies([{
+            'name': c_name.strip(), 'value': c_value.strip(),
+            'domain': 'www.planetminecraft.com', 'path': '/',
+        }])
+        page = ctx.new_page()
+
+        for project_id, manage_path in _pmc_list_projects(page):
+            print(f'\n[cleanup] Deleting PMC project: {project_id}')
+            try:
+                page.goto(f'{_PMC_BASE}{manage_path}{project_id}/', wait_until='networkidle')
+                page.click('.delete_submission')
+                page.wait_for_timeout(500)
+                confirm = page.query_selector('.pmc_dialog .site_btn')
+                if confirm:
+                    confirm.click()
+                    page.wait_for_timeout(1000)
+            except Exception as e:
+                print(f'[cleanup] Warning: failed to delete PMC {project_id}: {e}')
+
+        page.wait_for_timeout(3000)
+        remaining = [pid for pid, _ in _pmc_list_projects(page)]
+        browser.close()
+
+    if remaining:
+        print(f'\n[cleanup] Warning: PMC cleanup incomplete — {len(remaining)} project(s) still present: {remaining}')
+
+
 def _cf_cleanup(cookie: str) -> None:
     params = urllib.parse.urlencode({'filter': '{}', 'range': '[0,99]', 'sort': '["id","DESC"]'})
     try:
@@ -164,6 +215,10 @@ def _cleanup_prior_runs(_auth):
     cf_cookie = _auth.get('curseforge', {}).get('cookie')
     if cf_cookie:
         _cf_cleanup(cf_cookie)
+
+    pmc_cookie = _auth.get('planetminecraft', {}).get('cookie')
+    if pmc_cookie:
+        _pmc_cleanup(pmc_cookie)
 
 
 

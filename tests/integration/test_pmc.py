@@ -1,12 +1,27 @@
+import re
 import shutil
 import yaml
 import pytest
+from bs4 import BeautifulSoup
 from pathlib import Path
 
 pytestmark = pytest.mark.integration
 
 _INTEGRATION_DIR = Path(__file__).parent
 _NEW_SENTENCE = 'Updated by integration test.'
+_PMC_BASE = 'https://www.planetminecraft.com'
+
+
+def test_pmc_account_empty(pmc_auth, pmc_page):
+    remaining = []
+    for path in ('/account/manage/texture-packs/', '/account/manage/projects/'):
+        soup = BeautifulSoup(pmc_page(f'{_PMC_BASE}{path}'), 'html.parser')
+        for a in soup.find_all('a', href=re.compile(rf'{re.escape(path)}\d+/')):
+            m = re.search(r'/(\d+)/', a['href'])
+            if m:
+                remaining.append(int(m.group(1)))
+    remaining = list(dict.fromkeys(remaining))
+    assert not remaining, f'PMC cleanup incomplete — {len(remaining)} project(s) still present: {remaining}'
 
 
 def test_pack_lifecycle(pmc_auth, make_home, inject_slug, run_cli, pmc_page, artifacts):
