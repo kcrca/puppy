@@ -9,7 +9,7 @@ _INTEGRATION_DIR = Path(__file__).parent
 _NEW_SENTENCE = 'Updated by integration test.'
 
 
-def test_pack_lifecycle(pmc_auth, make_home, inject_slug, run_cli, pmc_page):
+def test_pack_lifecycle(pmc_auth, make_home, inject_slug, run_cli, pmc_page, artifacts):
     home, project_dir = make_home('pack', {'planetminecraft': pmc_auth['planetminecraft']})
     slug = inject_slug(project_dir, 'pack')
 
@@ -50,7 +50,7 @@ def test_pack_lifecycle(pmc_auth, make_home, inject_slug, run_cli, pmc_page):
     assert len(img_entries) >= 1, 'images/images.yaml has no entries'
 
     # Step 10: copy artifact, inject minecraft version, push pack file (PMC records version log)
-    artifact_src = _INTEGRATION_DIR / 'puppypack' / 'puppypack-1.0.0.zip'
+    artifact_src = artifacts['puppypack']
     shutil.copy(artifact_src, project_dir / artifact_src.name)
     config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
     config['minecraft'] = '1.21.4'
@@ -62,7 +62,7 @@ def test_pack_lifecycle(pmc_auth, make_home, inject_slug, run_cli, pmc_page):
         f'PMC version log not recorded: {state!r}'
 
 
-def test_world_lifecycle(pmc_auth, make_home, inject_slug, run_cli, pmc_page):
+def test_world_lifecycle(pmc_auth, make_home, inject_slug, run_cli, pmc_page, artifacts):
     home, project_dir = make_home('world', {'planetminecraft': pmc_auth['planetminecraft']})
     slug = inject_slug(project_dir, 'world')
 
@@ -103,7 +103,7 @@ def test_world_lifecycle(pmc_auth, make_home, inject_slug, run_cli, pmc_page):
     assert len(img_entries) >= 1, 'images/images.yaml has no entries'
 
     # Step 10: copy artifact, inject minecraft version, push pack file (PMC records version log)
-    artifact_src = _INTEGRATION_DIR / 'puppyworld' / 'puppyworld-1.0.0.zip'
+    artifact_src = artifacts['puppyworld']
     shutil.copy(artifact_src, project_dir / artifact_src.name)
     config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
     config['minecraft'] = '1.21.4'

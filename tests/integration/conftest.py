@@ -194,6 +194,27 @@ def run_id():
     return datetime.now().strftime('%y-%m-%d-%H-%M')
 
 
+@pytest.fixture(scope='session')
+def artifacts(run_id, tmp_path_factory):
+    import io
+    import zipfile
+    base_dir = tmp_path_factory.mktemp('artifacts')
+    sources = {
+        'puppypack': (_INTEGRATION_DIR / 'puppypack' / 'puppypack-1.0.0.zip', '.zip'),
+        'puppymod':  (_INTEGRATION_DIR / 'puppymod'  / 'puppymod-1.0.0.jar',  '.jar'),
+        'puppyworld':(_INTEGRATION_DIR / 'puppyworld' / 'puppyworld-1.0.0.zip', '.zip'),
+    }
+    result = {}
+    for name, (src, ext) in sources.items():
+        dest = base_dir / f'{name}-1.0.0{ext}'
+        buf = io.BytesIO(src.read_bytes())
+        with zipfile.ZipFile(buf, 'a') as zf:
+            zf.writestr('puppy-run-id.txt', run_id)
+        dest.write_bytes(buf.getvalue())
+        result[name] = dest
+    return result
+
+
 @pytest.fixture
 def make_home(tmp_path):
     def _make(project_type: str, auth: dict) -> tuple[Path, Path]:

@@ -13,7 +13,7 @@ _UPDATED_SUMMARY = 'Updated summary for CF integration testing.'
 _NEW_SENTENCE = 'Updated by integration test.'
 
 
-def test_pack_lifecycle(cf_auth, make_home, inject_slug, run_cli, cf_api, cf_v1_api):
+def test_pack_lifecycle(cf_auth, make_home, inject_slug, run_cli, cf_api, cf_v1_api, artifacts):
     home, project_dir = make_home('pack', {'curseforge': cf_auth['curseforge']})
     slug = inject_slug(project_dir, 'pack')
 
@@ -53,6 +53,7 @@ def test_pack_lifecycle(cf_auth, make_home, inject_slug, run_cli, cf_api, cf_v1_
     time.sleep(3)
     cf_data = cf_api(f'/projects/{project_id}')
     assert cf_data.get('summary') == _UPDATED_SUMMARY, f'summary not updated: {cf_data.get("summary")!r}'
+    # CF authors API does not expose licenseId, links, or donationTypeId — verified sent but not readable here
     desc_data = cf_v1_api(f'/mods/{project_id}/description')
     # Public description API may return {} for projects not yet approved/published
     if desc_data.get('data'):
@@ -69,7 +70,7 @@ def test_pack_lifecycle(cf_auth, make_home, inject_slug, run_cli, cf_api, cf_v1_
         assert len(img_entries) >= 1, 'images/images.yaml has no entries'
 
     # Step 10: copy artifact, inject minecraft version, push pack file
-    artifact_src = _INTEGRATION_DIR / 'puppypack' / 'puppypack-1.0.0.zip'
+    artifact_src = artifacts['puppypack']
     shutil.copy(artifact_src, project_dir / artifact_src.name)
     config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
     config['minecraft'] = '1.21.4'
@@ -87,7 +88,7 @@ def test_pack_lifecycle(cf_auth, make_home, inject_slug, run_cli, cf_api, cf_v1_
         f'version 1.0.0 not found in CF file displayName: {files[0].get("displayName")!r}'
 
 
-def test_world_lifecycle(cf_auth, make_home, inject_slug, run_cli, cf_api, cf_v1_api):
+def test_world_lifecycle(cf_auth, make_home, inject_slug, run_cli, cf_api, cf_v1_api, artifacts):
     home, project_dir = make_home('world', {'curseforge': cf_auth['curseforge']})
     slug = inject_slug(project_dir, 'world')
 
@@ -127,6 +128,7 @@ def test_world_lifecycle(cf_auth, make_home, inject_slug, run_cli, cf_api, cf_v1
     time.sleep(3)
     cf_data = cf_api(f'/projects/{project_id}')
     assert cf_data.get('summary') == _UPDATED_SUMMARY, f'summary not updated: {cf_data.get("summary")!r}'
+    # CF authors API does not expose licenseId, links, or donationTypeId — verified sent but not readable here
     desc_data = cf_v1_api(f'/mods/{project_id}/description')
     # Public description API may return {} for projects not yet approved/published
     if desc_data.get('data'):
@@ -143,7 +145,7 @@ def test_world_lifecycle(cf_auth, make_home, inject_slug, run_cli, cf_api, cf_v1
         assert len(img_entries) >= 1, 'images/images.yaml has no entries'
 
     # Step 10: copy artifact, inject minecraft version, push pack file
-    artifact_src = _INTEGRATION_DIR / 'puppyworld' / 'puppyworld-1.0.0.zip'
+    artifact_src = artifacts['puppyworld']
     shutil.copy(artifact_src, project_dir / artifact_src.name)
     config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
     config['minecraft'] = '1.21.4'

@@ -583,6 +583,7 @@ class CurseForgeSite(Site):
             else:
                 primary_cat_id = _CF_DEFAULT_CATEGORIES.get(project_type, 393)
         license_name = sc.get('license') or config.get('license') or 'All Rights Reserved'
+        license_name = _SPDX_TO_PU_CF.get(license_name, license_name)
         license_id = _CF_LICENSE_IDS.get(license_name, 1)
 
         result = _cf_post_json(f'{_CF_DASH}/projects', h, {

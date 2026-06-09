@@ -10,7 +10,7 @@ _UPDATED_SUMMARY = 'Updated summary for MR integration testing.'
 _NEW_SENTENCE = 'Updated by integration test.'
 
 
-def test_pack_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api):
+def test_pack_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api, artifacts):
     home, project_dir = make_home('pack', {'modrinth': mr_auth['modrinth']})
     slug = inject_slug(project_dir, 'pack')
 
@@ -28,6 +28,9 @@ def test_pack_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api):
     assert mr_data['description'] == 'A minimal resource pack for puppy integration testing.'
     assert set(mr_data.get('categories', [])) >= {'blocks', 'environment', 'simplistic'}
     assert '16x' in (mr_data.get('additional_categories') or [])
+    assert (mr_data.get('license') or {}).get('id') == 'MIT', f'license not MIT: {mr_data.get("license")!r}'
+    assert mr_data.get('source_url') == 'https://github.com/example/puppy-integration-test', f'source_url mismatch: {mr_data.get("source_url")!r}'
+    assert mr_data.get('discord_url') == 'https://discord.gg/puppytest', f'discord_url mismatch: {mr_data.get("discord_url")!r}'
 
     # Step 6: pull round-trips id/slug
     run_cli(project_dir, 'pull', '--site', 'modrinth')
@@ -50,6 +53,8 @@ def test_pack_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api):
     assert mr_data.get('icon_url'), 'icon_url missing after push'
     gallery = mr_data.get('gallery') or []
     assert len(gallery) >= 1, 'gallery empty after push with images'
+    donation_urls = mr_data.get('donation_urls') or []
+    assert any(d.get('id') == 'ko-fi' for d in donation_urls), f'kofi donation_url missing: {donation_urls!r}'
 
     # Step 9: pull with images — summary and images.yaml updated
     run_cli(project_dir, 'pull', '--site', 'modrinth', '--images')
@@ -62,7 +67,7 @@ def test_pack_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api):
     assert len(img_entries) >= 1, 'images/images.yaml has no entries'
 
     # Step 10: copy artifact, inject minecraft version, push pack file
-    artifact_src = _INTEGRATION_DIR / 'puppypack' / 'puppypack-1.0.0.zip'
+    artifact_src = artifacts['puppypack']
     shutil.copy(artifact_src, project_dir / artifact_src.name)
     config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
     config['minecraft'] = '1.21.4'
@@ -74,7 +79,7 @@ def test_pack_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api):
         f'version 1.0.0 not found on Modrinth: {[v.get("version_number") for v in versions]}'
 
 
-def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api):
+def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api, artifacts):
     home, project_dir = make_home('mod', {'modrinth': mr_auth['modrinth']})
     slug = inject_slug(project_dir, 'mod')
 
@@ -91,6 +96,9 @@ def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api):
     assert mr_data['title'] == config['name'], f'title mismatch: {mr_data["title"]!r}'
     assert mr_data['description'] == 'A minimal Fabric mod for puppy integration testing.'
     assert set(mr_data.get('categories', [])) >= {'utility', 'library'}
+    assert (mr_data.get('license') or {}).get('id') == 'MIT', f'license not MIT: {mr_data.get("license")!r}'
+    assert mr_data.get('source_url') == 'https://github.com/example/puppy-integration-test', f'source_url mismatch: {mr_data.get("source_url")!r}'
+    assert mr_data.get('discord_url') == 'https://discord.gg/puppytest', f'discord_url mismatch: {mr_data.get("discord_url")!r}'
 
     # Step 6: pull round-trips id/slug
     run_cli(project_dir, 'pull', '--site', 'modrinth')
@@ -113,6 +121,8 @@ def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api):
     assert mr_data.get('icon_url'), 'icon_url missing after push'
     gallery = mr_data.get('gallery') or []
     assert len(gallery) >= 1, 'gallery empty after push with images'
+    donation_urls = mr_data.get('donation_urls') or []
+    assert any(d.get('id') == 'ko-fi' for d in donation_urls), f'kofi donation_url missing: {donation_urls!r}'
 
     # Step 9: pull with images — summary and images.yaml updated
     run_cli(project_dir, 'pull', '--site', 'modrinth', '--images')
@@ -125,7 +135,7 @@ def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api):
     assert len(img_entries) >= 1, 'images/images.yaml has no entries'
 
     # Step 10: copy artifact, inject minecraft version, push pack file
-    artifact_src = _INTEGRATION_DIR / 'puppymod' / 'puppymod-1.0.0.jar'
+    artifact_src = artifacts['puppymod']
     shutil.copy(artifact_src, project_dir / artifact_src.name)
     config = yaml.safe_load((project_dir / 'puppy.yaml').read_text())
     config['minecraft'] = '1.21.4'
@@ -133,5 +143,6 @@ def test_mod_lifecycle(mr_auth, make_home, inject_slug, run_cli, mr_api):
     run_cli(project_dir, 'push', '--site', 'modrinth', '--pack', '--version', '1.0.0')
 
     versions = mr_api(f'/project/{project_id}/version')
-    assert any(v.get('version_number') == '1.0.0' for v in versions), \
-        f'version 1.0.0 not found on Modrinth: {[v.get("version_number") for v in versions]}'
+    v100 = next((v for v in versions if v.get('version_number') == '1.0.0'), None)
+    assert v100, f'version 1.0.0 not found on Modrinth: {[v.get("version_number") for v in versions]}'
+    assert 'fabric' in (v100.get('loaders') or []), f'fabric not in loaders: {v100.get("loaders")!r}'
