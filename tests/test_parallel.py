@@ -80,6 +80,20 @@ def test_multiple_tasks_all_error_raises_system_exit():
         run_sites_parallel([('A', fail_a), ('B', fail_b)])
 
 
+def test_system_exit_gets_site_label_prefix():
+    def fail():
+        raise SystemExit('something went wrong')
+    with pytest.raises(SystemExit, match=r'\[MySite\] something went wrong'):
+        run_sites_parallel([('MySite', fail), ('Other', lambda: None)])
+
+
+def test_system_exit_already_prefixed_not_doubled():
+    def fail():
+        raise SystemExit('[MySite] already labelled')
+    with pytest.raises(SystemExit, match=r'^\[MySite\] already labelled$'):
+        run_sites_parallel([('MySite', fail), ('Other', lambda: None)])
+
+
 # --- path: multiple tasks, TTY (rich) ---
 
 def test_tty_path_uses_rich_live(monkeypatch):

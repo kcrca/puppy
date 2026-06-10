@@ -1,3 +1,8 @@
+def prefix_site_error(label: str, e: SystemExit) -> SystemExit:
+    msg = str(e)
+    return SystemExit(f'[{label}] {msg}') if not msg.startswith('[') else e
+
+
 class AuthExpiredError(Exception):
     def __init__(self, code: int, body: str):
         self.code = code

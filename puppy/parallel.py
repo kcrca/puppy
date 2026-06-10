@@ -2,6 +2,8 @@ import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from puppy.errors import prefix_site_error
+
 _orig_stdout = sys.stdout
 _tls = threading.local()
 _write_lock = threading.Lock()
@@ -66,6 +68,8 @@ def run_sites_parallel(tasks: list[tuple[str, callable]], all_labels: list[str] 
         _tls.cap = captures[label]
         try:
             fn()
+        except SystemExit as e:
+            errors.append(prefix_site_error(label, e))
         except BaseException as e:
             errors.append(e)
         finally:

@@ -3,7 +3,7 @@ from pathlib import Path
 import yaml
 
 from puppy.core import Project
-from puppy.errors import AuthExpiredError
+from puppy.errors import AuthExpiredError, prefix_site_error
 from puppy.sites import CURSEFORGE, MODRINTH, PMC, SiteVisitor
 from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
 
@@ -40,11 +40,20 @@ def run_pull(
         raise SystemExit(f'Credentials missing for: {", ".join(s.label for s in missing)} — run: puppy auth')
 
     if MODRINTH in visitor and mr_id:
-        _run_mr_pull(project, config, auth, site, images, verbosity)
+        try:
+            _run_mr_pull(project, config, auth, site, images, verbosity)
+        except SystemExit as e:
+            raise prefix_site_error(MODRINTH.label, e) from None
     if CURSEFORGE in visitor and cf_id:
-        _run_cf_pull(project, config, auth, site, images, verbosity)
+        try:
+            _run_cf_pull(project, config, auth, site, images, verbosity)
+        except SystemExit as e:
+            raise prefix_site_error(CURSEFORGE.label, e) from None
     if PMC in visitor and pmc_id:
-        _run_pmc_pull(project, config, auth, site, images, verbosity)
+        try:
+            _run_pmc_pull(project, config, auth, site, images, verbosity)
+        except SystemExit as e:
+            raise prefix_site_error(PMC.label, e) from None
 
     if verbosity >= 1:
         print(f'[{project.name}] pull complete')
@@ -132,7 +141,10 @@ def _run_pmc_pull(
 
 def _resolve_ids(config: dict, auth: dict, site: str | None, verbosity: int) -> dict:
     for s in SiteVisitor(site):
-        config = s.resolve_id(config, auth, verbosity)
+        try:
+            config = s.resolve_id(config, auth, verbosity)
+        except SystemExit as e:
+            raise prefix_site_error(s.label, e) from None
     return config
 
 
