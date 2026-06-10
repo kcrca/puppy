@@ -10,6 +10,7 @@ from puppy.creator import (
     _validate_square,
 )
 from puppy.errors import AuthExpiredError
+from puppy.parallel import run_sites_parallel
 from puppy.publisher import upload_file as _upload_file
 from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
@@ -108,12 +109,14 @@ def run_push(
     if missing:
         raise SystemExit(f'Credentials missing for: {", ".join(s.label for s in missing)} — run: puppy auth')
 
+    tasks = []
     if CURSEFORGE in visitor and cf_id:
-        _run_cf(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)
+        tasks.append((CURSEFORGE.label, lambda: _run_cf(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)))
     if MODRINTH in visitor and mr_id:
-        _run_mr(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)
+        tasks.append((MODRINTH.label, lambda: _run_mr(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)))
     if PMC in visitor and pmc_id:
-        _run_pmc(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)
+        tasks.append((PMC.label, lambda: _run_pmc(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)))
+    run_sites_parallel(tasks)
 
     if upload_file:
         _upload_file(

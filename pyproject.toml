@@ -20,6 +20,7 @@ dependencies = [
     "ruamel.yaml>=0.19",
     "playwright>=1.40",
     "beautifulsoup4>=4.12",
+    "rich>=13.0",
 ]
 
 [project.optional-dependencies]

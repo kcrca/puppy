@@ -8,10 +8,22 @@ import pytest
 import yaml
 from PIL import Image
 
+import puppy.sites.modrinth as _mr_mod
 from puppy.errors import AuthExpiredError
 from puppy.sites import CURSEFORGE, MODRINTH, PMC
 from puppy.sites.curseforge import _CF_DASH
 from puppy.sites.modrinth import _MR_API
+
+
+@pytest.fixture(autouse=True)
+def _mr_category_cache(monkeypatch):
+    monkeypatch.setattr(_mr_mod, '_mr_category_header_cache', {
+        'realistic': 'categories',
+        'simplistic': 'categories',
+        'vanilla-like': 'categories',
+        'combat': 'categories',
+        'cursed': 'categories',
+    })
 
 _MR_AUTH = {'modrinth': {'token': 'test-token'}}
 _CF_AUTH = {'curseforge': {'token': 'cf-token', 'cookie': 'CobaltSession=cf-cookie'}}

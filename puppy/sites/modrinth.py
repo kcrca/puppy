@@ -145,15 +145,31 @@ def _mr_normalize_resolution(value) -> list[str]:
     return [f'{r}x' if str(r).isdigit() else str(r) for r in items]
 
 
-def _mr_build_categories(sc: dict) -> tuple[list[str], list[str]]:
-    resolution_cats = _mr_normalize_resolution(sc.get('resolution')) if sc.get('resolution') is not None else []
+_mr_category_header_cache: dict[str, str] = {}
+
+
+def _mr_category_headers(auth: dict) -> dict[str, str]:
+    global _mr_category_header_cache
+    if not _mr_category_header_cache:
+        cats = _mr_get(f'{_MR_API}/tag/category', auth)
+        if isinstance(cats, list):
+            _mr_category_header_cache = {c['name']: c['header'] for c in cats}
+    return _mr_category_header_cache
+
+
+def _mr_build_categories(sc: dict, config: dict, auth: dict) -> tuple[list[str], list[str]]:
+    resolution = sc.get('resolution') if sc.get('resolution') is not None else config.get('resolution')
+    resolution_cats = _mr_normalize_resolution(resolution) if resolution is not None else []
     raw = sc.get('category')
     content_cats = []
     if raw is not None:
         for c in ([raw] if isinstance(raw, str) else list(raw)):
             if c not in content_cats:
                 content_cats.append(c)
-    return content_cats, resolution_cats
+    headers = _mr_category_headers(auth)
+    primary = [c for c in content_cats if headers.get(c) == 'categories']
+    additional = [c for c in content_cats if headers.get(c) != 'categories'] + resolution_cats
+    return primary, additional
 
 
 # Reverse map: Modrinth donation platform id → puppy key
@@ -342,7 +358,7 @@ class ModrinthSite(Site):
             print(f'  [Modrinth] slug "{base_slug}" taken, using "{slug}"')
 
         license_id = config.get('license') or mr.get('license') or 'LicenseRef-All-Rights-Reserved'
-        categories, additional_categories = _mr_build_categories(mr)
+        categories, additional_categories = _mr_build_categories(mr, config, auth)
         links = config.get('links') or {}
         socials = config.get('socials') or {}
 
@@ -408,7 +424,7 @@ class ModrinthSite(Site):
     def update_project(self, project_id: str, auth: dict, sc: dict, description: str, config: dict) -> None:
         links = config.get('links') or {}
         donation = sc.get('donation') or {}
-        categories, additional_categories = _mr_build_categories(sc)
+        categories, additional_categories = _mr_build_categories(sc, config, auth)
 
         donation_urls = [
             {'id': pid, 'platform': platform, 'url': donation[key]}
@@ -416,14 +432,13 @@ class ModrinthSite(Site):
             if donation.get(key)
         ]
 
+        mr_type = _MR_TYPE_MAP.get(config.get('project_type', 'pack'), 'resourcepack')
         body: dict = {
             'title': sc.get('name', ''),
             'description': sc.get('summary', ''),
             'body': description,
             'categories': categories,
             'additional_categories': additional_categories,
-            'client_side': config.get('client_side', 'required'),
-            'server_side': config.get('server_side', 'unsupported'),
             'issues_url': links.get('issues') or None,
             'source_url': links.get('source') or None,
             'wiki_url': links.get('wiki') or None,
@@ -431,6 +446,9 @@ class ModrinthSite(Site):
             'donation_urls': donation_urls,
             'requested_status': 'approved',
         }
+        if mr_type == 'mod':
+            body['client_side'] = config.get('client_side', 'required')
+            body['server_side'] = config.get('server_side', 'unsupported')
         license_id = config.get('license')
         if license_id:
             body['license_id'] = license_id

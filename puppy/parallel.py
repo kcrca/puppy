@@ -1,0 +1,116 @@
+import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+_orig_stdout = sys.stdout
+_tls = threading.local()
+_write_lock = threading.Lock()
+
+
+class _TLSStdout:
+    def write(self, s: str) -> int:
+        cap = getattr(_tls, 'cap', None)
+        if cap is not None:
+            cap._receive(s)
+        else:
+            _orig_stdout.write(s)
+        return len(s)
+
+    def flush(self) -> None:
+        if getattr(_tls, 'cap', None) is None:
+            _orig_stdout.flush()
+
+    def isatty(self) -> bool:
+        return _orig_stdout.isatty()
+
+
+class _SiteCapture:
+    def __init__(self, is_tty: bool):
+        self.is_tty = is_tty
+        self.lines: list[str] = []
+        self._buf = ''
+
+    def _receive(self, s: str) -> None:
+        self._buf += s
+        while '\n' in self._buf:
+            line, self._buf = self._buf.split('\n', 1)
+            self.lines.append(line)
+            if not self.is_tty:
+                with _write_lock:
+                    _orig_stdout.write(line + '\n')
+                    _orig_stdout.flush()
+
+    def _flush_remaining(self) -> None:
+        if self._buf:
+            line = self._buf
+            self._buf = ''
+            self.lines.append(line)
+            if not self.is_tty:
+                with _write_lock:
+                    _orig_stdout.write(line + '\n')
+                    _orig_stdout.flush()
+
+
+def run_sites_parallel(tasks: list[tuple[str, callable]]) -> None:
+    if not tasks:
+        return
+    if len(tasks) == 1:
+        tasks[0][1]()
+        return
+
+    is_tty = _orig_stdout.isatty()
+    captures = {label: _SiteCapture(is_tty) for label, _ in tasks}
+    errors: list[BaseException] = []
+
+    def _run_one(label: str, fn) -> None:
+        _tls.cap = captures[label]
+        try:
+            fn()
+        except BaseException as e:
+            errors.append(e)
+        finally:
+            captures[label]._flush_remaining()
+            _tls.cap = None
+
+    prev = sys.stdout
+    sys.stdout = _TLSStdout()
+    try:
+        if is_tty:
+            _run_tty(tasks, captures, _run_one)
+        else:
+            _run_plain(tasks, _run_one)
+    finally:
+        sys.stdout = prev
+
+    if len(errors) == 1:
+        raise errors[0]
+    if errors:
+        raise SystemExit('\n'.join(str(e) for e in errors))
+
+
+def _run_plain(tasks: list, run_one) -> None:
+    with ThreadPoolExecutor(max_workers=len(tasks)) as ex:
+        for label, fn in tasks:
+            ex.submit(run_one, label, fn)
+
+
+def _run_tty(tasks: list, captures: dict, run_one) -> None:
+    from rich.console import Console
+    from rich.live import Live
+    from rich.columns import Columns
+    from rich.panel import Panel
+
+    console = Console(file=_orig_stdout, highlight=False)
+
+    def make_display():
+        return Columns(
+            [Panel('\n'.join(captures[label].lines), title=label) for label, _ in tasks],
+            equal=True,
+            expand=True,
+        )
+
+    with Live(make_display(), console=console, refresh_per_second=4, redirect_stdout=False, redirect_stderr=False) as live:
+        with ThreadPoolExecutor(max_workers=len(tasks)) as ex:
+            futures = [ex.submit(run_one, label, fn) for label, fn in tasks]
+            for _ in as_completed(futures):
+                live.update(make_display())
