@@ -110,15 +110,31 @@ This avoids Modrinth's global file-hash deduplication rejecting re-uploads acros
 
 ---
 
-## Cleanup (session start)
+## Cleanup
 
-Runs once per session before any tests, deleting all stale test projects.
+### Session start
 
-- **Modrinth**: API `DELETE /v2/project/{id}` for all projects matching the slug pattern.
-- **CurseForge**: `DELETE _CF_DASH/projects/{id}` for all projects matching the slug pattern.
+Runs once per session before any tests via the `_cleanup_prior_runs` fixture, deleting **all** projects on the test accounts.
+
+- **Modrinth**: `GET /v2/user/{username}/projects` (username from `auth.yaml` `modrinth.username`), then `DELETE /v2/project/{id}` for each.
+  `GET /user` is not used — the PAT scope does not include user-read; the username must be in `auth.yaml`.
+- **CurseForge**: paginates `_CF_DASH/projects` in batches of 100, then `DELETE _CF_DASH/projects/{id}` for each.
 - **PMC**: Playwright — loads both management listing pages, navigates to each project's manage page,
   clicks "Delete", confirms in the modal, then waits 3 s and re-lists to check all are gone.
   Prints a warning if any remain.
+
+### Manual cleanup
+
+To delete all projects outside of a test run:
+
+```
+python tests/integration/cleanup.py            # all sites
+python tests/integration/cleanup.py --site mr
+python tests/integration/cleanup.py --site cf
+python tests/integration/cleanup.py --site pmc
+```
+
+Reads credentials from `tests/integration/puppy/auth.yaml`.
 
 ---
 
