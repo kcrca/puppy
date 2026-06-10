@@ -23,7 +23,8 @@ def _puppy_yaml(name: str, handle: str) -> str:
     return (
         f'# puppy.yaml — configuration for {name}.\n\n'
         f'name: {name}\n'
-        f'handle: {handle}\n\n'
+        f'handle: {handle}\n'
+        'type: pack  # pack, mod, or world\n\n'
         '# One-line project summary shown in site listings.\n'
         'summary:\n\n'
         '# Current version. Used by publish if --version is not passed on the CLI.\n'

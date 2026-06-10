@@ -10,8 +10,8 @@ Different classes are independent and can run in parallel (e.g. `pytest-xdist --
 | File | Standalone tests | Classes |
 |---|---|---|
 | `test_mr.py` | `test_mr_account_empty` | `TestMRPackLifecycle`, `TestMRModLifecycle` |
-| `test_cf.py` | `test_cf_account_empty` | `TestCFPackLifecycle`, `TestCFWorldLifecycle` |
-| `test_pmc.py` | `test_pmc_account_empty` | `TestPMCPackLifecycle`, `TestPMCWorldLifecycle` |
+| `test_cf.py` | `test_cf_account_empty` | `TestCFPackLifecycle`, `TestCFWorldLifecycle`, `TestCFBedrockPackLifecycle`, `TestCFBedrockWorldLifecycle` |
+| `test_pmc.py` | `test_pmc_account_empty` | `TestPMCPackLifecycle`, `TestPMCWorldLifecycle`, `TestPMCBedrockPackLifecycle`, `TestPMCBedrockWorldLifecycle` |
 
 All are marked `pytest.mark.integration` and require credentials in `tests/integration/puppy/auth.yaml`.
 
@@ -39,11 +39,13 @@ A timestamp-based slug is injected per run to keep projects unique and cleanable
 - `id` (and `slug` where the site returns one) written back to `puppy.yaml`
 - Metadata sent during create verifiable via API: title, summary, categories
 - Modrinth also: `license.id`, `source_url`, `discord_url`
-- CurseForge also: `primaryCategoryId`
-- PMC: project name present on authenticated management page
+- CurseForge also: `primaryCategoryId`; bedrock classes also: `classId == 4559`, `curseforge.bedrock: true` in `puppy.yaml`
+- PMC: project name present on authenticated management page; bedrock classes also: `planetminecraft.bedrock: true` in `puppy.yaml`
 
 ### pull (first)
 - `id` and `slug` round-trip correctly (still present in `puppy.yaml` after pull)
+- CurseForge bedrock: `curseforge.bedrock: true` still present after pull
+- PMC bedrock: `planetminecraft.bedrock: true` still present after pull
 
 ### push --images
 - Description body updated (new sentence appended to `description.md`)
@@ -153,6 +155,8 @@ Reads credentials from `tests/integration/puppy/auth.yaml`.
 - File upload may return a transient 403 (empty body) under rate limiting.
   Retried up to 3 times with a 5 s back-off.
 - `category` in `puppy.yaml` may be an integer (bare category ID) or a string name.
+- Bedrock classes (`TestCFBedrockPackLifecycle`, `TestCFBedrockWorldLifecycle`) inject `bedrock: true` into the project config via `_extra_config()`.
+  These create projects under classId 4559 (Addons); `curseforge.bedrock: true` is written to `puppy.yaml` on create and preserved through pull.
 
 ### Planet Minecraft
 - Texture packs are held in a moderation queue after creation — the public page is not immediately accessible.

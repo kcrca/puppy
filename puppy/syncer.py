@@ -18,7 +18,7 @@ from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
 
 def apply_env_sides(config: dict) -> dict:
     from puppy.project_type import PROJECT_TYPES, PACK
-    pt = PROJECT_TYPES.get(config.get('project_type', 'pack'), PACK)
+    pt = PROJECT_TYPES.get(config.get('type', 'pack'), PACK)
     return pt.warn_inapplicable(config)
 
 
@@ -46,12 +46,12 @@ def run_push(
 
     if auth is None:
         auth = _load_auth(puppy_home)
-    project_type = config.get('project_type', 'pack')
+    project_type = config.get('type', 'pack')
     visitor = SiteVisitor(site, project_type=project_type)
     if verbosity >= 1 and not site:
         for s in SITES:
             if s not in visitor:
-                print(f'  [{s.label}] skipping — project_type "{project_type}" not supported')
+                print(f'  [{s.label}] skipping — type "{project_type}" not supported')
 
     cf_token = auth.get('curseforge', {}).get('token')
     cf_id = config.get('curseforge', {}).get('id')

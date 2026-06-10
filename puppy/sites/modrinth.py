@@ -275,6 +275,16 @@ class ModrinthSite(Site):
 
         game_versions = _mr_resolve_game_versions(mr_spec, auth)
         slug = config.get('modrinth', {}).get('slug') or config.get('handle', '')
+        project_type = config.get('type', 'pack')
+        loaders = config.get('loaders')
+        if not loaders:
+            if project_type == 'pack':
+                loaders = ['minecraft']
+            else:
+                raise SystemExit(
+                    f'Modrinth upload requires loaders: set it in puppy.yaml '
+                    f'(e.g. loaders: [fabric])'
+                )
         version_data = {
             'name': f'{slug} v{version}',
             'version_number': version,
@@ -282,7 +292,7 @@ class ModrinthSite(Site):
             'dependencies': [],
             'game_versions': game_versions,
             'version_type': 'release',
-            'loaders': config.get('loaders') or ['minecraft'],
+            'loaders': loaders,
             'featured': True,
             'project_id': project_id,
             'file_parts': ['file'],
@@ -375,7 +385,7 @@ class ModrinthSite(Site):
             'source_url': links.get('source') or None,
             'discord_url': socials.get('discord') or None,
             'license_id': license_id,
-            'project_type': _MR_TYPE_MAP.get(config.get('project_type', 'pack'), 'resourcepack'),
+            'type': _MR_TYPE_MAP.get(config.get('type', 'pack'), 'resourcepack'),
             'is_draft': True,
             'initial_versions': [],
         }
@@ -432,7 +442,7 @@ class ModrinthSite(Site):
             if donation.get(key)
         ]
 
-        mr_type = _MR_TYPE_MAP.get(config.get('project_type', 'pack'), 'resourcepack')
+        mr_type = _MR_TYPE_MAP.get(config.get('type', 'pack'), 'resourcepack')
         body: dict = {
             'title': sc.get('name', ''),
             'description': sc.get('summary', ''),
@@ -645,5 +655,5 @@ class ModrinthSite(Site):
         ref = site_config.get('slug') or site_config.get('id')
         if not ref:
             return None
-        mr_type = _MR_TYPE_MAP.get(site_config.get('project_type', 'pack'), 'resourcepack')
+        mr_type = _MR_TYPE_MAP.get(site_config.get('type', 'pack'), 'resourcepack')
         return f'https://modrinth.com/{mr_type}/{ref}'

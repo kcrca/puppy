@@ -17,7 +17,7 @@ def test_batch_index_shows_correct_zip_per_project(project_env, run_puppy):
     )
     (alpha / 'alpha-1.0.zip').write_text('alpha_data')
 
-    (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Alpha']}))
+    (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Alpha'], 'type': 'pack'}))
 
     run_puppy('push', '-n', '--file', '-d', str(project_env['home']))
 

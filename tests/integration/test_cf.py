@@ -90,3 +90,43 @@ class TestCFWorldLifecycle(TestCFPackLifecycle):
         assert cf.get('name', '').startswith('Puppy Test World'), f'name mismatch: {cf.get("name")!r}'
         assert cf.get('summary') == 'A minimal world save for puppy integration testing.'
         assert cf.get('primaryCategoryId') == 253
+
+
+class TestCFBedrockPackLifecycle(TestCFPackLifecycle):
+    PROJECT_TYPE = 'pack'
+
+    def _extra_config(self):
+        return {'bedrock': True}
+
+    def _assert_create(self, ctx, config):
+        assert config.get('curseforge', {}).get('bedrock') is True, \
+            'curseforge.bedrock not set after create'
+        cf = _cf_get(f'/projects/{ctx["project_id"]}', self._cookie(ctx))
+        assert cf.get('classId') == 4559, f'expected classId 4559 (Addons), got {cf.get("classId")}'
+        assert cf.get('primaryCategoryId') == 4561, \
+            f'expected primaryCategoryId 4561 (Resource Packs), got {cf.get("primaryCategoryId")}'
+
+    def _assert_pull(self, ctx, config):
+        super()._assert_pull(ctx, config)
+        assert config.get('curseforge', {}).get('bedrock') is True, \
+            'curseforge.bedrock missing after pull'
+
+
+class TestCFBedrockWorldLifecycle(TestCFWorldLifecycle):
+    PROJECT_TYPE = 'world'
+
+    def _extra_config(self):
+        return {'bedrock': True}
+
+    def _assert_create(self, ctx, config):
+        assert config.get('curseforge', {}).get('bedrock') is True, \
+            'curseforge.bedrock not set after create'
+        cf = _cf_get(f'/projects/{ctx["project_id"]}', self._cookie(ctx))
+        assert cf.get('classId') == 4559, f'expected classId 4559 (Addons), got {cf.get("classId")}'
+        assert cf.get('primaryCategoryId') == 4560, \
+            f'expected primaryCategoryId 4560 (Worlds), got {cf.get("primaryCategoryId")}'
+
+    def _assert_pull(self, ctx, config):
+        super()._assert_pull(ctx, config)
+        assert config.get('curseforge', {}).get('bedrock') is True, \
+            'curseforge.bedrock missing after pull'

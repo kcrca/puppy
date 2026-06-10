@@ -73,7 +73,7 @@ def project_env(tmp_path, monkeypatch):
         d.mkdir(parents=True)
 
     (home / '.gitignore').write_text('auth.yaml\n')
-    (home / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow']}))
+    (home / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow'], 'type': 'pack'}))
     (home / 'auth.yaml').write_text(
         yaml.dump(
             {
@@ -97,6 +97,7 @@ def push_env(project_env):
             {
                 'name': 'NeonGlow',
                 'handle': 'neonglow',
+                'type': 'pack',
                 'curseforge': {'slug': 'neonglow'},
                 'modrinth': {'slug': 'neonglow'},
                 'planetminecraft': {'slug': 'neonglow'},

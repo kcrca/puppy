@@ -13,7 +13,7 @@ def test_variables_do_not_leak_between_projects(project_env, run_puppy):
     (alpha / 'puppy.yaml').write_text(yaml.dump({'name': 'Alpha', 'secret_val': 'alpha'}))
     (alpha / 'description.md').write_text('Val: {{ secret_val }}')
 
-    (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Alpha']}))
+    (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Alpha'], 'type': 'pack'}))
 
     run_puppy('push', '-n', '-d', str(project_env['home']))
 

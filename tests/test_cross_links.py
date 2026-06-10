@@ -10,7 +10,7 @@ def test_sibling_links(project_env, run_puppy):
         yaml.dump({'handle': 'other', 'modrinth': {'slug': 'other-slug'}})
     )
 
-    (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Other']}))
+    (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Other'], 'type': 'pack'}))
     (project_env['project'] / 'description.md').write_text(
         'Link: {{ projects.other.modrinth.url }}'
     )

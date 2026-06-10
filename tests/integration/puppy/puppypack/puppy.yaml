@@ -1,4 +1,5 @@
 name: Puppy Test Pack
+type: pack
 summary: A minimal resource pack for puppy integration testing.
 resolution: 16
 progress: 100

@@ -145,7 +145,7 @@ def test_update_project_sends_correct_json_fields():
 
 def test_update_project_uses_configured_client_server_side():
     sc = {'name': 'My Mod', 'summary': 'A mod'}
-    config = {'project_type': 'mod', 'client_side': 'optional', 'server_side': 'required'}
+    config = {'type': 'mod', 'client_side': 'optional', 'server_side': 'required'}
 
     with patch('urllib.request.urlopen') as mock_open:
         mock_open.return_value = _make_response(None)
@@ -177,6 +177,20 @@ def test_upload_version_uses_loaders_from_config(tmp_path):
     assert 'fabric' in loaders_section
     assert 'quilt' in loaders_section
     assert 'minecraft' not in loaders_section
+
+
+def test_upload_version_requires_loaders_for_non_pack(tmp_path):
+    zip_path = tmp_path / 'mymod-1.0.jar'
+    zip_path.write_bytes(b'PK\x03\x04')
+    config = {
+        'minecraft': '1.21',
+        'handle': 'mymod',
+        'type': 'mod',
+        'modrinth': {'id': 'abc123', 'slug': 'mymod'},
+    }
+    real_upload = MODRINTH.__class__.upload_version
+    with pytest.raises(SystemExit, match='loaders'):
+        real_upload(MODRINTH, 'abc123', _AUTH, zip_path, '1.0', config)
 
 
 def test_upload_version_defaults_to_minecraft_loader_for_pack(tmp_path):
@@ -232,6 +246,7 @@ def test_run_push_when_mr_token_present(tmp_path, monkeypatch):
     (project_dir / 'puppy.yaml').write_text(yaml.dump({
         'name': 'MyPack',
         'handle': 'mypack',
+        'type': 'pack',
         'modrinth': {'id': 'abc123', 'slug': 'mypack'},
         'planetminecraft': {'slug': 'mypack'},
     }))
@@ -313,6 +328,7 @@ def test_upload_version_in_push_pack(tmp_path, monkeypatch):
         'name': 'MyPack',
         'handle': 'mypack',
         'minecraft': '1.21',
+        'type': 'pack',
         'modrinth': {'id': 'abc123', 'slug': 'mypack'},
     }))
     Image.new('RGB', (64, 64), color='blue').save(project_dir / 'icon.png')

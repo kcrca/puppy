@@ -224,6 +224,18 @@ _CF_URL_SEGMENTS = {
     'world': 'worlds',
 }
 
+_CF_BEDROCK_CLASS_ID = 4559
+
+_CF_BEDROCK_DEFAULT_CATEGORIES = {
+    'pack': 4561,  # Resource Packs under Addons
+    'world': 4560, # Worlds under Addons
+}
+
+_CF_BEDROCK_URL_SEGMENTS = {
+    'pack': 'mc-addons/resource-packs',
+    'world': 'mc-addons/worlds',
+}
+
 _CF_LOADER_NAMES = {
     'fabric': 'Fabric',
     'forge': 'Forge',
@@ -357,8 +369,11 @@ class CurseForgeSite(Site):
         ref = site_config.get('slug') or site_config.get('id')
         if not ref:
             return None
-        project_type = site_config.get('project_type', 'pack')
-        segment = _CF_URL_SEGMENTS.get(project_type, 'texture-packs')
+        project_type = site_config.get('type', 'pack')
+        if site_config.get('bedrock'):
+            segment = _CF_BEDROCK_URL_SEGMENTS.get(project_type, 'mc-addons')
+        else:
+            segment = _CF_URL_SEGMENTS.get(project_type, 'texture-packs')
         return f'https://www.curseforge.com/minecraft/{segment}/{ref}'
 
     def _cookie_headers(self, auth: dict) -> dict:
@@ -561,14 +576,20 @@ class CurseForgeSite(Site):
             print('  [CurseForge] icon uploaded')
 
         sc = config.get('curseforge', {})
-        project_type = config.get('project_type', 'pack')
-        class_id = _CF_CLASS_IDS.get(project_type, 12)
+        project_type = config.get('type', 'pack')
+        bedrock = config.get('bedrock', False)
+        class_id = _CF_BEDROCK_CLASS_ID if bedrock else _CF_CLASS_IDS.get(project_type, 12)
+        default_cat = (
+            _CF_BEDROCK_DEFAULT_CATEGORIES.get(project_type, 4561)
+            if bedrock else
+            _CF_DEFAULT_CATEGORIES.get(project_type, 393)
+        )
         raw_cat = sc.get('category')
         if raw_cat is not None:
             cat_list = [raw_cat] if isinstance(raw_cat, str) else list(raw_cat)
             primary_cat_id, sub_cat_ids = _cf_resolve_category_ids(cat_list)
             if primary_cat_id is None:
-                primary_cat_id = _CF_DEFAULT_CATEGORIES.get(project_type, 393)
+                primary_cat_id = default_cat
         else:
             sub_cat_ids = []
             main_cat = sc.get('mainCategory')
@@ -581,7 +602,7 @@ class CurseForgeSite(Site):
                 else:
                     raise SystemExit(f'Unknown curseforge.mainCategory: {main_cat!r}')
             else:
-                primary_cat_id = _CF_DEFAULT_CATEGORIES.get(project_type, 393)
+                primary_cat_id = default_cat
         license_name = sc.get('license') or config.get('license') or 'All Rights Reserved'
         license_name = _SPDX_TO_PU_CF.get(license_name, license_name)
         license_id = _CF_LICENSE_IDS.get(license_name, 1)
@@ -614,6 +635,8 @@ class CurseForgeSite(Site):
         slug = project_data.get('slug', '')
 
         result = {'id': project_id, 'slug': slug}
+        if bedrock:
+            result['bedrock'] = True
         if project_data.get('primaryCategoryId') is not None:
             result['category'] = project_data['primaryCategoryId']
         license_id_inv = {v: k for k, v in _CF_LICENSE_IDS.items()}
@@ -631,7 +654,10 @@ class CurseForgeSite(Site):
             result['socials'] = socials
 
         if verbosity >= 1:
-            segment = _CF_URL_SEGMENTS.get(project_type, 'texture-packs')
+            if bedrock:
+                segment = _CF_BEDROCK_URL_SEGMENTS.get(project_type, 'mc-addons')
+            else:
+                segment = _CF_URL_SEGMENTS.get(project_type, 'texture-packs')
             print(f'  [CurseForge] https://www.curseforge.com/minecraft/{segment}/{slug}')
         return result
 
@@ -824,6 +850,8 @@ class CurseForgeSite(Site):
             'id': data.get('id', project_id),
             'slug': data.get('slug'),
         }
+        if data.get('classId') == _CF_BEDROCK_CLASS_ID:
+            cf_result['bedrock'] = True
         if donation:
             cf_result['donation'] = donation
         if license_name:

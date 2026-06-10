@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def test_variable_priority(project_env, run_puppy):
-    (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'val': 'global'}))
+    (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'val': 'global', 'type': 'pack'}))
     (project_env['project'] / 'puppy.yaml').write_text(yaml.dump({'val': 'project'}))
     (project_env['project'] / 'description.md').write_text('{{ val }}')
 

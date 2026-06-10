@@ -18,7 +18,7 @@ class ProjectInfo(NamedTuple):
         offenders = sorted(f for f in _ALL_NEUTRAL - self.valid_neutral_fields if f in config)
         if not offenders:
             return config
-        print(f'warning: {", ".join(offenders)} not applicable for project_type "{self.name}"; ignored')
+        print(f'warning: {", ".join(offenders)} not applicable for type "{self.name}"; ignored')
         config = dict(config)
         for f in offenders:
             del config[f]

@@ -271,6 +271,7 @@ class LifecycleBase:
         config['handle'] = slug
         if config.get('name'):
             config['name'] = f'{config["name"]} {run_id}'
+        config.update(self._extra_config())
         (project_dir / 'puppy.yaml').write_text(yaml.dump(config))
 
         return {
@@ -342,6 +343,7 @@ class LifecycleBase:
     # Override in subclasses
     # ------------------------------------------------------------------
 
+    def _extra_config(self) -> dict: return {}
     def _assert_create(self, ctx, config): pass
     def _assert_pull(self, ctx, config): pass
     def _before_push_images(self, ctx): pass

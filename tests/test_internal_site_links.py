@@ -12,7 +12,7 @@ def test_internal_project_linking(project_env, run_puppy):
     )
 
     (project_env['home'] / 'puppy.yaml').write_text(
-        yaml.dump({'projects': ['NeonGlow', 'OtherMod']})
+        yaml.dump({'projects': ['NeonGlow', 'OtherMod'], 'type': 'pack'})
     )
 
     (project_env['project'] / 'description.md').write_text(

@@ -6,7 +6,7 @@ from pathlib import Path
 def test_global_site_override(project_env, run_puppy):
     """Global site-specific puppy.yaml should override global general puppy.yaml."""
     (project_env['home'] / 'puppy.yaml').write_text(
-        yaml.dump({'common_var': 'base', 'site_var': 'base'})
+        yaml.dump({'common_var': 'base', 'site_var': 'base', 'type': 'pack'})
     )
     mr_home = project_env['home'] / 'modrinth'
     mr_home.mkdir()

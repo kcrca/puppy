@@ -44,11 +44,11 @@ class SiteVisitor:
                 )
             self.sites = [s for s in SITES if s.name in requested]
             if pt is None:
-                raise SystemExit(f'Unknown project_type: "{project_type}"')
+                raise SystemExit(f'Unknown type: "{project_type}"')
             unsupported = [s for s in self.sites if s.name not in pt.supported_site_names]
             if unsupported:
                 raise SystemExit(
-                    f'Site(s) {", ".join(s.label for s in unsupported)} do not support project_type "{project_type}"'
+                    f'Site(s) {", ".join(s.label for s in unsupported)} do not support type "{project_type}"'
                 )
         else:
             self.sites = [] if pt is None else [s for s in SITES if s.name in pt.supported_site_names]

@@ -293,12 +293,127 @@ def test_upload_file_loaders_resolved_as_game_versions(tmp_path):
 
 
 def test_url_for_uses_project_type_segment():
-    assert CURSEFORGE.url_for({'slug': 'my-mod', 'project_type': 'mod'}) == \
+    assert CURSEFORGE.url_for({'slug': 'my-mod', 'type': 'mod'}) == \
         'https://www.curseforge.com/minecraft/mc-mods/my-mod'
-    assert CURSEFORGE.url_for({'slug': 'my-pack', 'project_type': 'pack'}) == \
+    assert CURSEFORGE.url_for({'slug': 'my-pack', 'type': 'pack'}) == \
         'https://www.curseforge.com/minecraft/texture-packs/my-pack'
-    assert CURSEFORGE.url_for({'slug': 'my-world', 'project_type': 'world'}) == \
+    assert CURSEFORGE.url_for({'slug': 'my-world', 'type': 'world'}) == \
         'https://www.curseforge.com/minecraft/worlds/my-world'
+
+
+def test_url_for_bedrock_uses_mc_addons_segment():
+    assert CURSEFORGE.url_for({'slug': 'my-pack', 'type': 'pack', 'bedrock': True}) == \
+        'https://www.curseforge.com/minecraft/mc-addons/resource-packs/my-pack'
+    assert CURSEFORGE.url_for({'slug': 'my-world', 'type': 'world', 'bedrock': True}) == \
+        'https://www.curseforge.com/minecraft/mc-addons/worlds/my-world'
+
+
+# ── bedrock create ────────────────────────────────────────────────────────────
+
+def _cf_bedrock_project_data(project_id=9999):
+    return {
+        'id': project_id,
+        'slug': 'my-bedrock-pack',
+        'name': 'My Bedrock Pack',
+        'summary': 'Cool bedrock pack',
+        'classId': 4559,
+        'primaryCategoryId': 4561,
+        'licenseId': 4,
+        'links': [],
+    }
+
+
+def test_cf_create_bedrock_pack_uses_addons_class_id():
+    responses = [
+        _make_response(b'https://cdn.cf.com/icon.png'),
+        _make_response({'id': 9999}),
+        _make_response(_cf_bedrock_project_data()),
+    ]
+    with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
+        with patch('time.sleep'):
+            CURSEFORGE.create(
+                config={'name': 'My Bedrock Pack', 'summary': 'Cool', 'bedrock': True},
+                auth=_AUTH, icon_bytes=b'PNG',
+            )
+
+    body = json.loads(mock_open.call_args_list[1][0][0].data)
+    assert body['classId'] == 4559
+    assert body['primaryCategoryId'] == 4561  # Resource Packs under Addons
+
+
+def test_cf_create_bedrock_world_uses_worlds_category():
+    responses = [
+        _make_response(b'https://cdn.cf.com/icon.png'),
+        _make_response({'id': 9999}),
+        _make_response({**_cf_bedrock_project_data(), 'primaryCategoryId': 4560}),
+    ]
+    with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
+        with patch('time.sleep'):
+            CURSEFORGE.create(
+                config={'name': 'My World', 'summary': 'Cool', 'bedrock': True, 'type': 'world'},
+                auth=_AUTH, icon_bytes=b'PNG',
+            )
+
+    body = json.loads(mock_open.call_args_list[1][0][0].data)
+    assert body['classId'] == 4559
+    assert body['primaryCategoryId'] == 4560  # Worlds under Addons
+
+
+def test_cf_create_bedrock_returns_bedrock_true_in_result():
+    responses = [
+        _make_response(b'https://cdn.cf.com/icon.png'),
+        _make_response({'id': 9999}),
+        _make_response(_cf_bedrock_project_data()),
+    ]
+    with patch('urllib.request.urlopen', side_effect=responses):
+        with patch('time.sleep'):
+            result = CURSEFORGE.create(
+                config={'name': 'My Bedrock Pack', 'summary': 'Cool', 'bedrock': True},
+                auth=_AUTH, icon_bytes=b'PNG',
+            )
+
+    assert result['bedrock'] is True
+
+
+def test_cf_create_non_bedrock_does_not_set_bedrock_flag():
+    responses = [
+        _make_response(b'https://cdn.cf.com/icon.png'),
+        _make_response({'id': 9999}),
+        _make_response(_PROJECT_DATA),
+    ]
+    with patch('urllib.request.urlopen', side_effect=responses):
+        with patch('time.sleep'):
+            result = CURSEFORGE.create(
+                config={'name': 'My Pack', 'summary': 'Cool'},
+                auth=_AUTH, icon_bytes=b'PNG',
+            )
+
+    assert 'bedrock' not in result
+
+
+# ── bedrock pull ──────────────────────────────────────────────────────────────
+
+def test_cf_pull_sets_bedrock_true_when_classid_is_addons(tmp_path):
+    project_data = {**_PROJECT_DATA, 'classId': 4559}
+    with patch('urllib.request.urlopen', side_effect=[
+        _make_response(project_data),
+        _make_response(_DESC_DATA),
+        _make_response([]),
+    ]):
+        result = CURSEFORGE.pull(_PROJECT_ID, _AUTH, tmp_path, images=False)
+
+    assert result['curseforge'].get('bedrock') is True
+
+
+def test_cf_pull_does_not_set_bedrock_for_java_project(tmp_path):
+    with patch('urllib.request.urlopen', side_effect=[
+        _make_response(_PROJECT_DATA),
+        _make_response(_DESC_DATA),
+        _make_response([]),
+    ]):
+        result = CURSEFORGE.pull(_PROJECT_ID, _AUTH, tmp_path, images=False)
+
+    assert 'bedrock' not in result['curseforge']
 
 
 # ── 5. update_details ────────────────────────────────────────────────────────
@@ -393,6 +508,7 @@ def test_run_push_when_cf_token_present(tmp_path, monkeypatch):
     (project_dir / 'puppy.yaml').write_text(yaml.dump({
         'name': 'MyPack',
         'handle': 'mypack',
+        'type': 'pack',
         'curseforge': {'id': 99, 'slug': 'mypack'},
         'modrinth': {'slug': 'mypack'},
         'planetminecraft': {'slug': 'mypack'},
@@ -447,6 +563,7 @@ def test_upload_file_in_push_pack(tmp_path, monkeypatch):
     }))
     (project_dir / 'puppy.yaml').write_text(yaml.dump({
         'name': 'MyPack', 'handle': 'mypack', 'minecraft': '1.21',
+        'type': 'pack',
         'curseforge': {'id': 99, 'slug': 'mypack'},
     }))
     Image.new('RGB', (64, 64), color='blue').save(project_dir / 'icon.png')

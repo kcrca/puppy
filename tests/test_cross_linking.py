@@ -83,7 +83,8 @@ def test_linked_projects_top_level_slug(project_env, run_puppy):
         yaml.dump({
             'linked_projects': {
                 'external': {'slug': 'my-pack'},
-            }
+            },
+            'type': 'pack',
         })
     )
     (project_env['project'] / 'description.md').write_text(
@@ -105,7 +106,8 @@ def test_linked_projects_site_slug_overrides_default(project_env, run_puppy):
                     'slug': 'default-slug',
                     'modrinth': {'slug': 'modrinth-specific'},
                 },
-            }
+            },
+            'type': 'pack',
         })
     )
     (project_env['project'] / 'description.md').write_text(

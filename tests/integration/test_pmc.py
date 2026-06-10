@@ -81,3 +81,39 @@ class TestPMCWorldLifecycle(TestPMCPackLifecycle):
     def _assert_push_images(self, ctx):
         html = _pmc_fetch(self.PMC_MANAGE_PATH, ctx)
         assert ctx['project_name'] in html, 'project name not found in PMC management page after push'
+
+
+class TestPMCBedrockPackLifecycle(TestPMCPackLifecycle):
+    PMC_MANAGE_PATH = '/account/manage/texture-packs/'
+
+    def _extra_config(self):
+        return {'bedrock': True}
+
+    def _assert_create(self, ctx, config):
+        assert config.get('planetminecraft', {}).get('bedrock') is True, \
+            'planetminecraft.bedrock not set after create'
+        html = _pmc_fetch(self.PMC_MANAGE_PATH, ctx)
+        assert ctx['project_name'] in html, 'project name not found in PMC management page'
+
+    def _assert_pull(self, ctx, config):
+        super()._assert_pull(ctx, config)
+        assert config.get('planetminecraft', {}).get('bedrock') is True, \
+            'planetminecraft.bedrock missing after pull'
+
+
+class TestPMCBedrockWorldLifecycle(TestPMCWorldLifecycle):
+    PMC_MANAGE_PATH = '/account/manage/projects/'
+
+    def _extra_config(self):
+        return {'bedrock': True}
+
+    def _assert_create(self, ctx, config):
+        assert config.get('planetminecraft', {}).get('bedrock') is True, \
+            'planetminecraft.bedrock not set after create'
+        html = _pmc_fetch(self.PMC_MANAGE_PATH, ctx)
+        assert ctx['project_name'] in html, 'project name not found in PMC management page'
+
+    def _assert_pull(self, ctx, config):
+        super()._assert_pull(ctx, config)
+        assert config.get('planetminecraft', {}).get('bedrock') is True, \
+            'planetminecraft.bedrock missing after pull'

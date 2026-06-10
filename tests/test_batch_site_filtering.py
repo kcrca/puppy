@@ -8,7 +8,7 @@ def test_batch_site_filter_isolation(project_env, run_puppy):
     other = project_env['home'] / 'Other'
     other.mkdir(parents=True)
     (other / 'puppy.yaml').write_text(yaml.dump({'name': 'Other'}))
-    (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Other']}))
+    (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Other'], 'type': 'pack'}))
 
     run_puppy('push', '-n', '-s', 'modrinth', '-d', str(project_env['home']))
 

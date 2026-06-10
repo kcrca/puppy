@@ -9,7 +9,8 @@ It also simplifies some other things along the way.
 
 ## Terminology
 
-Puppy supports multiple project types; the `project_type` field in `puppy.yaml` declares what kind each project is (default: `pack`).
+Puppy supports multiple project types; the `type` field in `puppy.yaml` declares what kind each project is (`pack`, `mod`, or `world`).
+Required — no default.
 Sites that do not support the current project type are silently skipped.
 CurseForge and PMC support `pack` and `world`; CurseForge and Modrinth support `mod`; Modrinth supports `pack`.
 Modrinth does not yet have a world project type (as of mid-2026); world support is in `_MR_TYPE_MAP` for when it ships.
@@ -210,7 +211,7 @@ This means a config key can reference other config keys, projects variables, or 
 
 **`sites:`** — optional list of site names (or abbreviations) that this project publishes to.
 When present, commands that do not have an explicit `--site` flag operate only on the listed sites.
-When absent, all sites that support the project's `project_type` are used.
+When absent, all sites that support the project's `type` are used.
 Can be set at the Puppy Home level to apply to all projects, or per-project to override.
 Example: `sites: [cf, mr]`
 
@@ -342,13 +343,13 @@ Examples:
 
 | Neutral key | CurseForge | Modrinth | PMC |
 |---|---|---|---|
-| `project_type: pack/mod/world` | `classId: 12/6/17`; URL segment `texture-packs/mc-mods/worlds`; default category per type (override with `curseforge.category`) | `project_type: resourcepack/mod/world` | `/texture-pack/` URL and pack form for `pack`; `/project/` URL and world form (no resolution or modifies) for `world` |
+| `type: pack/mod/world` | `classId: 12/6/17`; URL segment `texture-packs/mc-mods/worlds`; default category per type (override with `curseforge.category`) | `type: resourcepack/mod/world` | `/texture-pack/` URL and pack form for `pack`; `/project/` URL and world form (no resolution or modifies) for `world` |
 | `loaders: [fabric, forge, neoforge, quilt]` | resolved as game version IDs via CF API; added to version file upload | `loaders` on version upload | ignored |
 | `title: <string>` | ignored | ignored | overrides `name` as displayed project title |
 | `license: CC-BY-4.0` ([SPDX](https://spdx.org/licenses/)) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |
 | `resolution: 16` | `category: 16x` | `resolution: '16x'` | `resolution: 16`, tags `16x` and `16x16` |
 | `progress: 100` | ignored | ignored | `progress: 100` |
-| `bedrock: true` | ignored (Bedrock is a separate CF site) | ignored (no Bedrock loader on MR) | pack: selects "Minecraft Bedrock" in version dropdown; world: checks "Bedrock Edition Map" |
+| `bedrock: true` | pack: `classId=4559`, `primaryCategoryId=4561` (Resource Packs under Addons); world: `classId=4559`, `primaryCategoryId=4560` (Worlds under Addons); URL under `mc-addons/`; `curseforge.bedrock: true` written back on create/pull | ignored (no Bedrock loader on MR) | pack: selects "Minecraft Bedrock" in version dropdown; world: checks "Bedrock Edition Map" |
 | `links.home: <url>` | `socials.website` | ignored | `website.link` |
 | `links.source: <url>` | source repo link | `source_url` | ignored |
 | `links.patreon/kofi/… (donation keys)` | first key as `{type: platform, value: url}` | all donation keys passed as `donation.*` (`github_sponsors` → `github`) | ignored |
@@ -370,7 +371,7 @@ For resource packs and worlds, MR defaults to `['minecraft']` for the version lo
 * **Cross-Linking:** Puppy pre-scans all sibling projects in `puppy_home`, injecting a `projects` dict into the Jinja context.
   Each entry is keyed by `handle` and contains per-site sub-objects (e.g. `{{ projects.other.modrinth.url }}`).
   URLs are built from `slug` if available, falling back to `id`.
-  The Modrinth URL path segment is derived from `project_type` (e.g. `pack` → `resourcepack`, `mod` → `mod`, `modpack` → `modpack`).
+  The Modrinth URL path segment is derived from `type` (e.g. `pack` → `resourcepack`, `mod` → `mod`, `modpack` → `modpack`).
 * **External Projects (`linked_projects`):** Projects outside the current Puppy Home can be added to the `projects` context via `linked_projects` in the global `puppy.yaml`.
   Each entry follows the same per-site structure as a normal project.
   A top-level `slug` key serves as the default slug for all sites, overridden by any per-site `slug`.

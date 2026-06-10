@@ -195,18 +195,18 @@ def test_bedrock_explicit_pmc_override_wins():
 
 
 def test_bedrock_warns_for_mod(capsys):
-    config = _apply_neutral_metadata({'project_type': 'mod', 'bedrock': True})
+    config = _apply_neutral_metadata({'type': 'mod', 'bedrock': True})
     assert 'bedrock' not in config
     assert 'warning' in capsys.readouterr().out
 
 
 def test_bedrock_no_warning_for_pack(capsys):
-    _apply_neutral_metadata({'project_type': 'pack', 'bedrock': True})
+    _apply_neutral_metadata({'type': 'pack', 'bedrock': True})
     assert 'warning' not in capsys.readouterr().out
 
 
 def test_bedrock_no_warning_for_world(capsys):
-    _apply_neutral_metadata({'project_type': 'world', 'bedrock': True})
+    _apply_neutral_metadata({'type': 'world', 'bedrock': True})
     assert 'warning' not in capsys.readouterr().out
 
 
@@ -275,7 +275,7 @@ def test_license_appears_on_cf_and_modrinth(project_env, run_puppy):
 # ── apply_env_sides ──────────────────────────────────────────────────────────
 
 def test_env_sides_passthrough_for_mod():
-    config = {'project_type': 'mod', 'client_side': 'optional', 'server_side': 'required', 'loaders': ['fabric']}
+    config = {'type': 'mod', 'client_side': 'optional', 'server_side': 'required', 'loaders': ['fabric']}
     result = apply_env_sides(config)
     assert result['client_side'] == 'optional'
     assert result['server_side'] == 'required'
@@ -283,38 +283,38 @@ def test_env_sides_passthrough_for_mod():
 
 
 def test_loaders_warns_and_strips_for_non_mod(capsys):
-    config = {'project_type': 'pack', 'loaders': ['fabric']}
+    config = {'type': 'pack', 'loaders': ['fabric']}
     result = apply_env_sides(config)
     assert 'loaders' not in result
     assert 'warning' in capsys.readouterr().out
 
 
 def test_loaders_warns_and_strips_for_world(capsys):
-    config = {'project_type': 'world', 'loaders': ['forge']}
+    config = {'type': 'world', 'loaders': ['forge']}
     result = apply_env_sides(config)
     assert 'loaders' not in result
     assert 'warning' in capsys.readouterr().out
 
 
 def test_resolution_warns_and_strips_for_mod(capsys):
-    config = _apply_neutral_metadata({'project_type': 'mod', 'resolution': 16})
+    config = _apply_neutral_metadata({'type': 'mod', 'resolution': 16})
     assert 'resolution' not in config
     assert 'warning' in capsys.readouterr().out
 
 
 def test_resolution_warns_and_strips_for_world(capsys):
-    config = _apply_neutral_metadata({'project_type': 'world', 'resolution': 32})
+    config = _apply_neutral_metadata({'type': 'world', 'resolution': 32})
     assert 'resolution' not in config
     assert 'warning' in capsys.readouterr().out
 
 
 def test_resolution_no_warning_for_pack(capsys):
-    _apply_neutral_metadata({'project_type': 'pack', 'resolution': 16})
+    _apply_neutral_metadata({'type': 'pack', 'resolution': 16})
     assert 'warning' not in capsys.readouterr().out
 
 
 def test_env_sides_warns_and_strips_for_pack(capsys):
-    config = {'project_type': 'pack', 'client_side': 'optional', 'server_side': 'required'}
+    config = {'type': 'pack', 'client_side': 'optional', 'server_side': 'required'}
     result = apply_env_sides(config)
     assert 'client_side' not in result
     assert 'server_side' not in result
@@ -322,7 +322,7 @@ def test_env_sides_warns_and_strips_for_pack(capsys):
 
 
 def test_env_sides_no_warning_when_not_set():
-    config = {'project_type': 'pack'}
+    config = {'type': 'pack'}
     result = apply_env_sides(config)
     assert result is config
 

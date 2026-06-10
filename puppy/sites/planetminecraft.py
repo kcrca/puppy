@@ -246,7 +246,7 @@ def _pmc_sync_gallery(
 def _pmc_download_url(config: dict) -> str:
     if config.get('alt_download'):
         return str(config['alt_download'])
-    project_type = config.get('project_type', 'pack')
+    project_type = config.get('type', 'pack')
     mr = config.get('modrinth', {})
     cf = config.get('curseforge', {})
     mr_slug = mr.get('slug') or mr.get('id')
@@ -278,7 +278,7 @@ class PlanetMinecraftSite(Site):
         return {t: f'[{t}]' for t in tags}, {t: f'[/{t}]' for t in tags}
 
     def apply_neutral(self, config: dict) -> None:
-        project_type = config.get('project_type', 'pack')
+        project_type = config.get('type', 'pack')
         pmc = config.setdefault('planetminecraft', {})
 
         if project_type == 'pack':
@@ -353,7 +353,7 @@ class PlanetMinecraftSite(Site):
         ref = site_config.get('slug') or site_config.get('id')
         if not ref:
             return None
-        project_type = site_config.get('project_type', 'pack')
+        project_type = site_config.get('type', 'pack')
         segment = 'project' if project_type == 'world' else 'texture-pack'
         return f'https://www.planetminecraft.com/{segment}/{ref}/'
 
@@ -368,7 +368,7 @@ class PlanetMinecraftSite(Site):
     ) -> dict:
         cookie = auth.get('planetminecraft', {}).get('cookie', '')
         sc = config.get('planetminecraft', {})
-        project_type = config.get('project_type', 'pack')
+        project_type = config.get('type', 'pack')
         manage = _pmc_manage_path(project_type)
 
         url = f'{_PMC_BASE}{manage}item/new'
@@ -539,7 +539,7 @@ class PlanetMinecraftSite(Site):
     ) -> None:
         cookie = auth.get('planetminecraft', {}).get('cookie', '')
         sc = config.get('planetminecraft', {})
-        project_type = config.get('project_type', 'pack')
+        project_type = config.get('type', 'pack')
 
         if verbosity >= 1:
             print('  [PlanetMinecraft] fetching project page')
@@ -771,7 +771,7 @@ class PlanetMinecraftSite(Site):
 
     def submit_log(self, project_id, auth: dict, version: str, config: dict) -> None:
         cookie = auth.get('planetminecraft', {}).get('cookie', '')
-        project_type = config.get('project_type', 'pack')
+        project_type = config.get('type', 'pack')
         soup, csrf = _pmc_get_page(project_id, cookie, project_type)
         member_id = _pmc_scrape_hidden(soup, 'member_id')
         changelog = config.get('changelog', '')

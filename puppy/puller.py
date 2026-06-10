@@ -131,7 +131,7 @@ def _run_pmc_pull(
             puppy_dir=puppy_dir,
             images=do_images,
             verbosity=verbosity,
-            project_type=config.get('project_type', 'pack'),
+            project_type=config.get('type', 'pack'),
         )
     except AuthExpiredError as e:
         raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}) — run: puppy auth --site pmc')

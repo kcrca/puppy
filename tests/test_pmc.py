@@ -361,7 +361,7 @@ def test_push_bedrock_world_sends_platform_field(tmp_path):
     Image.new('RGB', (64, 64)).save(icon)
     responses = [_make_response(_EDIT_HTML), _make_response({'status': 'success'})]
     config = {
-        'name': 'Pack', 'project_type': 'world',
+        'name': 'Pack', 'type': 'world',
         'planetminecraft': {'id': _PROJECT_ID, 'bedrock': True},
     }
     with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
@@ -382,6 +382,7 @@ def test_run_push_when_pmc_creds_present(push_env, run_puppy):
     (push_env['project'] / 'puppy.yaml').write_text(
         _yaml.dump({
             'name': 'NeonGlow', 'handle': 'neonglow',
+            'type': 'pack',
             'curseforge': {'slug': 'neonglow'},
             'modrinth': {'slug': 'neonglow'},
             'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
@@ -639,6 +640,7 @@ def test_run_pull_when_pmc_creds_present(push_env, run_puppy):
     (push_env['project'] / 'puppy.yaml').write_text(
         _yaml.dump({
             'name': 'NeonGlow', 'handle': 'neonglow',
+            'type': 'pack',
             'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
         })
     )
@@ -770,6 +772,7 @@ def test_upload_file_pmc_when_pmc_creds_present(push_pack_env, run_puppy, monkey
     (source / 'puppy.yaml').write_text(
         yaml.dump({
             'name': 'NeonGlow', 'handle': 'neonglow', 'minecraft': '1.20',
+            'type': 'pack',
             'curseforge': {'id': 111, 'slug': 'neonglow'},
             'modrinth': {'id': 'abc123', 'slug': 'neonglow'},
             'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
@@ -812,6 +815,7 @@ def test_upload_file_pmc_auth_expired_raises_system_exit(push_pack_env, run_pupp
     (source / 'puppy.yaml').write_text(
         yaml.dump({
             'name': 'NeonGlow', 'handle': 'neonglow', 'minecraft': '1.20',
+            'type': 'pack',
             'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
         })
     )

@@ -38,7 +38,7 @@ pipx install git+https://github.com/kcrca/puppy
 ## Basic Puppy
 
 Now let's get to your specific project.
-The examples below use a texture pack, but mods and world saves work the same way — set `project_type: mod` or `project_type: world` in `puppy.yaml` and puppy will use the right fields and sites for that type.
+The examples below use a texture pack, but mods and world saves work the same way — set `type: mod` or `type: world` in `puppy.yaml` and puppy will use the right fields and sites for that type.
 PMC does not support mods; all other sites support all three types.
 
 Suppose you have a pack called Neon, and you keep it in a git repository in your home directory.
@@ -574,9 +574,9 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 | Field | Meaning |
 |---|---|
 | `name` | Display name. Title-cased if all-lowercase input (`neon` → `Neon`). Derived from directory name if absent; written back automatically. |
-| `pack` | Internal slug. Lowercase alphanumeric only. Derived from `name` or directory if absent; written back automatically. |
+| `handle` | Internal slug. Lowercase alphanumeric only. Derived from `name` or directory if absent; written back automatically. |
 | `slug` | Default slug for all sites. Per-site `slug` overrides this. |
-| `project_type` | Project type: `pack` (default), `mod`, or `world`. Determines which sites are active and which fields apply. |
+| `type` | Project type: `pack`, `mod`, or `world`. Required. Determines which sites are active and which fields apply. |
 | `version` | Version string used by `push`. Overridden by `-V` on the CLI. |
 | `summary` | One-line description shown in site search results. |
 | `github` | Source repository URL. Set automatically from `links.source`; used for CF source link and Modrinth `source_url`/`issues_url`. Can be set directly to override. |

@@ -12,7 +12,7 @@ def test_sibling_project_url_injection(project_env, run_puppy):
     )
 
     (project_env['home'] / 'puppy.yaml').write_text(
-        yaml.dump({'projects': ['NeonGlow', 'Emerald']})
+        yaml.dump({'projects': ['NeonGlow', 'Emerald'], 'type': 'pack'})
     )
 
     (project_env['project'] / 'description.md').write_text(

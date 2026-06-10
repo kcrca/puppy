@@ -100,7 +100,7 @@ def _apply_neutral_metadata(config: dict) -> dict:
     """Expand top-level neutral keys into per-site fields; per-site values win."""
     from puppy.project_type import PROJECT_TYPES, PACK
     config = dict(config)
-    pt = PROJECT_TYPES.get(config.get('project_type', 'pack'), PACK)
+    pt = PROJECT_TYPES.get(config.get('type', 'pack'), PACK)
     config = pt.warn_inapplicable(config)
     links = config.get('links') or {}
     if isinstance(links, dict) and links.get('source'):
@@ -115,7 +115,7 @@ def _inject_urls(cfg: dict) -> dict:
     handle = cfg.get('handle')
     default = handle or explicit_slug
     unconfigured = default and not any(cfg.get(s.name) for s in SITES)
-    project_type = cfg.get('project_type', 'pack')
+    project_type = cfg.get('type', 'pack')
     for site in SITES:
         site_cfg = cfg.get(site.name, {})
         if 'slug' not in site_cfg and 'id' not in site_cfg:
@@ -123,11 +123,11 @@ def _inject_urls(cfg: dict) -> dict:
                 site_cfg = dict(site_cfg, slug=explicit_slug)
             elif handle and cfg.get(site.name) is not None:
                 site_cfg = dict(site_cfg, slug=handle)
-        if 'project_type' not in site_cfg:
-            site_cfg = dict(site_cfg, project_type=project_type)
+        if 'type' not in site_cfg:
+            site_cfg = {**site_cfg, 'type': project_type}
         url = site.url_for(site_cfg)
         if not url and unconfigured:
-            url = site.url_for({'slug': default, 'project_type': project_type})
+            url = site.url_for({'slug': default, 'type': project_type})
         if url:
             cfg.setdefault(site.name, {})['url'] = url
     return cfg
