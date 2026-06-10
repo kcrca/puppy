@@ -18,12 +18,14 @@ _DESCRIPTION_MD = """\
      Example: {{ version }}, {{ name }}. Conditionals: {% if key %}...{% endif %} -->
 """
 
-def _puppy_yaml(name: str, pack: str) -> str:
-    site_entries = '\n'.join(s.puppy_yaml_entry(pack) for s in SITES)
+def _puppy_yaml(name: str, handle: str) -> str:
+    site_entries = '\n'.join(s.puppy_yaml_entry(handle) for s in SITES)
     return (
         f'# puppy.yaml — configuration for {name}.\n\n'
         f'name: {name}\n'
-        f'pack: {pack}\n\n'
+        f'handle: {handle}\n\n'
+        '# One-line project summary shown in site listings.\n'
+        'summary:\n\n'
         '# Current version. Used by publish if --version is not passed on the CLI.\n'
         'version: "1.0.0"\n\n'
         '# Neutral metadata — expanded to site-specific fields automatically.\n'
@@ -34,9 +36,12 @@ def _puppy_yaml(name: str, pack: str) -> str:
         '  home:             # project home page URL\n'
         '  source:           # source repository URL\n'
         '  issues:           # issue tracker URL\n'
+        '  wiki:             # wiki/docs URL\n'
         '  patreon:          # donation URL\n'
         '  kofi:             # donation URL\n'
-        '  github_sponsors:  # GitHub Sponsors URL\n\n'
+        '  github_sponsors:  # GitHub Sponsors URL\n'
+        'socials:\n'
+        '  discord:          # Discord server URL\n\n'
         '# Platform IDs and slugs. Required for pull, create, and push.\n'
         '# Set id to null if the project does not yet exist on that platform.\n'
         + site_entries
@@ -44,14 +49,14 @@ def _puppy_yaml(name: str, pack: str) -> str:
 
 
 def run_init(directory: Path) -> None:
-    name, pack = _derive_identity(directory)
+    name, handle = _derive_identity(directory)
 
     puppy_home = directory / 'puppy'
     puppy_home.mkdir(parents=True, exist_ok=True)
 
     _write_if_missing(puppy_home / 'auth.yaml', _auth_yaml())
     _write_if_missing(puppy_home / '.gitignore', _GITIGNORE)
-    _write_if_missing(puppy_home / 'puppy.yaml', _puppy_yaml(name, pack))
+    _write_if_missing(puppy_home / 'puppy.yaml', _puppy_yaml(name, handle))
     _write_if_missing(puppy_home / 'description.md', _DESCRIPTION_MD)
 
 
