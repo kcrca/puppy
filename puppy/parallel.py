@@ -51,10 +51,10 @@ class _SiteCapture:
                     _orig_stdout.flush()
 
 
-def run_sites_parallel(tasks: list[tuple[str, callable]]) -> None:
+def run_sites_parallel(tasks: list[tuple[str, callable]], all_labels: list[str] | None = None) -> None:
     if not tasks:
         return
-    if len(tasks) == 1:
+    if len(tasks) == 1 and not all_labels:
         tasks[0][1]()
         return
 
@@ -76,7 +76,7 @@ def run_sites_parallel(tasks: list[tuple[str, callable]]) -> None:
     sys.stdout = _TLSStdout()
     try:
         if is_tty:
-            _run_tty(tasks, captures, _run_one)
+            _run_tty(tasks, captures, _run_one, all_labels=all_labels)
         else:
             _run_plain(tasks, _run_one)
     finally:
@@ -94,20 +94,21 @@ def _run_plain(tasks: list, run_one) -> None:
             ex.submit(run_one, label, fn)
 
 
-def _run_tty(tasks: list, captures: dict, run_one) -> None:
+def _run_tty(tasks: list, captures: dict, run_one, all_labels: list[str] | None = None) -> None:
     from rich.console import Console
     from rich.live import Live
     from rich.columns import Columns
     from rich.panel import Panel
 
     console = Console(file=_orig_stdout, highlight=False)
+    display_labels = all_labels if all_labels else [label for label, _ in tasks]
 
     def make_display():
-        return Columns(
-            [Panel('\n'.join(captures[label].lines), title=label) for label, _ in tasks],
-            equal=True,
-            expand=True,
-        )
+        panels = []
+        for label in display_labels:
+            cap = captures.get(label)
+            panels.append(Panel('\n'.join(cap.lines) if cap else '', title=label))
+        return Columns(panels, equal=True, expand=True)
 
     with Live(make_display(), console=console, refresh_per_second=4, redirect_stdout=False, redirect_stderr=False) as live:
         with ThreadPoolExecutor(max_workers=len(tasks)) as ex:

@@ -34,6 +34,7 @@ def run_push(
     images: bool = True,
     verbosity: int,
     auth: dict = None,
+    all_labels: list[str] | None = None,
 ) -> None:
     config = dict(config)
     config['projects'] = build_projects_context(puppy_home)
@@ -116,7 +117,7 @@ def run_push(
         tasks.append((MODRINTH.label, lambda: _run_mr(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)))
     if PMC in visitor and pmc_id:
         tasks.append((PMC.label, lambda: _run_pmc(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)))
-    run_sites_parallel(tasks)
+    run_sites_parallel(tasks, all_labels=all_labels)
 
     if upload_file:
         _upload_file(

@@ -12,7 +12,7 @@ from puppy.preview import generate as generate_preview
 from puppy.publisher import _resolve_zip
 from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
-from puppy.sites import SITES, SiteVisitor, _ALIASES
+from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor, _ALIASES
 from puppy.creator import run_create
 from puppy.syncer import run_push, apply_env_sides
 
@@ -81,17 +81,31 @@ def run(
             site = ','.join(_ALIASES.get(str(s).strip(), str(s).strip()) for s in declared)
     auth = check_auth(puppy_home, site)
 
+    project_entries = []
+    for project_root in projects:
+        config = ConfigSynthesizer(puppy_home, project_root, site=site).get_running_config()
+        project = Project.from_config(project_root, config, dry_run=dry_run)
+        if handle_filter and project.handle not in handle_filter:
+            continue
+        project_entries.append((project_root, config, project))
+
+    all_labels = None
+    if action == 'push' and len(project_entries) > 1:
+        visitor = SiteVisitor(site)
+        _site_order = [(CURSEFORGE, 'curseforge'), (MODRINTH, 'modrinth'), (PMC, 'planetminecraft')]
+        seen: set[str] = set()
+        for _, cfg, _ in project_entries:
+            for s, key in _site_order:
+                if s in visitor and cfg.get(key, {}).get('id'):
+                    seen.add(s.label)
+        ordered = [s.label for s, _ in _site_order if s.label in seen]
+        if len(ordered) > 1:
+            all_labels = ordered
+
     dry_run_projects: list = []
     after_push_messages: list = []
     ran_any = False
-    for project_root in projects:
-        config = ConfigSynthesizer(
-            puppy_home, project_root, site=site
-        ).get_running_config()
-        project = Project.from_config(project_root, config, dry_run=dry_run)
-
-        if handle_filter and project.handle not in handle_filter:
-            continue
+    for project_root, config, project in project_entries:
         ran_any = True
 
         resolved_version = version or config.get('version')
@@ -108,7 +122,7 @@ def run(
             )
 
         if dry_run:
-            single = len(projects) == 1 or handle_filter is not None
+            single = len(project_entries) == 1
             _run_dry(
                 action,
                 project,
@@ -136,6 +150,7 @@ def run(
                 force,
                 images,
                 verbosity,
+                all_labels=all_labels,
             )
             after_push_messages += _collect_after_push(config, site)
 
@@ -271,7 +286,8 @@ def _collect_after_push(config: dict, site: str | None) -> list:
 
 
 def _dispatch(
-    action, project, config, version, auth, puppy_home, site, upload_file, force, images, verbosity
+    action, project, config, version, auth, puppy_home, site, upload_file, force, images, verbosity,
+    all_labels=None,
 ):
     if action == 'create':
         run_create(
@@ -303,6 +319,7 @@ def _dispatch(
             images=images,
             verbosity=verbosity,
             auth=auth,
+            all_labels=all_labels,
         )
     else:
         raise NotImplementedError(f'{action}: unknown action')

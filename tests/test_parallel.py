@@ -106,3 +106,27 @@ def test_tty_path_uses_rich_live(monkeypatch):
     mock_live_cls.return_value.__enter__.assert_called_once()
     mock_live_cls.return_value.__enter__.return_value.update.assert_called()
     assert sorted(called) == ['a', 'b']
+
+
+def test_tty_all_labels_adds_empty_panels(monkeypatch):
+    mock_out = MagicMock()
+    mock_out.isatty.return_value = True
+    monkeypatch.setattr(parallel, '_orig_stdout', mock_out)
+
+    panel_titles = []
+
+    def mock_panel(content, title=None):
+        panel_titles.append(title)
+        return MagicMock()
+
+    with patch('rich.console.Console'), \
+         patch('rich.live.Live'), \
+         patch('rich.columns.Columns'), \
+         patch('rich.panel.Panel', side_effect=mock_panel):
+
+        run_sites_parallel(
+            [('B', lambda: None)],
+            all_labels=['A', 'B', 'C'],
+        )
+
+    assert len(panel_titles) % 3 == 0 and panel_titles[:3] == ['A', 'B', 'C']
