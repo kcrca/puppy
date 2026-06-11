@@ -43,8 +43,6 @@
 
 ## UX
 
-- **Manual cookie fallback**: Add instructions for users who can't use Firefox (DevTools steps for Chrome/Safari).
-
 ## Known Limitations
 
 ## Testing Gaps

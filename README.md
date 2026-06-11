@@ -100,6 +100,43 @@ modrinth:
     token: <paste token here>
 ```
 
+#### Getting Cookies Manually
+
+If for some reason you can't use Firefox to log in to use `puppy auth`, you can get the cookies manually.
+You have to get into the developer data sections, which is why we provide the automatic system.
+But you can do it.
+
+In your browser, turn on the developer tools window.
+
+* **Chrome**: Click the three-dot menu in the top-right corner, select `More tools > Developer tools`.
+* **Safari**: Enable `Settings > Advanced > Show features for web developers`, then use `Option + Command + I`.
+
+In both cases, you will have an extra window open up that lets you do developer stuff.
+This window will give you access to the cookies, under the `Application` tab in Chrome, or the `Storage` tab in Safari.
+(If you're using a different browser, the instructions might be a bit different, you'll have to figure it out.)
+
+Let's start with Curseforge.
+Go to the [CurseForge Author's page](https://authors.curseforge.com), and log in if you aren't already.
+Find the `Cookies` tab in the developer tools window.
+You need to copy out two cookies, `CobaltSession` and `AuthorsUser`.
+Find each in the cookie list, and copy each one's value into your `auth.yaml`, 
+which will then look something like this:
+
+```
+curseforge:
+    cookie: CobaltSession=abcdef; AuthorsUser=ghifjk
+    token: ...
+```
+
+Now log in to [Planet Minecraft](https://planetminecraft.com), then copy the name and value for the cookie `pmc_autologin` and put it in `auth.yaml`:
+
+```
+planetminecraft:
+    cookie: pmc_autologin=lmnop
+```
+
+That's it, you're done, close the developer tools window.
+
 ### Settings (`puppy.yaml`)
 
 The file `puppy.yaml` contains global settings for the pack and the sites. Let's go through the fields:
