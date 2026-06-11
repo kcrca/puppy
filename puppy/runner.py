@@ -68,7 +68,9 @@ def run(
     open_browser: bool = True,
 ) -> None:
     if action == 'init':
-        run_init(directory)
+        if not handle_filter:
+            raise SystemExit('puppy: error: init requires a type: pack, mod, or world')
+        run_init(directory, project_type=handle_filter[0])
         return
 
     if site:

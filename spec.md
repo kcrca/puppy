@@ -82,10 +82,12 @@ All relative paths named within yaml files are derived relative to that file's l
 ### Actions
 Puppy has the following actions:
 
-* **`init`:** Creates four files in `puppy/`: `auth.yaml`, `.gitignore`, `puppy.yaml`, and `description.md`.
+* **`init <type>`:** Creates four files in `puppy/`: `auth.yaml`, `.gitignore`, `puppy.yaml`, and `description.md`.
+  `<type>` is required: `pack`, `mod`, or `world`.
   Derives `name` and `handle` from the directory name.
   Any file that already exists is left untouched with a warning.
-  `puppy.yaml` is pre-populated with skeleton site entries; `description.md` contains a short comment.
+  `puppy.yaml` is pre-populated with skeleton entries for the supported sites for that type, and type-appropriate neutral fields (`resolution` for packs, `loaders` for mods, `progress` for packs and worlds).
+  `description.md` contains a short comment.
 * **`push`** (Default): Updates metadata, summaries, descriptions, images, and icons.
   With `-F/--file`, also uploads the zip artifact.
   Requires `version` in `puppy.yaml` or `-V/--version` when using `-F`.
@@ -402,7 +404,7 @@ For resource packs and worlds, MR defaults to `['minecraft']` for the version lo
 
 ### Single-Pack Layout
 
-For a single pack, `puppy init` creates:
+For a single pack, `puppy init pack` creates:
 
 ```
 ~/neon/

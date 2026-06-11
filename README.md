@@ -47,7 +47,7 @@ So go to the top level of your repo and get started with puppy:
 
 ```bash
 cd ~/neon
-puppy init
+puppy init pack
 ```
 
 This creates a folder called `puppy`, and within it a few files:
@@ -543,7 +543,7 @@ puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-F] [-f] [-I]
 
 ## Subcommands
 
-* **init**: Set up the puppy directory in the current directory, or `--dir` points.
+* **init `<type>`**: Set up the puppy directory for the given project type (`pack`, `mod`, or `world`). Creates `puppy.yaml` with skeleton entries for the sites that support that type and the appropriate neutral fields.
 * **auth**: Fetch authorization cookies from a Firefox session.
 * **create**: Create project on the site(s). If run from a terminal, this will prompt for confirmation.
     * `-f`, `--force`: Skip the confirmation prompt.

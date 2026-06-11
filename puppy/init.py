@@ -11,27 +11,43 @@ def _auth_yaml() -> str:
         + entries
     )
 
+
 _GITIGNORE = 'auth.yaml\n'
 
 _DESCRIPTION_MD = """\
-<!-- Add your pack description here. Jinja2 variables from puppy.yaml are available,
+<!-- Add your project description here. Jinja2 variables from puppy.yaml are available,
      Example: {{ version }}, {{ name }}. Conditionals: {% if key %}...{% endif %} -->
 """
 
-def _puppy_yaml(name: str, handle: str) -> str:
-    site_entries = '\n'.join(s.puppy_yaml_entry(handle) for s in SITES)
+
+def _puppy_yaml(name: str, handle: str, project_type: str) -> str:
+    from puppy.project_type import PROJECT_TYPES
+    pt = PROJECT_TYPES.get(project_type)
+    if pt is None:
+        raise SystemExit(f'Unknown project type: {project_type!r}. Valid: pack, mod, world')
+
+    supported_sites = [s for s in SITES if s.name in pt.supported_site_names]
+    site_entries = '\n'.join(s.puppy_yaml_entry(handle) for s in supported_sites)
+
+    type_fields = ''
+    if project_type in ('pack', 'world'):
+        type_fields += 'progress:\n'
+    if project_type == 'pack':
+        type_fields += 'resolution:\n'
+    if project_type == 'mod':
+        type_fields += 'loaders:\n'
+
     return (
         f'# puppy.yaml — configuration for {name}.\n\n'
         f'name: {name}\n'
         f'handle: {handle}\n'
-        'type: pack  # pack, mod, or world\n\n'
+        f'type: {project_type}\n\n'
         '# One-line project summary shown in site listings.\n'
         'summary:\n\n'
         '# Current version. Used by publish if --version is not passed on the CLI.\n'
         'version: "1.0.0"\n\n'
         '# Neutral metadata — expanded to site-specific fields automatically.\n'
-        'resolution:\n'
-        'progress:\n'
+        + type_fields +
         'license:\n'
         'links:\n'
         '  home:             # project home page URL\n'
@@ -49,7 +65,7 @@ def _puppy_yaml(name: str, handle: str) -> str:
     )
 
 
-def run_init(directory: Path) -> None:
+def run_init(directory: Path, project_type: str) -> None:
     name, handle = _derive_identity(directory)
 
     puppy_home = directory / 'puppy'
@@ -57,7 +73,7 @@ def run_init(directory: Path) -> None:
 
     _write_if_missing(puppy_home / 'auth.yaml', _auth_yaml())
     _write_if_missing(puppy_home / '.gitignore', _GITIGNORE)
-    _write_if_missing(puppy_home / 'puppy.yaml', _puppy_yaml(name, handle))
+    _write_if_missing(puppy_home / 'puppy.yaml', _puppy_yaml(name, handle, project_type))
     _write_if_missing(puppy_home / 'description.md', _DESCRIPTION_MD)
 
 
