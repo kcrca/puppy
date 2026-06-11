@@ -625,7 +625,6 @@ class ModrinthSite(Site):
             'config': {
                 'name': data.get('title', ''),
                 'summary': data.get('description', ''),
-                'license': license_id,
                 'links': links or None,
                 'socials': socials or None,
                 'images': image_entries,
@@ -633,6 +632,7 @@ class ModrinthSite(Site):
             'modrinth': {
                 'id': data['id'],
                 'slug': data['slug'],
+                'license': license_id,
                 'donation': donation or None,
                 'resolution': resolution if resolution else None,
                 'category': category if category else None,

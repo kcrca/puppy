@@ -73,7 +73,7 @@ def run_create(
     icon_bytes = prepare_icon(icon)
 
     puppy_yaml = puppy_dir / 'puppy.yaml'
-    visitor = SiteVisitor(site)
+    visitor = SiteVisitor(site, project_type=config.get('type', 'pack'))
 
     cf_token = auth.get('curseforge', {}).get('token')
     cf_cookie = auth.get('curseforge', {}).get('cookie')

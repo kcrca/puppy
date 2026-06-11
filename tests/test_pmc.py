@@ -45,6 +45,13 @@ _EDIT_HTML = '''
 <input name="module" value="texture_pack">
 <input name="module_task" value="edit_texture_pack">
 <select id="op1"><option value="1.21" selected>1.21</option></select>
+<select name="folder_id[]">
+  <option value="23">Simplistic</option>
+  <option value="24">Themed</option>
+  <option value="25" selected>Realistic</option>
+  <option value="26">Experimental</option>
+  <option value="27">Other</option>
+</select>
 '''
 
 _EDIT_SOUP = BeautifulSoup(_EDIT_HTML, 'html.parser')
@@ -222,6 +229,59 @@ def test_push_maps_category(tmp_path):
 
     update_req = mock_open.call_args_list[1][0][0]
     assert b'25' in update_req.data  # Realistic = 25
+
+
+def test_push_raises_on_unknown_category(tmp_path):
+    icon = tmp_path / 'icon.png'
+    Image.new('RGB', (64, 64)).save(icon)
+    config = {'name': 'Pack', 'planetminecraft': {'id': _PROJECT_ID, 'category': 'Nonexistent'}}
+    with patch('urllib.request.urlopen', side_effect=_push_responses()):
+        with pytest.raises(SystemExit, match='Unknown PMC category'):
+            PMC.push(
+                project_id=_PROJECT_ID, config=config, description='',
+                icon_path=icon, logo_path=None, banner_path=None,
+                image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+            )
+
+
+_WORLD_EDIT_HTML = '''
+<meta id="core-csrf-token" content="csrf-token-abc">
+<input name="member_id" value="42">
+<input name="subject_id" value="999">
+<input name="group" value="project">
+<input name="module" value="project">
+<input name="module_task" value="edit_project">
+<select id="op1"><option value="1.21" selected>1.21</option></select>
+<select name="folder_id[]">
+  <option value="38">Survival Maps</option>
+  <option value="39" selected>Environment &amp; Landscaping</option>
+  <option value="40">Adventure Maps</option>
+</select>
+'''
+
+
+def _world_push_responses():
+    return [
+        _make_response(_WORLD_EDIT_HTML),
+        _make_response({'status': 'success'}),
+    ]
+
+
+def test_push_world_submits_category(tmp_path):
+    icon = tmp_path / 'icon.png'
+    Image.new('RGB', (64, 64)).save(icon)
+    config = {
+        'name': 'World', 'type': 'world',
+        'planetminecraft': {'id': _PROJECT_ID, 'category': 'Environment & Landscaping'},
+    }
+    with patch('urllib.request.urlopen', side_effect=_world_push_responses()) as mock_open:
+        PMC.push(
+            project_id=_PROJECT_ID, config=config, description='',
+            icon_path=icon, logo_path=None, banner_path=None,
+            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+        )
+    update_req = mock_open.call_args_list[1][0][0]
+    assert b'39' in update_req.data  # Environment & Landscaping = 39
 
 
 def test_push_sets_download_link_to_modrinth(tmp_path):
@@ -551,6 +611,21 @@ def test_pull_no_bedrock_flag_for_java_world(tmp_path):
         mock_open.return_value = _make_response(html)
         result = PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False, project_type='world')
     assert 'bedrock' not in result['planetminecraft']
+
+
+def test_pull_scrapes_world_category(tmp_path):
+    html = '''
+<meta id="core-csrf-token" content="csrf-token-abc">
+<input name="title" value="Restworld">
+<select name="folder_id[]">
+  <option value="38">Survival Maps</option>
+  <option value="39" selected>Environment &amp; Landscaping</option>
+</select>
+'''
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value = _make_response(html)
+        result = PMC.pull(project_id=_PROJECT_ID, auth=_AUTH, puppy_dir=tmp_path, images=False, project_type='world')
+    assert result['planetminecraft']['category'] == 'Environment & Landscaping'
 
 
 def test_pull_includes_image_entries_skipping_special(tmp_path):

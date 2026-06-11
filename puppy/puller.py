@@ -17,8 +17,9 @@ def run_pull(
     images: bool,
     verbosity: int,
 ) -> None:
-    config = _resolve_ids(config, auth, site, verbosity)
-    visitor = SiteVisitor(site)
+    project_type = config.get('type', 'pack')
+    config = _resolve_ids(config, auth, site, verbosity, project_type)
+    visitor = SiteVisitor(site, project_type=project_type)
 
     mr_token = auth.get('modrinth', {}).get('token', '')
     mr = config.get('modrinth', {})
@@ -39,21 +40,33 @@ def run_pull(
     if missing:
         raise SystemExit(f'Credentials missing for: {", ".join(s.label for s in missing)} — run: puppy auth')
 
+    puppy_dir = project.puppy_dir
+    results = []
+
     if MODRINTH in visitor and mr_id:
         try:
-            _run_mr_pull(project, config, auth, site, images, verbosity)
+            r = _run_mr_pull(project, config, auth, site, images, verbosity)
         except SystemExit as e:
             raise prefix_site_error(MODRINTH.label, e) from None
+        if r is not None:
+            results.append(r)
     if CURSEFORGE in visitor and cf_id:
         try:
-            _run_cf_pull(project, config, auth, site, images, verbosity)
+            r = _run_cf_pull(project, config, auth, site, images, verbosity)
         except SystemExit as e:
             raise prefix_site_error(CURSEFORGE.label, e) from None
+        if r is not None:
+            results.append(r)
     if PMC in visitor and pmc_id:
         try:
-            _run_pmc_pull(project, config, auth, site, images, verbosity)
+            r = _run_pmc_pull(project, config, auth, site, images, verbosity)
         except SystemExit as e:
             raise prefix_site_error(PMC.label, e) from None
+        if r is not None:
+            results.append(r)
+
+    if results:
+        _harvest_yaml(project, _merge_results(results), puppy_dir, site, images, project_type)
 
     if verbosity >= 1:
         print(f'[{project.name}] pull complete')
@@ -66,14 +79,15 @@ def _run_mr_pull(
     site: str | None,
     images: bool,
     verbosity: int,
-) -> None:
+) -> dict:
     mr = config.get('modrinth', {})
     project_id = mr.get('id') or mr.get('slug')
     puppy_dir = project.puppy_dir
-    do_images = images or not _has_image_info(puppy_dir, site)
+    project_type = config.get('type', 'pack')
+    do_images = images or not _has_image_info(puppy_dir, site, project_type)
 
     try:
-        result_data = MODRINTH.pull(
+        return MODRINTH.pull(
             project_id=project_id,
             auth=auth,
             puppy_dir=puppy_dir,
@@ -83,8 +97,6 @@ def _run_mr_pull(
     except AuthExpiredError as e:
         raise SystemExit(f'Modrinth auth expired (HTTP {e.code}) — run: puppy auth --site modrinth')
 
-    _harvest_yaml(project, result_data, puppy_dir, site, do_images)
-
 
 def _run_cf_pull(
     project: Project,
@@ -93,13 +105,14 @@ def _run_cf_pull(
     site: str | None,
     images: bool,
     verbosity: int,
-) -> None:
+) -> dict:
     cf_id = config.get('curseforge', {}).get('id')
     puppy_dir = project.puppy_dir
-    do_images = images or not _has_image_info(puppy_dir, site)
+    project_type = config.get('type', 'pack')
+    do_images = images or not _has_image_info(puppy_dir, site, project_type)
 
     try:
-        result_data = CURSEFORGE.pull(
+        return CURSEFORGE.pull(
             project_id=cf_id,
             auth=auth,
             puppy_dir=puppy_dir,
@@ -109,8 +122,6 @@ def _run_cf_pull(
     except AuthExpiredError as e:
         raise SystemExit(f'CurseForge auth expired (HTTP {e.code}) — run: puppy auth --site cf')
 
-    _harvest_yaml(project, result_data, puppy_dir, site, do_images)
-
 
 def _run_pmc_pull(
     project: Project,
@@ -119,28 +130,43 @@ def _run_pmc_pull(
     site: str | None,
     images: bool,
     verbosity: int,
-) -> None:
+) -> dict:
     pmc_id = config.get('planetminecraft', {}).get('id')
     puppy_dir = project.puppy_dir
-    do_images = images or not _has_image_info(puppy_dir, site)
+    project_type = config.get('type', 'pack')
+    do_images = images or not _has_image_info(puppy_dir, site, project_type)
 
     try:
-        result_data = PMC.pull(
+        return PMC.pull(
             project_id=pmc_id,
             auth=auth,
             puppy_dir=puppy_dir,
             images=do_images,
             verbosity=verbosity,
-            project_type=config.get('type', 'pack'),
+            project_type=project_type,
         )
     except AuthExpiredError as e:
         raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}) — run: puppy auth --site pmc')
 
-    _harvest_yaml(project, result_data, puppy_dir, site, do_images)
+
+def _merge_results(results: list[dict]) -> dict:
+    merged: dict = {}
+    merged_config: dict = {}
+    for r in results:
+        for k, v in r.items():
+            if k == 'config':
+                for ck, cv in v.items():
+                    if cv not in (None, '', [], False):
+                        merged_config[ck] = cv
+            else:
+                merged[k] = v
+    if merged_config:
+        merged['config'] = merged_config
+    return merged
 
 
-def _resolve_ids(config: dict, auth: dict, site: str | None, verbosity: int) -> dict:
-    for s in SiteVisitor(site):
+def _resolve_ids(config: dict, auth: dict, site: str | None, verbosity: int, project_type: str = 'pack') -> dict:
+    for s in SiteVisitor(site, project_type=project_type):
         try:
             config = s.resolve_id(config, auth, verbosity)
         except SystemExit as e:
@@ -148,8 +174,8 @@ def _resolve_ids(config: dict, auth: dict, site: str | None, verbosity: int) -> 
     return config
 
 
-def _has_image_info(puppy_dir: Path, site: str | None) -> bool:
-    dirs = [puppy_dir] + [puppy_dir / s.name for s in SiteVisitor(site)]
+def _has_image_info(puppy_dir: Path, site: str | None, project_type: str = 'pack') -> bool:
+    dirs = [puppy_dir] + [puppy_dir / s.name for s in SiteVisitor(site, project_type=project_type)]
     return any(
         (d / 'images.yaml').exists() or (d / 'images' / 'images.yaml').exists()
         for d in dirs
@@ -158,7 +184,7 @@ def _has_image_info(puppy_dir: Path, site: str | None) -> bool:
 
 def _harvest_yaml(
     project: Project, result_data: dict, puppy_dir: Path, site: str | None,
-    images: bool,
+    images: bool, project_type: str = 'pack',
 ) -> None:
     puppy_yaml = puppy_dir / 'puppy.yaml'
     config = load_puppy_yaml(puppy_yaml)
@@ -166,7 +192,7 @@ def _harvest_yaml(
     imported = result_data.get('config', {})
 
     # Scalars from imported config
-    for key in ('name', 'summary', 'license', 'optifine', 'video', 'github'):
+    for key in ('name', 'summary', 'optifine', 'video', 'github'):
         if imported.get(key) not in (None, '', [], False):
             config[key] = imported[key]
 
@@ -179,7 +205,7 @@ def _harvest_yaml(
                 if v:
                     existing[k] = v
 
-    if images and imported.get('images'):
+    if imported.get('images') and (images or not _has_image_info(puppy_dir, site, project_type)):
         image_list = [
             {**img, 'file': img['file'].strip('_')} if 'file' in img else img
             for img in imported['images']
@@ -194,7 +220,7 @@ def _harvest_yaml(
         config.pop('images', None)
 
     # Platform IDs/slugs and site-specific config
-    for s in SiteVisitor(site):
+    for s in SiteVisitor(site, project_type=project_type):
         if s.name in result_data:
             site_cfg = config.setdefault(s.name, {})
             for k, v in result_data[s.name].items():
@@ -205,6 +231,18 @@ def _harvest_yaml(
                         site_cfg[k] = v
         if s.name in imported:
             config.setdefault(s.name, {}).update(imported[s.name])
+
+    # Promote license to neutral if all sites agree (normalized to SPDX)
+    site_licenses = {}
+    for s in SiteVisitor(site, project_type=project_type):
+        if s.name in result_data:
+            site_lic = result_data[s.name].get('license')
+            if site_lic:
+                spdx = s.spdx_license(site_lic)
+                if spdx and not spdx.startswith('LicenseRef-'):
+                    site_licenses[s.name] = spdx
+    if site_licenses and len(set(site_licenses.values())) == 1:
+        config['license'] = next(iter(site_licenses.values()))
 
     dump_puppy_yaml(config, puppy_yaml)
 

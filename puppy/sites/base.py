@@ -40,6 +40,9 @@ class Site:
     def apply_settings(self, settings: dict, sc: dict) -> None:
         pass
 
+    def spdx_license(self, value: str) -> str | None:
+        return value
+
     def auth_yaml_entry(self) -> str:
         return ''
 

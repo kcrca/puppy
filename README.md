@@ -212,19 +212,18 @@ So you will see many fields populated there from the site.
 #### Setup for Existing Sites
 
 If you already have a project at an existing site, you can pull the data from it to start your settings.
-You just provide the id and (for PMC) the slug.
+Provide the `id`, or just the `slug` — puppy resolves the numeric ID automatically before pulling.
 These are stored in the site-specific parts of `puppy.yaml`.
 
 ```yaml
 curseforge:
-  id: 123345
+  slug: neon-is-glowing   # id resolved automatically from slug
 
 modrinth:
-  id: XYZZY
+  slug: neon-is-glowing   # id resolved automatically from slug
 
 planetminecraft:
-  id: 12345
-  slug: neon-is-glowing
+  slug: neon-is-glowing-6911690   # numeric id extracted from slug suffix
 ```
 
 (Any site you don't give info for will be skipped.)
@@ -635,7 +634,7 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 
 | Field | Meaning |
 |---|---|
-| `id` | CurseForge project ID. Written by `pull`/`create`. |
+| `id` | CurseForge project ID. Written by `pull`/`create`. Resolved from `slug` automatically if absent. |
 | `slug` | Project slug on CurseForge. |
 | `mainCategory` | Main category string (e.g. `16x`). Set by `resolution`; override here. |
 | `additionalCategories` | Map of category name → `true`/`false`. |
@@ -659,7 +658,7 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 
 | Field | Meaning |
 |---|---|
-| `id` | PMC project ID. Written by `pull`/`create`. |
+| `id` | PMC project ID. Written by `pull`/`create`. Resolved from `slug` automatically if the slug ends in `-{id}` (e.g. `name-6911690`), or by fetching the public project page. |
 | `slug` | Project slug on PMC. |
 | `resolution` | Resolution integer. Set by `resolution`; override here. |
 | `progress` | Completion percentage 0–100. Set by `progress`; override here. |

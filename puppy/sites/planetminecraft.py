@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -24,10 +25,39 @@ _PMC_RESOLUTIONS = {
     8: 6, 16: 1, 32: 2, 64: 3, 128: 4, 256: 5, 512: 7, 1024: 8, 2048: 9, 4096: 10,
 }
 
-_PMC_CATEGORIES = {
-    'Experimental': 26, 'PvP': 154, 'Realistic': 25, 'Simplistic': 23,
-    'Themed': 24, 'Unreleased': 86, 'Other': 27,
-}
+def _pmc_category_options(soup: BeautifulSoup) -> dict[str, int]:
+    """Returns {display_name: id} for all options in the category select."""
+    sel = (
+        soup.find('select', attrs={'name': 'folder_id[]'})
+        or soup.find(attrs={'id': 'folder_id[]'})
+    )
+    if not sel:
+        return {}
+    result = {}
+    for opt in sel.find_all('option'):
+        val = opt.get('value')
+        text = opt.get_text(strip=True)
+        if val and text:
+            try:
+                result[text] = int(val)
+            except ValueError:
+                pass
+    return result
+
+
+def _pmc_resolve_category(soup: BeautifulSoup, category: str | None) -> int | None:
+    """Returns category ID, or raises SystemExit listing valid options if not found."""
+    if not category:
+        return None
+    options = _pmc_category_options(soup)
+    if not options:
+        return None
+    lower = {k.lower(): v for k, v in options.items()}
+    cid = lower.get(category.lower())
+    if cid is None:
+        valid = ', '.join(sorted(options.keys()))
+        raise SystemExit(f'Unknown PMC category: {category!r}. Valid options: {valid}')
+    return cid
 
 _PMC_MODIFIES = {
     'armor': 37, 'art': 35, 'environment': 30, 'font': 31, 'gui': 34,
@@ -357,6 +387,61 @@ class PlanetMinecraftSite(Site):
         segment = 'project' if project_type == 'world' else 'texture-pack'
         return f'https://www.planetminecraft.com/{segment}/{ref}/'
 
+    def resolve_id(self, config: dict, auth: dict, verbosity: int) -> dict:
+        pmc = config.get('planetminecraft', {})
+        if pmc.get('id') or not pmc.get('slug'):
+            return config
+        slug = pmc['slug']
+        # Extract numeric ID from slug like "name-1234567"
+        m = re.search(r'-(\d+)$', slug)
+        if m:
+            resource_id = int(m.group(1))
+            config = dict(config)
+            config['planetminecraft'] = dict(pmc, id=resource_id)
+            if verbosity >= 1:
+                print(f"Resolved PlanetMinecraft ID from slug '{slug}': {resource_id}")
+            return config
+        # Fetch public page to find numeric ID in manage links or og:url
+        project_type = config.get('type', 'pack')
+        segment = 'project' if project_type == 'world' else 'texture-pack'
+        url = f'{_PMC_BASE}/{segment}/{slug}/'
+        cookie = auth.get('planetminecraft', {}).get('cookie', '')
+        try:
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            if cookie:
+                headers['Cookie'] = cookie
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=30) as r:
+                html = r.read().decode('utf-8', errors='replace')
+            soup = BeautifulSoup(html, 'html.parser')
+            manage_path = _pmc_manage_path(project_type)
+            for tag in soup.find_all(href=True):
+                m2 = re.search(re.escape(manage_path) + r'(\d+)', tag['href'])
+                if m2:
+                    resource_id = int(m2.group(1))
+                    config = dict(config)
+                    config['planetminecraft'] = dict(pmc, id=resource_id)
+                    if verbosity >= 1:
+                        print(f"Resolved PlanetMinecraft ID for slug '{slug}': {resource_id}")
+                    return config
+            og = soup.find('meta', property='og:url')
+            if og and og.get('content'):
+                m3 = re.search(r'-(\d{6,})/?$', og['content'])
+                if m3:
+                    resource_id = int(m3.group(1))
+                    config = dict(config)
+                    config['planetminecraft'] = dict(pmc, id=resource_id)
+                    if verbosity >= 1:
+                        print(f"Resolved PlanetMinecraft ID for slug '{slug}': {resource_id}")
+                    return config
+        except SystemExit:
+            raise
+        except Exception as e:
+            raise SystemExit(f"Could not resolve PlanetMinecraft ID for slug '{slug}': {e}")
+        raise SystemExit(
+            f"Could not find PlanetMinecraft ID for slug '{slug}' — set planetminecraft.id manually in puppy.yaml"
+        )
+
     def create(
         self,
         *,
@@ -459,11 +544,13 @@ class PlanetMinecraftSite(Site):
             ('saved_data', ''),
         ]
 
+        category_id = _pmc_resolve_category(soup, sc.get('category'))
+        if category_id is not None:
+            fields.append(('folder_id[]', str(category_id)))
+
         if project_type == 'pack':
-            category = _PMC_CATEGORIES.get(sc.get('category', ''), 27)
             resolution = _PMC_RESOLUTIONS.get(int(sc.get('resolution', 16)), 1)
             fields.append(('op0', str(resolution)))
-            fields.append(('folder_id[]', str(category)))
             for mod, on in (sc.get('modifies') or {}).items():
                 if on and mod in _PMC_MODIFIES:
                     fields.append(('folder_id[]', str(_PMC_MODIFIES[mod])))
@@ -585,11 +672,13 @@ class PlanetMinecraftSite(Site):
             ('live', '1'),
         ]
 
+        category_id = _pmc_resolve_category(soup, sc.get('category'))
+        if category_id is not None:
+            fields.append(('folder_id[]', str(category_id)))
+
         if project_type == 'pack':
-            category = _PMC_CATEGORIES.get(sc.get('category', ''), 27)
             resolution = _PMC_RESOLUTIONS.get(int(sc.get('resolution', 16)), 1)
             fields.append(('op0', str(resolution)))
-            fields.append(('folder_id[]', str(category)))
             for mod, on in (sc.get('modifies') or {}).items():
                 if on and mod in _PMC_MODIFIES:
                     fields.append(('folder_id[]', str(_PMC_MODIFIES[mod])))
@@ -635,16 +724,19 @@ class PlanetMinecraftSite(Site):
             print('  [PlanetMinecraft] fetching project page')
         soup, _ = _pmc_get_page(project_id, cookie, project_type)
 
-        _CATEGORIES_INV = {v: k for k, v in _PMC_CATEGORIES.items()}
         _RESOLUTIONS_INV = {v: k for k, v in _PMC_RESOLUTIONS.items()}
 
         pmc_result: dict = {'id': project_id}
 
-        if project_type == 'pack':
-            cat_sel = soup.find(attrs={'id': 'folder_id[]'})
-            cat_opt = cat_sel.find('option', selected=True) if cat_sel else None
-            category = _CATEGORIES_INV.get(int(cat_opt['value']), 'Other') if cat_opt else 'Other'
+        cat_sel = (
+            soup.find('select', attrs={'name': 'folder_id[]'})
+            or soup.find(attrs={'id': 'folder_id[]'})
+        )
+        cat_opt = cat_sel.find('option', selected=True) if cat_sel else None
+        if cat_opt:
+            pmc_result['category'] = cat_opt.get_text(strip=True)
 
+        if project_type == 'pack':
             res_sel = soup.find('select', id='op0')
             res_opt = res_sel.find('option', selected=True) if res_sel else None
             resolution = _RESOLUTIONS_INV.get(int(res_opt['value']), 16) if res_opt else 16
@@ -668,8 +760,6 @@ class PlanetMinecraftSite(Site):
                 if op1_opt and 'bedrock' in op1_opt.get_text(strip=True).lower():
                     pmc_result['bedrock'] = True
 
-            if category:
-                pmc_result['category'] = category
             if resolution:
                 pmc_result['resolution'] = resolution
             pmc_result['progress'] = progress

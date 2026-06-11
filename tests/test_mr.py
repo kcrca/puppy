@@ -382,7 +382,7 @@ def test_pull_fetches_project_and_writes_description(tmp_path):
     assert '# My Pack' in desc.read_text()
     assert result['config']['name'] == 'My Pack'
     assert result['config']['summary'] == 'A cool pack'
-    assert result['config']['license'] == 'MIT'
+    assert result['modrinth']['license'] == 'MIT'
     assert result['config']['links'] == {'issues': 'https://github.com/me/pack/issues', 'source': 'https://github.com/me/pack'}
     assert result['config']['socials'] == {'discord': 'https://discord.gg/x'}
     assert result['modrinth']['id'] == 'abc123'

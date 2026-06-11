@@ -92,7 +92,9 @@ Puppy has the following actions:
 * **`pull`:** Pulls live site data.
   Update yaml in puppy home and the project home (if different).
   Does **not** create description templates (those are created by `init`).
-  Requires `id` in each site's config block; for PMC, also requires `slug` since there is no API to look it up from the ID.
+  Requires `id` or `slug` in each site's config block.
+  If `id` is null or missing but `slug` is set, the ID is resolved automatically before pulling: Modrinth queries its API by slug; CurseForge searches the authors portal API (for user's own projects) and falls back to scraping the public project page; PMC extracts the numeric ID from the slug (e.g. `name-1234567`) or fetches the public project page.
+  If CurseForge ID resolution fails, puppy prints an error with instructions to find the numeric project ID at `https://authors.curseforge.com/projects/` and set `curseforge.id` manually.
   Per-site errors do not abort the other sites.
   Description body text pulled varies by platform:
   * *Modrinth:* Full description body pulled via API. This md file is put in the site home.
@@ -312,6 +314,9 @@ If there is a `projects` field in {{puppy}}/puppy.yaml, puppy iterates through t
 After `pull`, platform IDs, slugs, and full metadata are written back to the project's `puppy.yaml`.
 If pulled, images and their metadata are written to `{{project}}/images/` and `{{project}}/images/images.yaml` respectively.
 Leading and trailing underscores are stripped from image filenames on harvest.
+Values that differ between sites are written to their respective site-specific blocks.
+If all relevant sites agree on a value (e.g. `license`), it is promoted to the top-level neutral key.
+CF license names are normalized to SPDX for comparison; ambiguous CF names (e.g. `Creative Commons 4.0`) are kept site-specific.
 
 ### Artifact Match
 In the name of the pack file, version must be the last component before `.zip`, separated by `-`, `_`, or `.` (e.g. `mypack-1.2.zip`, `pack-1.2.zip`).
@@ -329,8 +334,11 @@ Per-site overrides in `curseforge`, `modrinth`, `planetminecraft` blocks overwri
 Valid tiers: `8x-`, `16x`, `32x`, `48x`, `64x`, `128x`, `256x`, `512x+`.
 A bare integer is also accepted and is normalized to `{n}x`.
 If both neutral `resolution` and `modrinth.resolution` are set, the neutral tier is appended to the explicit list if not already present, with a warning.
-Site-specific fields with no neutral equivalent (e.g. CF `category`, PMC `modifies`, PMC `tags`, PMC `alt_download`) should list all options explicitly so intent is clear.
+Site-specific fields with no neutral equivalent (e.g. CF `category`, PMC `category`, PMC `modifies`, PMC `tags`, PMC `alt_download`) should list all options explicitly so intent is clear.
 `planetminecraft.alt_download` sets the external download URL shown on PMC (PMC-specific because CF and Modrinth host files themselves).
+`planetminecraft.category` is read from the PMC project page at push time; valid values depend on the project type (pack or world) and are whatever PMC currently lists in their category dropdown.
+An unknown PMC category raises an error and lists the valid options for that project type.
+Category matching is case-insensitive.
 `curseforge.category` accepts a single name or a list; the first becomes `primaryCategoryId`, the rest become `subCategoryIds`.
 Named pack categories: `16x`, `32x`, `64x`, `128x`, `256x`, `512x and Higher`, `Data Packs`, `Font Packs`.
 Named world categories: `Adventure`, `Creation`, `Game Map`, `Parkour`, `Puzzle`, `Survival`, `Modded World`.

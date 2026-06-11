@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -62,6 +63,28 @@ def _cf_headers(extra: dict) -> dict:
         'Referer': 'https://authors.curseforge.com/',
         **extra,
     }
+
+
+def _cf_extract_id_from_page(html: str) -> int | None:
+    m = re.search(r'<script[^>]+id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
+    if m:
+        try:
+            data = json.loads(m.group(1))
+            page_props = data.get('props', {}).get('pageProps', {})
+            for key in ('project', 'mod', 'addon'):
+                obj = page_props.get(key)
+                if isinstance(obj, dict) and obj.get('id'):
+                    return int(obj['id'])
+            for val in page_props.values():
+                if isinstance(val, dict) and val.get('id') and isinstance(val.get('id'), int):
+                    return int(val['id'])
+        except (json.JSONDecodeError, ValueError, TypeError):
+            pass
+    for pattern in (r'"projectId"\s*:\s*(\d+)', r'"modId"\s*:\s*(\d+)', r'data-project-id="(\d+)"'):
+        m = re.search(pattern, html)
+        if m:
+            return int(m.group(1))
+    return None
 
 
 def _cf_get(url: str, headers: dict) -> Any:
@@ -264,6 +287,12 @@ _SPDX_TO_PU_CF = {
     'Zlib': 'zlib/libpng License',
 }
 
+_CF_NAME_TO_SPDX = {
+    cf: spdx
+    for spdx, cf in _SPDX_TO_PU_CF.items()
+    if sum(1 for v in _SPDX_TO_PU_CF.values() if v == cf) == 1
+}
+
 
 class CurseForgeSite(Site):
     name = 'curseforge'
@@ -274,6 +303,9 @@ class CurseForgeSite(Site):
 
     def convert_md(self, text: str) -> str:
         return md_to_html(text)
+
+    def spdx_license(self, value: str) -> str | None:
+        return _CF_NAME_TO_SPDX.get(value)
 
     def apply_neutral(self, config: dict) -> None:
         resolution = config.get('resolution')
@@ -375,6 +407,67 @@ class CurseForgeSite(Site):
         else:
             segment = _CF_URL_SEGMENTS.get(project_type, 'texture-packs')
         return f'https://www.curseforge.com/minecraft/{segment}/{ref}'
+
+    def resolve_id(self, config: dict, auth: dict, verbosity: int) -> dict:
+        cf = config.get('curseforge', {})
+        if cf.get('id') or not cf.get('slug'):
+            return config
+        slug = cf['slug']
+        cookie = auth.get('curseforge', {}).get('cookie', '')
+        if cookie:
+            # Try authors portal API (works for user's own projects)
+            try:
+                data = _cf_get(
+                    f'{_CF_DASH}/projects?search={urllib.parse.quote(slug)}',
+                    self._cookie_headers(auth),
+                )
+                projects = data if isinstance(data, list) else (
+                    data.get('data', []) if isinstance(data, dict) else []
+                )
+                match = next((p for p in projects if p.get('slug') == slug), None)
+                if match and match.get('id'):
+                    config = dict(config)
+                    config['curseforge'] = dict(cf, id=int(match['id']))
+                    if verbosity >= 1:
+                        print(f"Resolved CurseForge ID for slug '{slug}': {match['id']}")
+                    return config
+            except Exception:
+                pass
+            # Try scraping the public project page
+            project_type = config.get('type', 'pack')
+            segments_to_try = [_CF_URL_SEGMENTS.get(project_type, 'texture-packs')]
+            if project_type == 'world':
+                segments_to_try.append('mc-addons/worlds')
+            elif project_type == 'pack':
+                segments_to_try.append('mc-addons/resource-packs')
+            page_headers = {'User-Agent': _CF_UA, 'Cookie': cookie}
+            for segment in segments_to_try:
+                url = f'https://www.curseforge.com/minecraft/{segment}/{slug}'
+                try:
+                    req = urllib.request.Request(url, headers=page_headers)
+                    with urllib.request.urlopen(req, timeout=30) as r:
+                        page = r.read().decode('utf-8', errors='replace')
+                    project_id = _cf_extract_id_from_page(page)
+                    if project_id:
+                        config = dict(config)
+                        config['curseforge'] = dict(cf, id=project_id)
+                        if verbosity >= 1:
+                            print(f"Resolved CurseForge ID for slug '{slug}': {project_id}")
+                        return config
+                except urllib.error.HTTPError as e:
+                    if e.code == 404:
+                        continue
+                    raise SystemExit(f"Could not resolve CurseForge ID for slug '{slug}': {e}")
+                except SystemExit:
+                    raise
+                except Exception as e:
+                    raise SystemExit(f"Could not resolve CurseForge ID for slug '{slug}': {e}")
+        raise SystemExit(
+            f"Could not resolve CurseForge ID for slug '{slug}': "
+            f"set curseforge.id manually in puppy.yaml "
+            f"(find it at https://authors.curseforge.com/projects/ — "
+            f"the numeric ID is in the URL when you open your project)"
+        )
 
     def _cookie_headers(self, auth: dict) -> dict:
         return {'Cookie': auth.get('curseforge', {}).get('cookie', '')}
@@ -854,13 +947,13 @@ class CurseForgeSite(Site):
             cf_result['bedrock'] = True
         if donation:
             cf_result['donation'] = donation
-        if license_name:
-            cf_result['license'] = license_name
         if data.get('primaryCategoryId') is not None:
             cf_result['category'] = data['primaryCategoryId']
         if socials:
             cf_result['socials'] = socials
 
+        if license_name:
+            cf_result['license'] = license_name
         return {
             'config': {
                 'name': data.get('name', ''),
