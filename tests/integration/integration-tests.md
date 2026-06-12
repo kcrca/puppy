@@ -37,12 +37,44 @@ python tests/integration/cleanup.py --site pmc
 
 ---
 
+## Parallel execution
+
+`--dist=class` (pytest-xdist) assigns every test in a class to one worker.
+This is required: the five lifecycle tests in each class are ordered and share state — they must run sequentially on one worker.
+Different classes run on separate workers concurrently.
+
+Session cleanup (`_cleanup_prior_runs`) runs only on the master process or `gw0`.
+Without this guard, every xdist worker would run cleanup concurrently and race each other.
+Serial runs (no `-n`) behave identically because `workerid` defaults to `'master'`.
+
+---
+
+## Error handling
+
+When a puppy command hits an auth failure or site usage limit, the test **skips** (not fails) with a clear message.
+All remaining tests in the same class also skip automatically.
+
+**Auth failures** — triggered by:
+- `AuthExpiredError` raised by any site (for example HTTP 401, 403, or CF's 400 `"Forbidden"`)
+- `SystemExit` whose message contains `"auth expired"`
+
+Skip message names the site and HTTP status and points to `tests/integration/puppy/auth.yaml`.
+
+**Usage limit failures** — triggered by:
+- `SystemExit` whose message contains `"daily update limit"` (PMC limits version submissions per day)
+
+Both cases store the reason in `ctx['_auth_error']`.
+Every subsequent `_run()` call checks that key and skips immediately without invoking puppy.
+This prevents cascading failures when credentials are stale or a limit is hit mid-run.
+
+---
+
 ## Test structure
 
 Tests use a class-per-site-type layout.
 Each class inherits from `LifecycleBase` (defined in `conftest.py`), which provides five ordered test methods.
 Site-specific assertions are overridden in each class.
-Different classes are independent and can run in parallel (for example `pytest-xdist --dist=class`).
+Different classes are independent and run in parallel under `--dist=class`.
 
 | File | Standalone tests | Classes |
 |---|---|---|
@@ -63,7 +95,7 @@ Each lifecycle class runs five tests in order:
 | `test_05_push_pack` | `puppy push --pack` — version file appears on site |
 
 State (project dir, project id) is shared between test methods within a class via a class-scoped `ctx` fixture.
-If an earlier test fails, later tests in the same class will also fail (no explicit skip-on-failure guards).
+Auth and limit errors propagate as skips to all remaining tests in the class — see "Error handling" above.
 
 ---
 
@@ -184,5 +216,5 @@ Runs once per session before any tests via the `_cleanup_prior_runs` fixture, de
 - Texture packs are held in a moderation queue after creation — the public page is not immediately accessible.
   All PMC validation uses the authenticated management page via Playwright.
 - PMC has a daily version-log submission limit.
-  If `test_05_push_pack` fails with "daily update limit reached", wait until the next day.
+  If any test hits this limit, that test and all subsequent tests in the class skip automatically — wait until the next day and re-run.
 - Only packs and worlds are supported (no mod type on PMC).
