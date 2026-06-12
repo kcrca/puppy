@@ -91,8 +91,10 @@ def _auth():
 
 
 @pytest.fixture(scope='session', autouse=True)
-def _cleanup_prior_runs(_auth):
-    run_cleanup(_auth)
+def _cleanup_prior_runs(_auth, request):
+    worker_id = getattr(request.config, 'workerinput', {}).get('workerid', 'master')
+    if worker_id in ('master', 'gw0'):
+        run_cleanup(_auth)
 
 
 

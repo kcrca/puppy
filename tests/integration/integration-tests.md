@@ -3,7 +3,13 @@
 ## How to run
 
 Integration tests are excluded from the default `pytest` run.
-To run them:
+Run them in parallel (recommended):
+
+```bash
+pytest tests/integration/ --dist=class -n auto
+```
+
+Or serially:
 
 ```bash
 pytest tests/integration/
@@ -14,15 +20,9 @@ Tests for sites with missing credentials are automatically skipped.
 To run only one site:
 
 ```bash
-pytest tests/integration/ -k pmc
-pytest tests/integration/ -k cf
-pytest tests/integration/ -k mr
-```
-
-To run in parallel (requires `pytest-xdist`):
-
-```bash
-pytest tests/integration/ --dist=class -n auto
+pytest tests/integration/ -k pmc --dist=class -n auto
+pytest tests/integration/ -k cf  --dist=class -n auto
+pytest tests/integration/ -k mr  --dist=class -n auto
 ```
 
 Cleanup runs automatically at the start of each session (deletes all projects on the test accounts).
