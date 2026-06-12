@@ -283,7 +283,7 @@ class ModrinthSite(Site):
             else:
                 raise SystemExit(
                     f'Modrinth upload requires loaders: set it in puppy.yaml '
-                    f'(e.g. loaders: [fabric])'
+                    f'(for example loaders: [fabric])'
                 )
         version_data = {
             'name': f'{slug} v{version}',

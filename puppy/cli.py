@@ -59,7 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
         dest='site',
         default=None,
         metavar='SITENAME',
-        help='Limit action to one or more sites (comma-separated, e.g. cf,mr).',
+        help='Limit action to one or more sites (comma-separated, such as cf,mr).',
     )
 
     parser.add_argument(

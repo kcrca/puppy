@@ -95,7 +95,7 @@ Puppy has the following actions:
   Update yaml in puppy home and the project home (if different).
   Does **not** create description templates (those are created by `init`).
   Requires `id` or `slug` in each site's config block.
-  If `id` is null or missing but `slug` is set, the ID is resolved automatically before pulling: Modrinth queries its API by slug; CurseForge searches the authors portal API (for user's own projects) and falls back to scraping the public project page; PMC extracts the numeric ID from the slug (e.g. `name-1234567`) or fetches the public project page.
+  If `id` is null or missing but `slug` is set, the ID is resolved automatically before pulling: Modrinth queries its API by slug; CurseForge searches the authors portal API (for user's own projects) and falls back to scraping the public project page; PMC extracts the numeric ID from the slug (for example `name-1234567`) or fetches the public project page.
   If CurseForge ID resolution fails, puppy prints an error with instructions to find the numeric project ID at `https://authors.curseforge.com/projects/` and set `curseforge.id` manually.
   Per-site errors do not abort the other sites.
   Description body text pulled varies by platform:
@@ -112,13 +112,13 @@ Puppy has the following actions:
   Executes the full pipeline without hitting APIs.
   Writes a per-site preview to `{tempdir}/puppy/{handle}/index.html` — a tabbed HTML page showing rendered descriptions, project metadata, icon, and images for each site.
   Also writes per-site description files to `{tempdir}/puppy/{handle}/{site}/description.{ext}`.
-  For sites whose native format is not Markdown but whose source is Markdown (e.g. CurseForge, Planet Minecraft), also writes `description.md` alongside the native file.
+  For sites whose native format is not Markdown but whose source is Markdown (for example CurseForge, Planet Minecraft), also writes `description.md` alongside the native file.
   Prints the `file://` URL and opens it in the default browser automatically.
 * **`--no-open`:** Suppress the automatic browser open after a dry run.
 * **`-q/--quiet`:** Suppress progress output (default is verbose).
 * **`-d/--dir [path]`:** Sets working directory. Defaults to CWD.
 * **`-s/--site [sitename]`:** Limits action to one or more sites.
-  Accepts a single name or a comma-separated list (e.g. `modrinth`, `cf,mr`).
+  Accepts a single name or a comma-separated list (for example `modrinth`, `cf,mr`).
   Site abbreviations are accepted (`cf`, `mr`, `pmc`).
   When omitted, defaults to the `sites:` list in `puppy.yaml` if present, otherwise all three sites.
 * **`-V/--version [string]`:** Version string override.
@@ -237,7 +237,7 @@ Example: `sites: [cf, mr]`
   Per-site overrides (`curseforge.socials.*`, `modrinth.discord`) take precedence over neutral `socials`.
 * `after_push: <message>` — a message printed to stdout after all projects have been pushed (not during dry-run).
   When set inside a site block, prints only when that site is active, prefixed with the site label.
-  Useful for reminders about manual steps that can't be automated (e.g. fixing a PMC download link).
+  Useful for reminders about manual steps that can't be automated (for example fixing a PMC download link).
 
 **Special image files** (placed in `{{project}}`):
 * `pack.png` — the pack icon/avatar shown in site listings.
@@ -317,11 +317,11 @@ After `pull`, platform IDs, slugs, and full metadata are written back to the pro
 If pulled, images and their metadata are written to `{{project}}/images/` and `{{project}}/images/images.yaml` respectively.
 Leading and trailing underscores are stripped from image filenames on harvest.
 Values that differ between sites are written to their respective site-specific blocks.
-If all relevant sites agree on a value (e.g. `license`), it is promoted to the top-level neutral key.
-CF license names are normalized to SPDX for comparison; ambiguous CF names (e.g. `Creative Commons 4.0`) are kept site-specific.
+If all relevant sites agree on a value (for example `license`), it is promoted to the top-level neutral key.
+CF license names are normalized to SPDX for comparison; ambiguous CF names (for example `Creative Commons 4.0`) are kept site-specific.
 
 ### Artifact Match
-In the name of the pack file, version must be the last component before `.zip`, separated by `-`, `_`, or `.` (e.g. `mypack-1.2.zip`, `pack-1.2.zip`).
+In the name of the pack file, version must be the last component before `.zip`, separated by `-`, `_`, or `.` (for example `mypack-1.2.zip`, `pack-1.2.zip`).
 The filename need not start with the project slug.
 Strict boundary check ensures `1.2` does not match `1.2.4`.
 
@@ -332,11 +332,11 @@ A neutral key sets the *entire group* of related per-site fields:
 For example, `resolution: 16` sets `modrinth.resolution: '16x'`, sets CF `category: 16x`, sets PMC `resolution: 16`, and adds `16x` and `16x16` to PMC tags.
 There is no need to specify these in the site blocks unless overriding.
 Per-site overrides in `curseforge`, `modrinth`, `planetminecraft` blocks overwrite values set from neutral keys — explicit per-site values are never overwritten.
-`modrinth.resolution` accepts a single tier string (e.g. `'16x'`) or a list.
+`modrinth.resolution` accepts a single tier string (for example `'16x'`) or a list.
 Valid tiers: `8x-`, `16x`, `32x`, `48x`, `64x`, `128x`, `256x`, `512x+`.
 A bare integer is also accepted and is normalized to `{n}x`.
 If both neutral `resolution` and `modrinth.resolution` are set, the neutral tier is appended to the explicit list if not already present, with a warning.
-Site-specific fields with no neutral equivalent (e.g. CF `category`, PMC `category`, PMC `modifies`, PMC `tags`, PMC `alt_download`) should list all options explicitly so intent is clear.
+Site-specific fields with no neutral equivalent (for example CF `category`, PMC `category`, PMC `modifies`, PMC `tags`, PMC `alt_download`) should list all options explicitly so intent is clear.
 `planetminecraft.alt_download` sets the external download URL shown on PMC (PMC-specific because CF and Modrinth host files themselves).
 `planetminecraft.category` is read from the PMC project page at push time; valid values depend on the project type (pack or world) and are whatever PMC currently lists in their category dropdown.
 An unknown PMC category raises an error and lists the valid options for that project type.
@@ -379,9 +379,9 @@ For resource packs and worlds, MR defaults to `['minecraft']` for the version lo
 
 ### Translation & Shielding
 * **Cross-Linking:** Puppy pre-scans all sibling projects in `puppy_home`, injecting a `projects` dict into the Jinja context.
-  Each entry is keyed by `handle` and contains per-site sub-objects (e.g. `{{ projects.other.modrinth.url }}`).
+  Each entry is keyed by `handle` and contains per-site sub-objects (for example `{{ projects.other.modrinth.url }}`).
   URLs are built from `slug` if available, falling back to `id`.
-  The Modrinth URL path segment is derived from `type` (e.g. `pack` → `resourcepack`, `mod` → `mod`, `modpack` → `modpack`).
+  The Modrinth URL path segment is derived from `type` (for example `pack` → `resourcepack`, `mod` → `mod`, `modpack` → `modpack`).
 * **External Projects (`linked_projects`):** Projects outside the current Puppy Home can be added to the `projects` context via `linked_projects` in the global `puppy.yaml`.
   Each entry follows the same per-site structure as a normal project.
   A top-level `slug` key serves as the default slug for all sites, overridden by any per-site `slug`.
@@ -396,7 +396,7 @@ For resource packs and worlds, MR defaults to `['minecraft']` for the version lo
 * **Site-Neutral Shorthand:** On any object in the Jinja context whose keys are site names (`curseforge`, `modrinth`, `planetminecraft`), omitting the site name resolves to the value for the site currently being rendered.
   For example, `{{ projects.other.url }}` in a description rendered for Modrinth resolves to `{{ projects.other.modrinth.url }}`.
   This generalises to any site-keyed attribute, not just `url`.
-* **Shielding:** `md_html_tags` in `puppy.yaml` (default `['u']`) lists HTML tags to be protected from Markdown translation and mapped to target-site equivalents (e.g. `<u>` → `[u]` for PMC).
+* **Shielding:** `md_html_tags` in `puppy.yaml` (default `['u']`) lists HTML tags to be protected from Markdown translation and mapped to target-site equivalents (for example `<u>` → `[u]` for PMC).
 
 ---
 
@@ -568,7 +568,7 @@ PMC renders each as a styled heading with a horizontal rule beneath.
 | `[u]text[/u]` | underline | |
 | `[s]text[/s]` | ~~strikethrough~~ | |
 | `[color=#rrggbb]text[/color]` | coloured text | Hex colour only |
-| `[size=Npx]text[/size]` | sized text | e.g. `24px` |
+| `[size=Npx]text[/size]` | sized text | for example `24px` |
 | `[bgcolor=#rrggbb]text[/bgcolor]` | background highlight | Hex colour only |
 | `[style b color=#rrggbb]text[/style]` | composite style | Any combination of `b`, `i`, `u`, `color=` |
 
