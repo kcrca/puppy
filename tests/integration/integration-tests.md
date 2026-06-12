@@ -1,11 +1,48 @@
 # Integration Test Specification
 
+## How to run
+
+Integration tests are excluded from the default `pytest` run.
+To run them:
+
+```bash
+pytest tests/integration/
+```
+
+Credentials must be present in `tests/integration/puppy/auth.yaml` (same format as a real `auth.yaml`).
+Tests for sites with missing credentials are automatically skipped.
+To run only one site:
+
+```bash
+pytest tests/integration/ -k pmc
+pytest tests/integration/ -k cf
+pytest tests/integration/ -k mr
+```
+
+To run in parallel (requires `pytest-xdist`):
+
+```bash
+pytest tests/integration/ --dist=class -n auto
+```
+
+Cleanup runs automatically at the start of each session (deletes all projects on the test accounts).
+To clean up outside a test run:
+
+```bash
+python tests/integration/cleanup.py            # all sites
+python tests/integration/cleanup.py --site mr
+python tests/integration/cleanup.py --site cf
+python tests/integration/cleanup.py --site pmc
+```
+
+---
+
 ## Test structure
 
 Tests use a class-per-site-type layout.
 Each class inherits from `LifecycleBase` (defined in `conftest.py`), which provides five ordered test methods.
 Site-specific assertions are overridden in each class.
-Different classes are independent and can run in parallel (e.g. `pytest-xdist --dist=class`).
+Different classes are independent and can run in parallel (for example `pytest-xdist --dist=class`).
 
 | File | Standalone tests | Classes |
 |---|---|---|
@@ -124,21 +161,6 @@ Runs once per session before any tests via the `_cleanup_prior_runs` fixture, de
 - **PMC**: Playwright — loads both management listing pages, navigates to each project's manage page,
   clicks "Delete", confirms in the modal, then waits 3 s and re-lists to check all are gone.
   Prints a warning if any remain.
-
-### Manual cleanup
-
-To delete all projects outside of a test run:
-
-```
-python tests/integration/cleanup.py            # all sites
-python tests/integration/cleanup.py --site mr
-python tests/integration/cleanup.py --site cf
-python tests/integration/cleanup.py --site pmc
-```
-
-Reads credentials from `tests/integration/puppy/auth.yaml`.
-
----
 
 ## Site-specific notes
 

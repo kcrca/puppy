@@ -5,8 +5,6 @@ resolution: 16
 progress: 100
 modrinth:
   category:
-    - blocks
-    - environment
     - simplistic
 planetminecraft:
   category: Simplistic

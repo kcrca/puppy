@@ -574,7 +574,10 @@ class PlanetMinecraftSite(Site):
 
         if verbosity >= 1:
             print(f'  [PlanetMinecraft] https://www.planetminecraft.com/{segment}/{slug}/')
-        return {'id': resource_id, 'slug': slug}
+        result = {'id': resource_id, 'slug': slug}
+        if sc.get('bedrock'):
+            result['bedrock'] = True
+        return result
 
     def img_tag(self, url: str, name: str) -> str:
         return f'[img width=600]{url}[/img]'

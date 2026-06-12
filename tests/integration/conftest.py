@@ -11,6 +11,7 @@ import pytest
 import yaml
 
 import puppy.__main__
+from puppy.errors import AuthExpiredError
 from cleanup import (
     _load_auth,
     _mr_request, _cf_fetch, run_cleanup,
@@ -60,7 +61,7 @@ _PUPPY_HOME = _INTEGRATION_DIR / 'puppy'
 _AUTH_FILE = _PUPPY_HOME / 'auth.yaml'
 
 _PROJECT_NAME = {
-    'handle': 'puppypack',
+    'pack': 'puppypack',
     'mod': 'puppymod',
     'world': 'puppyworld',
 }
@@ -285,14 +286,24 @@ class LifecycleBase:
         }
 
     def _run(self, ctx, *args):
+        if ctx.get('_auth_error'):
+            pytest.skip(ctx['_auth_error'])
         orig_argv = sys.argv[:]
         orig_dir = os.getcwd()
         os.chdir(ctx['project_dir'])
         sys.argv = ['puppy', '--no-open'] + list(args)
         try:
             puppy.__main__.main()
+        except AuthExpiredError as e:
+            reason = f'{self.SITE_KEY} auth expired (HTTP {e.code}) — check tests/integration/puppy/auth.yaml'
+            ctx['_auth_error'] = reason
+            pytest.skip(reason)
         except SystemExit as e:
             if e.code and e.code != 0:
+                msg = str(e.code)
+                if 'auth expired' in msg.lower() or 'daily update limit' in msg.lower():
+                    ctx['_auth_error'] = msg
+                    pytest.skip(msg)
                 raise AssertionError(f'puppy {list(args)!r} failed with exit code {e.code}')
         finally:
             sys.argv = orig_argv

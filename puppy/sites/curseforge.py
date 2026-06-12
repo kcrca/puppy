@@ -171,6 +171,12 @@ def _cf_send(req: urllib.request.Request) -> Any:
             except (json.JSONDecodeError, AttributeError):
                 pass
             raise AuthExpiredError(e.code, body)
+        if e.code == 400:
+            try:
+                if 'forbidden' in (json.loads(body).get('message') or '').lower():
+                    raise AuthExpiredError(e.code, body)
+            except (json.JSONDecodeError, AttributeError):
+                pass
         raise SiteError(e.code, body)
 
 

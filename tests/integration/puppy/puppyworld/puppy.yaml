@@ -3,4 +3,4 @@ summary: A minimal world save for puppy integration testing.
 type: world
 progress: 75
 planetminecraft:
-  category: Survival
+  category: Other

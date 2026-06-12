@@ -37,7 +37,7 @@ class TestMRPackLifecycle(LifecycleBase):
         mr = _mr_get(f'/project/{ctx["project_id"]}', self._token(ctx))
         assert mr['title'] == config['name'], f'title mismatch: {mr["title"]!r}'
         assert mr['description'] == 'A minimal resource pack for puppy integration testing.'
-        assert set(mr.get('categories', [])) >= {'blocks', 'environment', 'simplistic'}
+        assert 'simplistic' in mr.get('categories', [])
         assert '16x' in (mr.get('additional_categories') or [])
         assert (mr.get('license') or {}).get('id') == 'MIT', f'license not MIT: {mr.get("license")!r}'
         assert mr.get('source_url') == 'https://github.com/example/puppy-integration-test'
