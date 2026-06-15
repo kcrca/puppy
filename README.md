@@ -74,6 +74,8 @@ all stored in `auth.yaml`.
 
 Puppy can help you get the cookies.
 It knows how to pull them from Firefox's saved state.
+(Firefox is not required for anything else, you can use your favorite browser otherwise.)
+
 Run Firefox and log in to Curseforge and PlanetMinecraft, then quit the browser.
 Then run `puppy auth` and it will copy the relevant cookies into `auth.yaml`.
 
@@ -81,7 +83,7 @@ Curseforge and Modrinth require access tokens.
 You have to create these and put them in auth.yaml
 
 For Curseforge
-go to the [CurseForge API Token page](https://authors.curseforge.com/account/api-tokens).
+go to the [CurseForge API Token page](https://legacy.curseforge.com/account/api-tokens).
 and create a token (or choose an existing one if you prefer).
 Copy that token, and paste it into `auth.yaml`, as in:
 
@@ -92,8 +94,9 @@ curseforge:
 ```
 
 The process is the same for Modrinth, except of course you use the 
-[Modrinth API Token page](https://modrinth.com/settings/pats),
-and in `auth.yaml`, it goes here:
+[Modrinth API Token page](https://modrinth.com/settings/pats).
+You need to give the token permissions to create, read, and write projects and versions.
+In `auth.yaml`, it goes here:
 
 ```
 modrinth:
@@ -103,7 +106,9 @@ modrinth:
 #### Getting Cookies Manually
 
 If for some reason you can't use Firefox to log in to use `puppy auth`, you can get the cookies manually.
-You have to get into the developer data sections, which is why we provide the automatic system.
+If you can use `puppy auth`, you can skip this section and use that instead.
+
+To get the cookies, you have to get into the developer data sections, which is why we provide the automatic system.
 But you can do it.
 
 In your browser, turn on the developer tools window.
