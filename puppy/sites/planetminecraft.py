@@ -273,25 +273,41 @@ def _pmc_sync_gallery(
             print(f'    uploaded PMC gallery image: {title}')
 
 
+def _pmc_wurl0(config: dict) -> tuple[str, str]:
+    sc = config.get('planetminecraft', {})
+    alt2 = sc.get('alt_download_2')
+    if alt2:
+        return str(alt2), 'Download'
+    website = sc.get('website') or {}
+    return website.get('link', ''), website.get('title', '')
+
+
 def _pmc_download_url(config: dict) -> str:
-    if config.get('alt_download'):
-        return str(config['alt_download'])
+    download = config.get('planetminecraft', {}).get('download', '')
     project_type = config.get('type', 'pack')
     mr = config.get('modrinth', {})
     cf = config.get('curseforge', {})
     mr_slug = mr.get('slug') or mr.get('id')
     cf_slug = cf.get('slug')
-    if project_type == 'world':
-        if mr_slug:
-            return f'https://modrinth.com/world/{mr_slug}'
-        if cf_slug:
-            return f'https://www.curseforge.com/minecraft/worlds/{cf_slug}'
-    else:
-        if mr_slug:
-            return f'https://modrinth.com/resourcepack/{mr_slug}'
-        if cf_slug:
-            return f'https://www.curseforge.com/minecraft/texture-packs/{cf_slug}'
-    return ''
+
+    def _mr_url():
+        if not mr_slug:
+            return ''
+        return f'https://modrinth.com/{"world" if project_type == "world" else "resourcepack"}/{mr_slug}'
+
+    def _cf_url():
+        if not cf_slug:
+            return ''
+        segment = 'worlds' if project_type == 'world' else 'texture-packs'
+        return f'https://www.curseforge.com/minecraft/{segment}/{cf_slug}'
+
+    if download == 'curseforge':
+        return _cf_url()
+    if download == 'modrinth':
+        return _mr_url()
+    if download:
+        return str(download)
+    return _mr_url() or _cf_url()
 
 
 class PlanetMinecraftSite(Site):
@@ -519,7 +535,7 @@ class PlanetMinecraftSite(Site):
             _pmc_sync_gallery(resource_id, cookie, csrf, empty_soup, image_list, images_dir, verbosity, project_type)
 
         download_url = _pmc_download_url(config)
-        website = sc.get('website') or {}
+        wurl0, wtitle0 = _pmc_wurl0(config)
         video = sc.get('video') or config.get('video')
 
         fields = [
@@ -536,7 +552,7 @@ class PlanetMinecraftSite(Site):
             ('wid1', '1'), ('wfile1', '1'),
             ('wurl1', download_url), ('wtitle1', 'Download here'),
             ('wid0', '0'), ('wfile0', '0'),
-            ('wurl0', website.get('link', '')), ('wtitle0', website.get('title', '')),
+            ('wurl0', wurl0), ('wtitle0', wtitle0),
             ('credit', sc.get('credit', '')),
             ('item_tag', ''),
             ('tag_ids', ','.join(tag_ids)),
@@ -646,7 +662,7 @@ class PlanetMinecraftSite(Site):
             _pmc_sync_gallery(project_id, cookie, csrf, soup, image_list, images_dir, verbosity, project_type)
 
         download_url = _pmc_download_url(config)
-        website = sc.get('website') or {}
+        wurl0, wtitle0 = _pmc_wurl0(config)
 
         fields = [
             ('member_id', hidden['member_id']),
@@ -665,8 +681,8 @@ class PlanetMinecraftSite(Site):
             ('wtitle1', 'Download here'),
             ('wid0', '0'),
             ('wfile0', '0'),
-            ('wurl0', website.get('link', '')),
-            ('wtitle0', website.get('title', '')),
+            ('wurl0', wurl0),
+            ('wtitle0', wtitle0),
             ('credit', sc.get('credit', '')),
             ('item_tag', ''),
             ('tag_ids', ','.join(tag_ids)),
@@ -883,4 +899,7 @@ class PlanetMinecraftSite(Site):
             feedback = result.get('feedback', '')
             if 'daily update limit' in feedback:
                 raise SystemExit('PMC: daily update limit reached — try again tomorrow')
+            if result.get('__soft_err') or 'Duplicate log found' in feedback:
+                print(f'PMC: version log skipped: {feedback}')
+                return
             raise SystemExit(f'PMC: failed to submit version log: {result}')

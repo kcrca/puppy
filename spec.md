@@ -130,7 +130,7 @@ Puppy has the following actions:
   Upload is skipped per-site if the artifact is already current:
   * **Modrinth:** Compares SHA-512 hash of local zip against the hash stored in the latest version's file listing.
   * **CurseForge:** Compares both version string and file size (bytes) against the most recent uploaded file; uploads if either differs.
-  * **Planet Minecraft:** Compares version string against last version recorded in `puppy/.publish_state.yaml`.
+  * **Planet Minecraft:** Compares version string against the most recent uploaded file version on PMC.
 * **`-f/--force`:** Valid for `push` and `create`.
   With `push -F`, bypasses skip logic and uploads unconditionally on all sites.
   With `create`, skips the confirmation prompt.
@@ -336,8 +336,15 @@ Per-site overrides in `curseforge`, `modrinth`, `planetminecraft` blocks overwri
 Valid tiers: `8x-`, `16x`, `32x`, `48x`, `64x`, `128x`, `256x`, `512x+`.
 A bare integer is also accepted and is normalized to `{n}x`.
 If both neutral `resolution` and `modrinth.resolution` are set, the neutral tier is appended to the explicit list if not already present, with a warning.
-Site-specific fields with no neutral equivalent (for example CF `category`, PMC `category`, PMC `modifies`, PMC `tags`, PMC `alt_download`) should list all options explicitly so intent is clear.
-`planetminecraft.alt_download` sets the external download URL shown on PMC (PMC-specific because CF and Modrinth host files themselves).
+Site-specific fields with no neutral equivalent (for example CF `category`, PMC `category`, PMC `modifies`, PMC `tags`) should list all options explicitly so intent is clear.
+`planetminecraft.download` overrides the PMC primary download: if set, puppy uses this external URL instead of uploading the file to PMC.
+The values `curseforge` and `modrinth` are accepted as shorthands and expand to the project's CF or MR URL.
+If not set, defaults to the MR URL if available, otherwise the CF URL.
+`planetminecraft.alt_download` sets an optional first alternate download URL on PMC.
+`planetminecraft.alt_download_2` sets an optional second alternate download URL on PMC.
+If `alt_download` or `alt_download_2` is not set, that PMC slot is left blank.
+PMC enforces a file size limit on uploads (currently 15 MB for worlds).
+If the upload fails due to size or any other error, puppy reports the error clearly and exits non-zero; a pre-upload size check warns the user before attempting the upload if the file exceeds the known limit.
 `planetminecraft.category` is read from the PMC project page at push time; valid values depend on the project type (pack or world) and are whatever PMC currently lists in their category dropdown.
 An unknown PMC category raises an error and lists the valid options for that project type.
 Category matching is case-insensitive.

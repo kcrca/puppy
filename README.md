@@ -198,13 +198,13 @@ Just create a `description.md`, which will be converted for each site to its nat
 The pack itself, and its icon, logo, and banner can be specified in the yaml, such as:
 
 ```yaml
-zip: '{{top}}/neon_1.0.zip'
+file: '{{top}}/neon_1.0.zip'
 logo: '{{top}}/neon.png'
 icon: '{{top}}/icon.png'
 banner: '{{top}}/banner.png'
 ```
 
-This will use the top-level file `neon_1.0.zip` (`~/neon/neon_1.0.zip`) for the zip file, and get the icon and logo from the top level as well.
+This will use the top-level file `neon_1.0.zip` (`~/neon/neon_1.0.zip`) for the artifact file, and get the icon and logo from the top level as well.
 (You could instead copy them into the puppy directory.)
 
 You probably also want an image gallery.

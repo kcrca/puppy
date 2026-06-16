@@ -26,7 +26,7 @@ def _load_yaml(path: Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
-_PATH_KEYS = {'icon', 'zip'}
+_PATH_KEYS = {'icon', 'file'}
 
 
 def _resolve_layer_paths(config: dict, base: Path) -> dict:
