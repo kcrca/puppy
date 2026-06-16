@@ -707,6 +707,8 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 | `tags` | List of tag strings (e.g. `['16x', '16x16']`). Neutral `resolution` appends to this; add others here. |
 | `category` | PMC category string. |
 | `modifies` | Map of modification target → `true`/`false`. |
+| `download` | If set, skips uploading the file to PMC and uses this URL as the primary download link instead. Accepts `curseforge` or `modrinth` as shorthands. If not set, `push --file` uploads the file to PMC. |
+| `alt_download` | An extra external link shown on PMC alongside the primary download. When `download:` is set, fills the second link slot. When `download:` is not set (file upload to PMC), fills the first link slot. |
 | `website.link` | Website URL. Set from `links.home`; override here. |
 | `website.title` | Website display title shown alongside the link. |
 | `credit` | Credit string displayed on the PMC project page. |

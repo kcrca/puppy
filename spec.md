@@ -337,12 +337,14 @@ Valid tiers: `8x-`, `16x`, `32x`, `48x`, `64x`, `128x`, `256x`, `512x+`.
 A bare integer is also accepted and is normalized to `{n}x`.
 If both neutral `resolution` and `modrinth.resolution` are set, the neutral tier is appended to the explicit list if not already present, with a warning.
 Site-specific fields with no neutral equivalent (for example CF `category`, PMC `category`, PMC `modifies`, PMC `tags`) should list all options explicitly so intent is clear.
-`planetminecraft.download` overrides the PMC primary download: if set, puppy uses this external URL instead of uploading the file to PMC.
+`planetminecraft.download`: if set, puppy skips uploading the file to PMC and uses this external URL as the PMC download link instead.
 The values `curseforge` and `modrinth` are accepted as shorthands and expand to the project's CF or MR URL.
-If not set, defaults to the MR URL if available, otherwise the CF URL.
-`planetminecraft.alt_download` sets an optional first alternate download URL on PMC.
-`planetminecraft.alt_download_2` sets an optional second alternate download URL on PMC.
-If `alt_download` or `alt_download_2` is not set, that PMC slot is left blank.
+If not set, `push --file` uploads the file to PMC and the uploaded file is the primary download.
+`planetminecraft.alt_download` sets a second external link on PMC.
+PMC has two external link slots (wurl1 and wurl0).
+When `download:` is set, wurl1 = the download URL and wurl0 = `alt_download` (if set).
+When `download:` is not set (file upload), wurl1 = `alt_download` (if set) and wurl0 is left blank.
+If `alt_download` is not set, its slot is left blank.
 PMC enforces a file size limit on uploads (currently 15 MB for worlds).
 If the upload fails due to size or any other error, puppy reports the error clearly and exits non-zero; a pre-upload size check warns the user before attempting the upload if the file exceeds the known limit.
 `planetminecraft.category` is read from the PMC project page at push time; valid values depend on the project type (pack or world) and are whatever PMC currently lists in their category dropdown.

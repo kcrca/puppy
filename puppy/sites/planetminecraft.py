@@ -273,41 +273,37 @@ def _pmc_sync_gallery(
             print(f'    uploaded PMC gallery image: {title}')
 
 
-def _pmc_wurl0(config: dict) -> tuple[str, str]:
+def _pmc_wurl1(config: dict) -> tuple[str, str]:
     sc = config.get('planetminecraft', {})
-    alt2 = sc.get('alt_download_2')
-    if alt2:
-        return str(alt2), 'Download'
-    website = sc.get('website') or {}
-    return website.get('link', ''), website.get('title', '')
-
-
-def _pmc_download_url(config: dict) -> str:
-    download = config.get('planetminecraft', {}).get('download', '')
+    download = sc.get('download', '')
     project_type = config.get('type', 'pack')
     mr = config.get('modrinth', {})
     cf = config.get('curseforge', {})
     mr_slug = mr.get('slug') or mr.get('id')
     cf_slug = cf.get('slug')
 
-    def _mr_url():
-        if not mr_slug:
-            return ''
-        return f'https://modrinth.com/{"world" if project_type == "world" else "resourcepack"}/{mr_slug}'
-
-    def _cf_url():
-        if not cf_slug:
-            return ''
-        segment = 'worlds' if project_type == 'world' else 'texture-packs'
-        return f'https://www.curseforge.com/minecraft/{segment}/{cf_slug}'
-
     if download == 'curseforge':
-        return _cf_url()
+        if not cf_slug:
+            return '', ''
+        segment = 'worlds' if project_type == 'world' else 'texture-packs'
+        return f'https://www.curseforge.com/minecraft/{segment}/{cf_slug}', 'Download'
     if download == 'modrinth':
-        return _mr_url()
+        if not mr_slug:
+            return '', ''
+        return f'https://modrinth.com/{"world" if project_type == "world" else "resourcepack"}/{mr_slug}', 'Download'
     if download:
-        return str(download)
-    return _mr_url() or _cf_url()
+        return str(download), 'Download'
+    alt = sc.get('alt_download', '')
+    return (str(alt), 'Download') if alt else ('', '')
+
+
+def _pmc_wurl0(config: dict) -> tuple[str, str]:
+    sc = config.get('planetminecraft', {})
+    if sc.get('download'):
+        alt = sc.get('alt_download', '')
+        return (str(alt), 'Download') if alt else ('', '')
+    website = sc.get('website') or {}
+    return website.get('link', ''), website.get('title', '')
 
 
 class PlanetMinecraftSite(Site):
@@ -534,7 +530,7 @@ class PlanetMinecraftSite(Site):
             empty_soup = BeautifulSoup('', 'html.parser')
             _pmc_sync_gallery(resource_id, cookie, csrf, empty_soup, image_list, images_dir, verbosity, project_type)
 
-        download_url = _pmc_download_url(config)
+        wurl1, wtitle1 = _pmc_wurl1(config)
         wurl0, wtitle0 = _pmc_wurl0(config)
         video = sc.get('video') or config.get('video')
 
@@ -550,7 +546,7 @@ class PlanetMinecraftSite(Site):
             ('progress', str(sc.get('progress', 100))),
             ('description', config.get('summary', '').ljust(150)),
             ('wid1', '1'), ('wfile1', '1'),
-            ('wurl1', download_url), ('wtitle1', 'Download here'),
+            ('wurl1', wurl1), ('wtitle1', wtitle1),
             ('wid0', '0'), ('wfile0', '0'),
             ('wurl0', wurl0), ('wtitle0', wtitle0),
             ('credit', sc.get('credit', '')),
@@ -661,7 +657,7 @@ class PlanetMinecraftSite(Site):
                 print(f'  [PlanetMinecraft] syncing gallery ({len(image_list)} images)')
             _pmc_sync_gallery(project_id, cookie, csrf, soup, image_list, images_dir, verbosity, project_type)
 
-        download_url = _pmc_download_url(config)
+        wurl1, wtitle1 = _pmc_wurl1(config)
         wurl0, wtitle0 = _pmc_wurl0(config)
 
         fields = [
@@ -677,8 +673,8 @@ class PlanetMinecraftSite(Site):
             ('description', description),
             ('wid1', '1'),
             ('wfile1', '1'),
-            ('wurl1', download_url),
-            ('wtitle1', 'Download here'),
+            ('wurl1', wurl1),
+            ('wtitle1', wtitle1),
             ('wid0', '0'),
             ('wfile0', '0'),
             ('wurl0', wurl0),

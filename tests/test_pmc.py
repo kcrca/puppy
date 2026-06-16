@@ -289,7 +289,7 @@ def test_push_sets_download_link_to_modrinth(tmp_path):
     Image.new('RGB', (64, 64)).save(icon)
     config = {
         'name': 'Pack',
-        'planetminecraft': {'id': _PROJECT_ID},
+        'planetminecraft': {'id': _PROJECT_ID, 'download': 'modrinth'},
         'modrinth': {'slug': 'mypack'},
     }
     with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
@@ -303,12 +303,12 @@ def test_push_sets_download_link_to_modrinth(tmp_path):
     assert b'modrinth.com/resourcepack/mypack' in update_req.data
 
 
-def test_push_sets_download_link_to_curseforge_when_no_modrinth(tmp_path):
+def test_push_sets_download_link_to_curseforge(tmp_path):
     icon = tmp_path / 'icon.png'
     Image.new('RGB', (64, 64)).save(icon)
     config = {
         'name': 'Pack',
-        'planetminecraft': {'id': _PROJECT_ID},
+        'planetminecraft': {'id': _PROJECT_ID, 'download': 'curseforge'},
         'curseforge': {'slug': 'mypack-cf'},
     }
     with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
@@ -320,6 +320,27 @@ def test_push_sets_download_link_to_curseforge_when_no_modrinth(tmp_path):
 
     update_req = mock_open.call_args_list[1][0][0]
     assert b'curseforge.com/minecraft/texture-packs/mypack-cf' in update_req.data
+
+
+def test_push_wurl1_empty_when_no_download_field(tmp_path):
+    icon = tmp_path / 'icon.png'
+    Image.new('RGB', (64, 64)).save(icon)
+    config = {
+        'name': 'Pack',
+        'planetminecraft': {'id': _PROJECT_ID},
+        'modrinth': {'slug': 'mypack'},
+        'curseforge': {'slug': 'mypack-cf'},
+    }
+    with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
+        PMC.push(
+            project_id=_PROJECT_ID, config=config, description='',
+            icon_path=icon, logo_path=None, banner_path=None,
+            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+        )
+
+    update_req = mock_open.call_args_list[1][0][0]
+    assert b'modrinth.com' not in update_req.data
+    assert b'curseforge.com' not in update_req.data
 
 
 def test_push_includes_modifies(tmp_path):

@@ -37,7 +37,8 @@ def _sites_needing_upload(
     force: bool,
     verbosity: int,
 ) -> list:
-    candidates = [s for s in SiteVisitor(site) if config.get(s.name, {}).get('id')]
+    candidates = [s for s in SiteVisitor(site) if config.get(s.name, {}).get('id')
+                  and not (s.name == 'planetminecraft' and config.get('planetminecraft', {}).get('download'))]
     result = []
     for s in candidates:
         if force:
