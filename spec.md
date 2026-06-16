@@ -285,7 +285,7 @@ When running without `-I`, `images.*` returns `''` for every name and `img()` re
 
 ### Asset Discovery
 For `create` and `push`, the icon and zip artifact are resolved as follows:
-* **Explicit paths** `icon` and `zip` in `puppy.yaml`
+* **Explicit paths** `icon` and `file` in `puppy.yaml`
 * **Implicit discovery** (fallback): a single `.png` in the project's home (excluding `banner.png` and `logo.png`) is the icon; a single `.zip` is the artifact. Multiple files of either type is a fatal error.
 * **Icon validation:** The icon must be a square PNG.
 

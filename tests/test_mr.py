@@ -594,50 +594,46 @@ def test_run_mr_pull_auth_expired_raises_system_exit(tmp_path):
 
 # ── publisher auth-expired ────────────────────────────────────────────────────
 
-def test_upload_file_mr_skips_when_already_current(tmp_path, monkeypatch):
-    from puppy.publisher import upload_file
-    from puppy.core import Project
-    zip_path = tmp_path / 'pack-1.0.zip'
-    with zipfile.ZipFile(zip_path, 'w') as z:
+def _mr_upload_env(tmp_path):
+    root = tmp_path / 'neon'
+    home = root / 'puppy'
+    project_dir = home / 'MyPack'
+    project_dir.mkdir(parents=True)
+    (home / '.gitignore').write_text('auth.yaml\n')
+    (home / 'puppy.yaml').write_text(yaml.dump({'projects': ['MyPack']}))
+    (home / 'auth.yaml').write_text(yaml.dump({'modrinth': {'token': 'tok'}}))
+    (project_dir / 'puppy.yaml').write_text(yaml.dump({
+        'name': 'MyPack', 'handle': 'mypack', 'minecraft': '1.21',
+        'type': 'pack',
+        'modrinth': {'id': 'abc', 'slug': 'mypack'},
+    }))
+    Image.new('RGB', (64, 64), color='blue').save(project_dir / 'icon.png')
+    with zipfile.ZipFile(project_dir / 'mypack-1.0.zip', 'w') as z:
         z.writestr('pack.mcmeta', '{}')
-    project = Project(tmp_path, override_name='T', override_handle='pack')
-    config = {'minecraft': '1.21', 'modrinth': {'id': 'abc', 'slug': 'mypack'}}
+    return project_dir
 
+
+def test_upload_file_mr_skips_when_already_current(tmp_path, monkeypatch):
+    project_dir = _mr_upload_env(tmp_path)
     upload_calls = []
     monkeypatch.setattr('puppy.publisher.MODRINTH.needs_upload', lambda *a, **k: False)
     monkeypatch.setattr('puppy.publisher.MODRINTH.upload_version', lambda *a, **k: upload_calls.append(a))
-    upload_file(
-        project=project,
-        config=config,
-        site='modrinth',
-        version='1.0',
-        force=False,
-        verbosity=0,
-        auth={'modrinth': {'token': 'tok'}},
-    )
+    monkeypatch.chdir(project_dir)
+    from puppy.runner import run
+    run(action='push', directory=project_dir, dry_run=False, verbosity=0,
+        site='modrinth', version='1.0', upload_file=True, force=False)
     assert upload_calls == []
 
 
 def test_upload_file_mr_auth_expired_raises_system_exit(tmp_path, monkeypatch):
-    from puppy.publisher import upload_file
-    from puppy.core import Project
-    zip_path = tmp_path / 'pack-1.0.zip'
-    with zipfile.ZipFile(zip_path, 'w') as z:
-        z.writestr('pack.mcmeta', '{}')
-    project = Project(tmp_path, override_name='T', override_handle='pack')
-    config = {'minecraft': '1.21', 'modrinth': {'id': 'abc', 'slug': 'mypack'}}
+    project_dir = _mr_upload_env(tmp_path)
 
     def raise_auth(*a, **k):
         raise AuthExpiredError(401, 'token expired')
 
     monkeypatch.setattr('puppy.publisher.MODRINTH.upload_version', raise_auth)
+    monkeypatch.chdir(project_dir)
+    from puppy.runner import run
     with pytest.raises(SystemExit, match='Modrinth auth expired'):
-        upload_file(
-            project=project,
-            config=config,
-            site='modrinth',
-            version='1.0',
-            force=True,
-            verbosity=0,
-            auth={'modrinth': {'token': 'tok'}},
-        )
+        run(action='push', directory=project_dir, dry_run=False, verbosity=0,
+            site='modrinth', version='1.0', upload_file=True, force=True)

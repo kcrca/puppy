@@ -11,7 +11,7 @@ from puppy.creator import (
 )
 from puppy.errors import AuthExpiredError
 from puppy.parallel import run_sites_parallel
-from puppy.publisher import upload_file as _upload_file
+from puppy.publisher import _resolve_zip, _sites_needing_upload
 from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
 from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
@@ -110,25 +110,53 @@ def run_push(
     if missing:
         raise SystemExit(f'Credentials missing for: {", ".join(s.label for s in missing)} — run: puppy auth')
 
+    zip_path = None
+    sites_to_upload = set()
+    if upload_file:
+        if not config.get('minecraft') and not config.get('versions'):
+            raise SystemExit(
+                f"[{project.name}] push --file requires 'minecraft:' or 'versions:' in puppy.yaml"
+            )
+        zip_path = _resolve_zip(config, puppy_dir, version, project)
+        sites_to_upload = set(_sites_needing_upload(project, config, auth, zip_path, version, site, force, verbosity))
+        upload_missing = []
+        if MODRINTH in sites_to_upload and not mr_token:
+            upload_missing.append(MODRINTH)
+        if CURSEFORGE in sites_to_upload and not cf_token:
+            upload_missing.append(CURSEFORGE)
+        if PMC in sites_to_upload and not (pmc_cookie and pmc_id):
+            upload_missing.append(PMC)
+        if upload_missing:
+            labels = ', '.join(s.label for s in upload_missing)
+            raise SystemExit(f'Credentials missing for file upload: {labels} — run: puppy auth')
+
+    cf_zip = zip_path if CURSEFORGE in sites_to_upload else None
+    mr_zip = zip_path if MODRINTH in sites_to_upload else None
+    pmc_zip = zip_path if PMC in sites_to_upload else None
+
+    def _cf_task():
+        _run_cf(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)
+        if cf_zip:
+            _upload_cf(cf_id, auth, cf_zip, version, config, puppy_dir, verbosity)
+
+    def _mr_task():
+        _run_mr(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)
+        if mr_zip:
+            _upload_mr(mr_id, auth, mr_zip, version, config, puppy_dir, verbosity)
+
+    def _pmc_task():
+        _run_pmc(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)
+        if pmc_zip:
+            _upload_pmc(pmc_id, auth, pmc_zip, version, config, puppy_dir, verbosity)
+
     tasks = []
     if CURSEFORGE in visitor and cf_id:
-        tasks.append((CURSEFORGE.label, lambda: _run_cf(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)))
+        tasks.append((CURSEFORGE.label, _cf_task))
     if MODRINTH in visitor and mr_id:
-        tasks.append((MODRINTH.label, lambda: _run_mr(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)))
+        tasks.append((MODRINTH.label, _mr_task))
     if PMC in visitor and pmc_id:
-        tasks.append((PMC.label, lambda: _run_pmc(project, config, icon, puppy_dir, descriptions, auth, verbosity, images=images)))
+        tasks.append((PMC.label, _pmc_task))
     run_sites_parallel(tasks, all_labels=all_labels)
-
-    if upload_file:
-        _upload_file(
-            project=project,
-            config=config,
-            site=site,
-            version=version,
-            force=force,
-            verbosity=verbosity,
-            auth=auth,
-        )
 
     if verbosity >= 1:
         print(f'[{project.name}] push complete')
@@ -174,6 +202,24 @@ def _run_cf(
         raise SystemExit(f'CurseForge auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site cf')
 
 
+def _upload_cf(
+    project_id,
+    auth: dict,
+    zip_path: Path,
+    version: str,
+    config: dict,
+    puppy_dir: Path,
+    verbosity: int,
+) -> None:
+    try:
+        if verbosity >= 1:
+            print(f'  [CurseForge] uploading version {version}')
+        CURSEFORGE.upload_file(project_id, auth, zip_path, version, config)
+        CURSEFORGE.post_upload(puppy_dir, version)
+    except AuthExpiredError as e:
+        raise SystemExit(f'CurseForge auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site cf')
+
+
 def _run_mr(
     project: Project,
     config: dict,
@@ -208,6 +254,24 @@ def _run_mr(
         raise SystemExit(f'Modrinth auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site modrinth')
 
 
+def _upload_mr(
+    project_id,
+    auth: dict,
+    zip_path: Path,
+    version: str,
+    config: dict,
+    puppy_dir: Path,
+    verbosity: int,
+) -> None:
+    try:
+        if verbosity >= 1:
+            print(f'  [Modrinth] uploading version {version}')
+        MODRINTH.upload_version(project_id, auth, zip_path, version, config)
+        MODRINTH.post_upload(puppy_dir, version)
+    except AuthExpiredError as e:
+        raise SystemExit(f'Modrinth auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site modrinth')
+
+
 def _run_pmc(
     project: Project,
     config: dict,
@@ -238,6 +302,24 @@ def _run_pmc(
             auth=auth,
             verbosity=verbosity,
         )
+    except AuthExpiredError as e:
+        raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site pmc')
+
+
+def _upload_pmc(
+    project_id,
+    auth: dict,
+    zip_path: Path,
+    version: str,
+    config: dict,
+    puppy_dir: Path,
+    verbosity: int,
+) -> None:
+    try:
+        if verbosity >= 1:
+            print(f'  [PlanetMinecraft] submitting version log {version}')
+        PMC.submit_log(project_id, auth, version, config)
+        PMC.post_upload(puppy_dir, version)
     except AuthExpiredError as e:
         raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site pmc')
 
