@@ -25,12 +25,12 @@ def _no_preflight(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _no_cf_push(monkeypatch):
-    monkeypatch.setattr('puppy.syncer._run_cf', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.syncer._run_site', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
 def _no_mr_push(monkeypatch):
-    monkeypatch.setattr('puppy.syncer._run_mr', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.syncer._run_site', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
@@ -55,7 +55,7 @@ def _no_cf_upload(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _no_pmc_push(monkeypatch):
-    monkeypatch.setattr('puppy.syncer._run_pmc', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.syncer._run_site', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)

@@ -7,11 +7,15 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PIL import Image
 
+import puppy.syncer as _syncer
 from puppy.errors import AuthExpiredError, SiteError
 from puppy.sites import MODRINTH
 from puppy.sites.modrinth import _MR_API
-from puppy.syncer import _run_mr as _run_mr_real
+from puppy.syncer import run_push
 from puppy.puller import _run_mr_pull as _run_mr_pull_real
+
+# Real dispatch wrapper, captured before conftest's offline fixtures stub it out.
+_REAL_RUN_SITE = _syncer._run_site
 
 
 _AUTH = {'modrinth': {'token': 'test-token'}}
@@ -257,12 +261,11 @@ def test_run_push_when_mr_token_present(tmp_path, monkeypatch):
     def fake_mr(*args, **kwargs):
         mr_calls.append(args)
 
-    monkeypatch.setattr('puppy.syncer._run_mr', fake_mr, raising=False)
+    monkeypatch.setattr('puppy.syncer._run_site', fake_mr, raising=False)
     monkeypatch.chdir(project_dir)
 
     from puppy.config import ConfigSynthesizer
     from puppy.core import Project
-    from puppy.syncer import run_push
 
     config = ConfigSynthesizer(home, project_dir).get_running_config()
     project = Project.from_config(project_dir, config, dry_run=True)
@@ -280,7 +283,8 @@ def test_run_push_when_mr_token_present(tmp_path, monkeypatch):
     )
 
     assert len(mr_calls) == 1
-    called_config = mr_calls[0][1]
+    # args: site, project_id, config, avatar_url, description, auth, verbosity
+    called_config = mr_calls[0][2]
     assert called_config.get('modrinth', {}).get('id') == 'abc123'
 
 
@@ -478,22 +482,36 @@ def _mr_project(tmp_path):
     return p
 
 
-def test_run_mr_passes_description(tmp_path):
-    with patch('puppy.syncer.MODRINTH.push') as mock_push:
-        _run_mr_real(
-            _mr_project(tmp_path),
-            {'modrinth': {'id': 'abc'}},
-            '# body',
-            _AUTH,
-            0,
-        )
-    assert mock_push.call_args.kwargs['description'] == '# body'
+def _mr_run_push(project_dir):
+    from puppy.config import ConfigSynthesizer
+    from puppy.core import Project
+    home = project_dir.parent
+    config = ConfigSynthesizer(home, project_dir).get_running_config()
+    project = Project.from_config(project_dir, config, dry_run=True)
+    run_push(project=project, config=config, puppy_home=home, site='modrinth',
+             version=None, content=set(), verbosity=0, auth={'modrinth': {'token': 'tok'}})
 
 
-def test_run_mr_auth_expired_raises_system_exit(tmp_path):
-    with patch('puppy.syncer.MODRINTH.push', side_effect=AuthExpiredError(401, 'expired')):
-        with pytest.raises(SystemExit, match='Modrinth auth expired'):
-            _run_mr_real(_mr_project(tmp_path), {'modrinth': {'id': 'abc'}}, '', _AUTH, 0)
+def test_mr_push_forwards_rendered_description(tmp_path, monkeypatch):
+    project_dir = _mr_upload_env(tmp_path)
+    (project_dir / 'description.md').write_text('Body text')
+    captured = {}
+    monkeypatch.setattr('puppy.syncer._run_site', _REAL_RUN_SITE)
+    monkeypatch.setattr('puppy.sites.MODRINTH.push', lambda **k: captured.update(k))
+    _mr_run_push(project_dir)
+    assert 'Body text' in captured['description']
+
+
+def test_mr_push_auth_expired_surfaces_as_system_exit(tmp_path, monkeypatch):
+    project_dir = _mr_upload_env(tmp_path)
+    monkeypatch.setattr('puppy.syncer._run_site', _REAL_RUN_SITE)
+
+    def boom(**k):
+        raise AuthExpiredError(401, 'expired')
+
+    monkeypatch.setattr('puppy.sites.MODRINTH.push', boom)
+    with pytest.raises(SystemExit, match='Modrinth auth expired'):
+        _mr_run_push(project_dir)
 
 
 # ── pull images / auth-expired ────────────────────────────────────────────────

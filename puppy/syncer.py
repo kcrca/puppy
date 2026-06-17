@@ -200,58 +200,29 @@ def run_push(
             return True
         return s.file_changed(site_id, auth, local_sha, site_store, hashes.HASH_FILE)
 
-    def _cf_task():
-        site_store = store.setdefault('curseforge', {})
-        desc = descriptions.get('curseforge', '')
-        sc = {'name': config.get('name', ''), 'summary': config.get('summary', ''), **config.get('curseforge', {})}
-        if hashes.decide('data', _data_fingerprint(desc, sc, config), upload_set=content, use_hashes=use_hashes, prior=site_store):
-            _run_cf(project, config, avatars.get('curseforge'), desc, auth, verbosity)
-            if use_hashes:
-                site_store['data'] = _data_fingerprint(desc, sc, config)
-        elif verbosity >= 1:
-            print('  [CurseForge] data unchanged, skipping')
-        if _site_file_should(CURSEFORGE, cf_id):
-            _upload_cf(cf_id, auth, zip_path, version, config, puppy_dir, verbosity)
-            if use_hashes:
-                site_store['file'] = local_sha
+    def _make_task(s, site_id):
+        def task():
+            site_store = store.setdefault(s.name, {})
+            desc = descriptions.get(s.name, '')
+            sc = {'name': config.get('name', ''), 'summary': config.get('summary', ''), **config.get(s.name, {})}
+            fp = _data_fingerprint(desc, sc, config)
+            if hashes.decide('data', fp, upload_set=content, use_hashes=use_hashes, prior=site_store):
+                _run_site(s, site_id, config, avatars.get(s.name), desc, auth, verbosity)
+                if use_hashes:
+                    site_store['data'] = fp
+            elif verbosity >= 1:
+                print(f'  [{s.label}] data unchanged, skipping')
+            if _site_file_should(s, site_id):
+                _upload_site(s, site_id, auth, zip_path, version, config, puppy_dir, verbosity)
+                if use_hashes:
+                    site_store['file'] = local_sha
+        return task
 
-    def _mr_task():
-        site_store = store.setdefault('modrinth', {})
-        desc = descriptions.get('modrinth', '')
-        sc = {'name': config.get('name', ''), 'summary': config.get('summary', ''), **config.get('modrinth', {})}
-        if hashes.decide('data', _data_fingerprint(desc, sc, config), upload_set=content, use_hashes=use_hashes, prior=site_store):
-            _run_mr(project, config, desc, auth, verbosity)
-            if use_hashes:
-                site_store['data'] = _data_fingerprint(desc, sc, config)
-        elif verbosity >= 1:
-            print('  [Modrinth] data unchanged, skipping')
-        if _site_file_should(MODRINTH, mr_id):
-            _upload_mr(mr_id, auth, zip_path, version, config, puppy_dir, verbosity)
-            if use_hashes:
-                site_store['file'] = local_sha
-
-    def _pmc_task():
-        site_store = store.setdefault('planetminecraft', {})
-        desc = descriptions.get('planetminecraft', '')
-        sc = {'name': config.get('name', ''), 'summary': config.get('summary', ''), **config.get('planetminecraft', {})}
-        if hashes.decide('data', _data_fingerprint(desc, sc, config), upload_set=content, use_hashes=use_hashes, prior=site_store):
-            _run_pmc(project, config, desc, auth, verbosity)
-            if use_hashes:
-                site_store['data'] = _data_fingerprint(desc, sc, config)
-        elif verbosity >= 1:
-            print('  [PlanetMinecraft] data unchanged, skipping')
-        if _site_file_should(PMC, pmc_id):
-            _upload_pmc(pmc_id, auth, zip_path, version, config, puppy_dir, verbosity)
-            if use_hashes:
-                site_store['file'] = local_sha
-
-    tasks = []
-    if CURSEFORGE in visitor and cf_id:
-        tasks.append((CURSEFORGE.label, _cf_task))
-    if MODRINTH in visitor and mr_id:
-        tasks.append((MODRINTH.label, _mr_task))
-    if PMC in visitor and pmc_id:
-        tasks.append((PMC.label, _pmc_task))
+    tasks = [
+        (s.label, _make_task(s, site_id))
+        for s, site_id in ((CURSEFORGE, cf_id), (MODRINTH, mr_id), (PMC, pmc_id))
+        if s in visitor and site_id
+    ]
 
     try:
         run_sites_parallel(tasks, all_labels=all_labels, verbosity=verbosity)
@@ -290,10 +261,15 @@ def _load_auth(puppy_dir: Path) -> dict:
         raise SystemExit(f'{auth_path}: {e}')
 
 
-def _run_cf(project, config, avatar_url, description, auth, verbosity):
-    project_id = config.get('curseforge', {}).get('id')
+def _site_error(s, e) -> SystemExit:
+    if isinstance(e, AuthExpiredError):
+        return SystemExit(f'{s.label} auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site {s.auth_arg}')
+    return SystemExit(f'{s.label} error: {e}')
+
+
+def _run_site(s, project_id, config, avatar_url, description, auth, verbosity):
     try:
-        CURSEFORGE.push(
+        s.push(
             project_id=project_id,
             config=config,
             description=description,
@@ -301,77 +277,12 @@ def _run_cf(project, config, avatar_url, description, auth, verbosity):
             auth=auth,
             verbosity=verbosity,
         )
-    except AuthExpiredError as e:
-        raise SystemExit(f'CurseForge auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site cf')
-    except SiteError as e:
-        raise SystemExit(f'CurseForge error: {e}')
+    except (AuthExpiredError, SiteError) as e:
+        raise _site_error(s, e)
 
 
-def _upload_cf(project_id, auth, zip_path, version, config, puppy_dir, verbosity):
+def _upload_site(s, project_id, auth, zip_path, version, config, puppy_dir, verbosity):
     try:
-        if verbosity >= 1:
-            print(f'  [CurseForge] uploading version {version}')
-        CURSEFORGE.upload_file(project_id, auth, zip_path, version, config)
-        CURSEFORGE.post_upload(puppy_dir, version)
-    except AuthExpiredError as e:
-        raise SystemExit(f'CurseForge auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site cf')
-    except SiteError as e:
-        raise SystemExit(f'CurseForge error: {e}')
-
-
-def _run_mr(project, config, description, auth, verbosity):
-    mr = config.get('modrinth', {})
-    project_id = mr.get('id') or mr.get('slug')
-    try:
-        MODRINTH.push(
-            project_id=project_id,
-            config=config,
-            description=description,
-            auth=auth,
-            verbosity=verbosity,
-        )
-    except AuthExpiredError as e:
-        raise SystemExit(f'Modrinth auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site modrinth')
-    except SiteError as e:
-        raise SystemExit(f'Modrinth error: {e}')
-
-
-def _upload_mr(project_id, auth, zip_path, version, config, puppy_dir, verbosity):
-    try:
-        if verbosity >= 1:
-            print(f'  [Modrinth] uploading version {version}')
-        MODRINTH.upload_version(project_id, auth, zip_path, version, config)
-        MODRINTH.post_upload(puppy_dir, version)
-    except AuthExpiredError as e:
-        raise SystemExit(f'Modrinth auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site modrinth')
-    except SiteError as e:
-        raise SystemExit(f'Modrinth error: {e}')
-
-
-def _run_pmc(project, config, description, auth, verbosity):
-    pmc = config.get('planetminecraft', {})
-    project_id = pmc.get('id')
-    try:
-        PMC.push(
-            project_id=project_id,
-            config=config,
-            description=description,
-            auth=auth,
-            verbosity=verbosity,
-        )
-    except AuthExpiredError as e:
-        raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site pmc')
-    except SiteError as e:
-        raise SystemExit(f'PlanetMinecraft error: {e}')
-
-
-def _upload_pmc(project_id, auth, zip_path, version, config, puppy_dir, verbosity):
-    try:
-        if verbosity >= 1:
-            print(f'  [PlanetMinecraft] submitting version log {version}')
-        PMC.submit_log(project_id, auth, version, config)
-        PMC.post_upload(puppy_dir, version)
-    except AuthExpiredError as e:
-        raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site pmc')
-    except SiteError as e:
-        raise SystemExit(f'PlanetMinecraft error: {e}')
+        s.upload_artifact(project_id, auth, zip_path, version, config, puppy_dir, verbosity)
+    except (AuthExpiredError, SiteError) as e:
+        raise _site_error(s, e)

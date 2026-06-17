@@ -83,7 +83,7 @@ def _run(home, project_dir, **kw):
 def test_data_uploads_then_skips_when_unchanged(tmp_path, monkeypatch):
     home, project_dir = _env(tmp_path)
     calls = []
-    monkeypatch.setattr('puppy.syncer._run_cf', lambda *a, **k: calls.append(1))
+    monkeypatch.setattr('puppy.syncer._run_site', lambda *a, **k: calls.append(1))
     _run(home, project_dir, content=set())
     _run(home, project_dir, content=set())
     assert calls == [1]                       # second run skipped
@@ -93,7 +93,7 @@ def test_data_uploads_then_skips_when_unchanged(tmp_path, monkeypatch):
 def test_force_data_reuploads_even_when_unchanged(tmp_path, monkeypatch):
     home, project_dir = _env(tmp_path)
     calls = []
-    monkeypatch.setattr('puppy.syncer._run_cf', lambda *a, **k: calls.append(1))
+    monkeypatch.setattr('puppy.syncer._run_site', lambda *a, **k: calls.append(1))
     _run(home, project_dir, content=set())
     _run(home, project_dir, content={'data'})  # forced
     assert calls == [1, 1]
@@ -102,7 +102,7 @@ def test_force_data_reuploads_even_when_unchanged(tmp_path, monkeypatch):
 def test_use_hashes_false_only_uploads_named(tmp_path, monkeypatch):
     home, project_dir = _env(tmp_path, extra={'use_hashes': False})
     calls = []
-    monkeypatch.setattr('puppy.syncer._run_cf', lambda *a, **k: calls.append(1))
+    monkeypatch.setattr('puppy.syncer._run_site', lambda *a, **k: calls.append(1))
     _run(home, project_dir, content={'data'})
     assert calls == [1]
     _run(home, project_dir, content=set())     # data not named → nothing

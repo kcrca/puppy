@@ -307,8 +307,16 @@ class PlanetMinecraftSite(Site):
     label = 'PlanetMinecraft'
     template_ext = '.bbcode'
     desc_exts = ['.bbcode', '.md']
+    auth_arg = 'pmc'
 
     _AUTH_URL = 'https://www.planetminecraft.com'
+
+    def upload_artifact(self, project_id, auth: dict, zip_path: Path, version: str,
+                        config: dict, puppy_dir: Path, verbosity: int) -> None:
+        if verbosity >= 1:
+            print(f'  [PlanetMinecraft] submitting version log {version}')
+        self.submit_log(project_id, auth, version, config)
+        self.post_upload(puppy_dir, version)
 
     def extract_cookies(self, ctx) -> tuple[str | None, str | None]:
         found = ctx.cookies([self._AUTH_URL])

@@ -189,9 +189,17 @@ class ModrinthSite(Site):
     label = 'Modrinth'
     template_ext = '.md'
     desc_exts = ['.md']
+    auth_arg = 'modrinth'
 
     def missing_token_warning(self, auth: dict) -> str | None:
         return self._token_warning(auth)
+
+    def upload_artifact(self, project_id, auth: dict, zip_path: Path, version: str,
+                        config: dict, puppy_dir: Path, verbosity: int) -> None:
+        if verbosity >= 1:
+            print(f'  [Modrinth] uploading version {version}')
+        self.upload_version(project_id, auth, zip_path, version, config)
+        self.post_upload(puppy_dir, version)
 
     def apply_neutral(self, config: dict) -> None:
         resolution = config.get('resolution')

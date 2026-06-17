@@ -10,11 +10,15 @@ import yaml
 from bs4 import BeautifulSoup
 from PIL import Image
 
+import puppy.syncer as _syncer
 from puppy.core import Project
 from puppy.errors import AuthExpiredError
 from puppy.sites import PMC
 from puppy.puller import _run_pmc_pull as _run_pmc_pull_real
-from puppy.syncer import _run_pmc as _run_pmc_real
+from puppy.syncer import run_push
+
+# Real dispatch wrapper, captured before conftest's offline fixtures stub it out.
+_REAL_RUN_SITE = _syncer._run_site
 
 
 _AUTH = {'planetminecraft': {'cookie': 'pmc_autologin=test-cookie'}}
@@ -463,38 +467,61 @@ def test_run_push_when_pmc_creds_present(push_env, run_puppy):
 
     called = []
     import puppy.syncer as syncer_mod
-    orig = syncer_mod._run_pmc
-    syncer_mod._run_pmc = lambda *a, **k: called.append(True)
+    orig = syncer_mod._run_site
+    syncer_mod._run_site = lambda *a, **k: called.append(True)
     try:
         run_puppy('push', '--site', 'pmc')
     finally:
-        syncer_mod._run_pmc = orig
+        syncer_mod._run_site = orig
 
     assert called
 
 
-def test_run_pmc_auth_expired_raises_system_exit(tmp_path):
-    project = Project(tmp_path, override_name='Pack', override_handle='pack')
-    config = {'name': 'Pack', 'planetminecraft': {'id': _PROJECT_ID}}
+def _pmc_env(tmp_path):
+    home = tmp_path / 'neon' / 'puppy'
+    project_dir = home / 'MyPack'
+    project_dir.mkdir(parents=True)
+    (home / '.gitignore').write_text('auth.yaml\n')
+    (home / 'puppy.yaml').write_text(yaml.dump({'projects': ['MyPack']}))
+    (home / 'auth.yaml').write_text(yaml.dump({'planetminecraft': {'cookie': 'pmc_autologin=x'}}))
+    (project_dir / 'puppy.yaml').write_text(yaml.dump({
+        'name': 'MyPack', 'handle': 'mypack', 'type': 'pack',
+        'planetminecraft': {'id': _PROJECT_ID, 'slug': 'mypack'},
+    }))
+    Image.new('RGB', (64, 64), color='blue').save(project_dir / 'icon.png')
+    return project_dir
 
-    with patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
-        with pytest.raises(SystemExit, match='PlanetMinecraft auth expired'):
-            _run_pmc_real(project, config, '', _AUTH, 0)
+
+def _pmc_run_push(project_dir):
+    from puppy.config import ConfigSynthesizer
+    home = project_dir.parent
+    config = ConfigSynthesizer(home, project_dir).get_running_config()
+    project = Project.from_config(project_dir, config, dry_run=True)
+    run_push(project=project, config=config, puppy_home=home, site='planetminecraft',
+             version=None, content=set(), verbosity=0,
+             auth={'planetminecraft': {'cookie': 'pmc_autologin=x'}})
 
 
-def test_run_pmc_passes_description(tmp_path):
-    project = Project(tmp_path, override_name='Pack', override_handle='pack')
-    config = {'name': 'Pack', 'planetminecraft': {'id': _PROJECT_ID}}
+def test_pmc_push_forwards_rendered_description(tmp_path, monkeypatch):
+    project_dir = _pmc_env(tmp_path)
+    (project_dir / 'description.md').write_text('Body here')
+    captured = {}
+    monkeypatch.setattr('puppy.syncer._run_site', _REAL_RUN_SITE)
+    monkeypatch.setattr('puppy.sites.PMC.push', lambda **k: captured.update(k))
+    _pmc_run_push(project_dir)
+    assert 'Body here' in captured['description']
 
-    push_calls = []
 
-    def fake_push(self, **kwargs):
-        push_calls.append(kwargs['description'])
+def test_pmc_push_auth_expired_surfaces_as_system_exit(tmp_path, monkeypatch):
+    project_dir = _pmc_env(tmp_path)
+    monkeypatch.setattr('puppy.syncer._run_site', _REAL_RUN_SITE)
 
-    with patch.object(PMC.__class__, 'push', fake_push):
-        _run_pmc_real(project, config, '[b]hi[/b]', _AUTH, 0)
+    def boom(*a, **k):
+        raise AuthExpiredError(401, 'Expired')
 
-    assert push_calls[0] == '[b]hi[/b]'
+    monkeypatch.setattr('puppy.sites.planetminecraft._pmc_get_page', boom)
+    with pytest.raises(SystemExit, match='PlanetMinecraft auth expired'):
+        _pmc_run_push(project_dir)
 
 
 # ── 6. PMC.pull ───────────────────────────────────────────────────────────────

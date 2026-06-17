@@ -13,6 +13,7 @@ class Site:
     label: str
     template_ext: str
     desc_exts: list[str]
+    auth_arg: str = ''      # value for `puppy auth --site X` in error hints
 
     _AUTH_URL: str = ''
 
@@ -111,6 +112,11 @@ class Site:
     def file_changed(self, project_id, auth: dict, local_sha: str, site_store: dict, hash_file: str) -> bool:
         """Whether the local artifact differs from what was last pushed for this site."""
         return site_store.get('file') != local_sha
+
+    def upload_artifact(self, project_id, auth: dict, zip_path: Path, version: str,
+                        config: dict, puppy_dir: Path, verbosity: int) -> None:
+        """Upload the version artifact to this site and record post-upload state."""
+        raise NotImplementedError
 
     def url_for(self, site_config: dict) -> str | None:
         raise NotImplementedError

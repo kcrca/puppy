@@ -8,11 +8,15 @@ import pytest
 import yaml
 from PIL import Image
 
+import puppy.syncer as _syncer
 from puppy.errors import AuthExpiredError, SiteError
 from puppy.sites import CURSEFORGE
 from puppy.sites.curseforge import _CF_DASH, _CF_API
-from puppy.syncer import _run_cf as _run_cf_real
+from puppy.syncer import run_push
 from puppy.puller import _run_cf_pull as _run_cf_pull_real
+
+# Real dispatch wrapper, captured before conftest's offline fixtures stub it out.
+_REAL_RUN_SITE = _syncer._run_site
 
 
 _AUTH = {
@@ -549,12 +553,11 @@ def test_run_push_when_cf_token_present(tmp_path, monkeypatch):
     def fake_cf(*args, **kwargs):
         cf_calls.append(args)
 
-    monkeypatch.setattr('puppy.syncer._run_cf', fake_cf, raising=False)
+    monkeypatch.setattr('puppy.syncer._run_site', fake_cf, raising=False)
     monkeypatch.chdir(project_dir)
 
     from puppy.config import ConfigSynthesizer
     from puppy.core import Project
-    from puppy.syncer import run_push
 
     config = ConfigSynthesizer(home, project_dir).get_running_config()
     project = Project.from_config(project_dir, config, dry_run=True)
@@ -572,8 +575,8 @@ def test_run_push_when_cf_token_present(tmp_path, monkeypatch):
     )
 
     assert len(cf_calls) == 1
-    # args: project, config, avatar_url, description, auth, verbosity
-    called_config = cf_calls[0][1]
+    # args: site, project_id, config, avatar_url, description, auth, verbosity
+    called_config = cf_calls[0][2]
     assert called_config.get('curseforge', {}).get('id') == 99
 
 
@@ -757,24 +760,36 @@ def _cf_project(tmp_path):
     return p
 
 
-def test_run_cf_passes_avatar_and_description(tmp_path):
-    with patch('puppy.syncer.CURSEFORGE.push') as mock_push:
-        _run_cf_real(
-            _cf_project(tmp_path),
-            {'curseforge': {'id': 99}},
-            'http://cdn/avatar.png',
-            '<p>desc</p>',
-            _AUTH,
-            0,
-        )
-    assert mock_push.call_args.kwargs['avatar_url'] == 'http://cdn/avatar.png'
-    assert mock_push.call_args.kwargs['description'] == '<p>desc</p>'
+def _cf_run_push(project_dir, monkeypatch):
+    from puppy.config import ConfigSynthesizer
+    from puppy.core import Project
+    home = project_dir.parent
+    config = ConfigSynthesizer(home, project_dir).get_running_config()
+    project = Project.from_config(project_dir, config, dry_run=True)
+    run_push(project=project, config=config, puppy_home=home, site='curseforge',
+             version=None, content=set(), verbosity=0, auth=_AUTH)
 
 
-def test_run_cf_auth_expired_raises_system_exit(tmp_path):
-    with patch('puppy.syncer.CURSEFORGE.push', side_effect=AuthExpiredError(401, 'expired')):
-        with pytest.raises(SystemExit, match='CurseForge auth expired'):
-            _run_cf_real(_cf_project(tmp_path), {'curseforge': {'id': 99}}, None, '', _AUTH, 0)
+def test_cf_push_forwards_rendered_description(tmp_path, monkeypatch):
+    project_dir = _cf_upload_env(tmp_path)
+    (project_dir / 'description.md').write_text('Hello body')
+    captured = {}
+    monkeypatch.setattr('puppy.syncer._run_site', _REAL_RUN_SITE)
+    monkeypatch.setattr('puppy.sites.CURSEFORGE.push', lambda **k: captured.update(k))
+    _cf_run_push(project_dir, monkeypatch)
+    assert 'Hello body' in captured['description']
+
+
+def test_cf_push_auth_expired_surfaces_as_system_exit(tmp_path, monkeypatch):
+    project_dir = _cf_upload_env(tmp_path)
+    monkeypatch.setattr('puppy.syncer._run_site', _REAL_RUN_SITE)
+
+    def boom(**k):
+        raise AuthExpiredError(401, 'expired')
+
+    monkeypatch.setattr('puppy.sites.CURSEFORGE.push', boom)
+    with pytest.raises(SystemExit, match='CurseForge auth expired'):
+        _cf_run_push(project_dir, monkeypatch)
 
 
 # ── pull images / auth-expired ────────────────────────────────────────────────

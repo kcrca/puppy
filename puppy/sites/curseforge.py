@@ -306,6 +306,7 @@ class CurseForgeSite(Site):
     label = 'CurseForge'
     template_ext = '.html'
     desc_exts = ['.html', '.md']
+    auth_arg = 'cf'
 
     _AUTH_URL = 'https://authors.curseforge.com'
     _REQUIRED_COOKIES = ('AuthorsUser', 'CobaltSession')
@@ -759,6 +760,13 @@ class CurseForgeSite(Site):
 
     def img_tag(self, url: str, name: str) -> str:
         return f'<img src="{url}" width="600" alt="{name}"><br>'
+
+    def upload_artifact(self, project_id, auth: dict, zip_path: Path, version: str,
+                        config: dict, puppy_dir: Path, verbosity: int) -> None:
+        if verbosity >= 1:
+            print(f'  [CurseForge] uploading version {version}')
+        self.upload_file(project_id, auth, zip_path, version, config)
+        self.post_upload(puppy_dir, version)
 
     def upload_images(self, project_id, auth: dict, image_list: list, images_dir: Path,
                       verbosity: int, project_type: str = 'pack') -> dict[str, str]:
