@@ -7,5 +7,5 @@ def test_strict_version_boundary(project_env, run_puppy):
     (project_env['project'] / 'neonglow-1.2.4.zip').write_text('wrong')
     (project_env['project'] / 'neonglow-1.2.zip').write_text('correct')
 
-    result = run_puppy('push', '--file', '-n')
+    result = run_puppy('push', '-c', 'file', '-n')
     assert result is None or result == 0

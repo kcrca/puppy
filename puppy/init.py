@@ -12,7 +12,7 @@ def _auth_yaml() -> str:
     )
 
 
-_GITIGNORE = 'auth.yaml\n'
+_GITIGNORE = 'auth.yaml\nhashes.yaml\n'
 
 _DESCRIPTION_MD = """\
 <!-- Add your project description here. Jinja2 variables from puppy.yaml are available,

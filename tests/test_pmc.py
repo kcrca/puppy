@@ -190,8 +190,7 @@ def test_push_sends_title_and_description(tmp_path):
     with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
         PMC.push(
             project_id=_PROJECT_ID, config=config, description='[b]Hello[/b]',
-            icon_path=icon, logo_path=None, banner_path=None,
-            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+            auth=_AUTH, verbosity=0,
         )
 
     update_req = mock_open.call_args_list[1][0][0]
@@ -207,8 +206,7 @@ def test_push_preserves_mc_version(tmp_path):
     with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
         PMC.push(
             project_id=_PROJECT_ID, config=config, description='',
-            icon_path=icon, logo_path=None, banner_path=None,
-            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+            auth=_AUTH, verbosity=0,
         )
 
     update_req = mock_open.call_args_list[1][0][0]
@@ -223,8 +221,7 @@ def test_push_maps_category(tmp_path):
     with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
         PMC.push(
             project_id=_PROJECT_ID, config=config, description='',
-            icon_path=icon, logo_path=None, banner_path=None,
-            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+            auth=_AUTH, verbosity=0,
         )
 
     update_req = mock_open.call_args_list[1][0][0]
@@ -239,8 +236,7 @@ def test_push_raises_on_unknown_category(tmp_path):
         with pytest.raises(SystemExit, match='Unknown PMC category'):
             PMC.push(
                 project_id=_PROJECT_ID, config=config, description='',
-                icon_path=icon, logo_path=None, banner_path=None,
-                image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+                auth=_AUTH, verbosity=0,
             )
 
 
@@ -277,8 +273,7 @@ def test_push_world_submits_category(tmp_path):
     with patch('urllib.request.urlopen', side_effect=_world_push_responses()) as mock_open:
         PMC.push(
             project_id=_PROJECT_ID, config=config, description='',
-            icon_path=icon, logo_path=None, banner_path=None,
-            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+            auth=_AUTH, verbosity=0,
         )
     update_req = mock_open.call_args_list[1][0][0]
     assert b'39' in update_req.data  # Environment & Landscaping = 39
@@ -295,8 +290,7 @@ def test_push_sets_download_link_to_modrinth(tmp_path):
     with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
         PMC.push(
             project_id=_PROJECT_ID, config=config, description='',
-            icon_path=icon, logo_path=None, banner_path=None,
-            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+            auth=_AUTH, verbosity=0,
         )
 
     update_req = mock_open.call_args_list[1][0][0]
@@ -314,8 +308,7 @@ def test_push_sets_download_link_to_curseforge(tmp_path):
     with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
         PMC.push(
             project_id=_PROJECT_ID, config=config, description='',
-            icon_path=icon, logo_path=None, banner_path=None,
-            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+            auth=_AUTH, verbosity=0,
         )
 
     update_req = mock_open.call_args_list[1][0][0]
@@ -334,8 +327,7 @@ def test_push_wurl1_empty_when_no_download_field(tmp_path):
     with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
         PMC.push(
             project_id=_PROJECT_ID, config=config, description='',
-            icon_path=icon, logo_path=None, banner_path=None,
-            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+            auth=_AUTH, verbosity=0,
         )
 
     update_req = mock_open.call_args_list[1][0][0]
@@ -353,8 +345,7 @@ def test_push_includes_modifies(tmp_path):
     with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
         PMC.push(
             project_id=_PROJECT_ID, config=config, description='',
-            icon_path=icon, logo_path=None, banner_path=None,
-            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+            auth=_AUTH, verbosity=0,
         )
 
     update_req = mock_open.call_args_list[1][0][0]
@@ -373,8 +364,7 @@ def test_push_uses_planetminecraft_title_when_set(tmp_path):
     with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
         PMC.push(
             project_id=_PROJECT_ID, config=config, description='',
-            icon_path=icon, logo_path=None, banner_path=None,
-            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+            auth=_AUTH, verbosity=0,
         )
 
     update_req = mock_open.call_args_list[1][0][0]
@@ -392,8 +382,7 @@ def test_push_falls_back_to_name_when_title_absent(tmp_path):
     with patch('urllib.request.urlopen', side_effect=_push_responses()) as mock_open:
         PMC.push(
             project_id=_PROJECT_ID, config=config, description='',
-            icon_path=icon, logo_path=None, banner_path=None,
-            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+            auth=_AUTH, verbosity=0,
         )
 
     update_req = mock_open.call_args_list[1][0][0]
@@ -412,8 +401,7 @@ def test_push_raises_system_exit_on_failure(tmp_path):
         with pytest.raises(SystemExit, match='PMC update failed'):
             PMC.push(
                 project_id=_PROJECT_ID, config=config, description='',
-                icon_path=icon, logo_path=None, banner_path=None,
-                image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+                auth=_AUTH, verbosity=0,
             )
 
 
@@ -429,8 +417,7 @@ def test_push_bedrock_pack_uses_bedrock_op1(tmp_path):
     with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
         PMC.push(
             project_id=_PROJECT_ID, config=config, description='',
-            icon_path=icon, logo_path=None, banner_path=None,
-            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+            auth=_AUTH, verbosity=0,
         )
     update_req = mock_open.call_args_list[1][0][0]
     assert b'bedrock-val' in update_req.data
@@ -448,8 +435,7 @@ def test_push_bedrock_world_sends_platform_field(tmp_path):
     with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
         PMC.push(
             project_id=_PROJECT_ID, config=config, description='',
-            icon_path=icon, logo_path=None, banner_path=None,
-            image_list=[], images_dir=tmp_path, auth=_AUTH, verbosity=0,
+            auth=_AUTH, verbosity=0,
         )
     update_req = mock_open.call_args_list[1][0][0]
     assert b'platform' in update_req.data
@@ -493,49 +479,22 @@ def test_run_pmc_auth_expired_raises_system_exit(tmp_path):
 
     with patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
         with pytest.raises(SystemExit, match='PlanetMinecraft auth expired'):
-            _run_pmc_real(project, config, tmp_path / 'icon.png', tmp_path, {}, _AUTH, 0)
+            _run_pmc_real(project, config, '', _AUTH, 0)
 
 
-def test_run_pmc_skips_gallery_when_images_false(tmp_path):
+def test_run_pmc_passes_description(tmp_path):
     project = Project(tmp_path, override_name='Pack', override_handle='pack')
-    config = {
-        'name': 'Pack',
-        'planetminecraft': {'id': _PROJECT_ID},
-        'images': [{'file': 'banner', 'description': 'A banner'}],
-    }
-    icon = tmp_path / 'icon.png'
-    Image.new('RGB', (64, 64)).save(icon)
+    config = {'name': 'Pack', 'planetminecraft': {'id': _PROJECT_ID}}
 
     push_calls = []
 
     def fake_push(self, **kwargs):
-        push_calls.append(kwargs['image_list'])
+        push_calls.append(kwargs['description'])
 
     with patch.object(PMC.__class__, 'push', fake_push):
-        _run_pmc_real(project, config, icon, tmp_path, {}, _AUTH, 0, images=False)
+        _run_pmc_real(project, config, '[b]hi[/b]', _AUTH, 0)
 
-    assert push_calls[0] == []
-
-
-def test_run_pmc_passes_image_list_when_images_true(tmp_path):
-    project = Project(tmp_path, override_name='Pack', override_handle='pack')
-    config = {
-        'name': 'Pack',
-        'planetminecraft': {'id': _PROJECT_ID},
-        'images': [{'file': 'banner', 'description': 'A banner'}],
-    }
-    icon = tmp_path / 'icon.png'
-    Image.new('RGB', (64, 64)).save(icon)
-
-    push_calls = []
-
-    def fake_push(self, **kwargs):
-        push_calls.append(kwargs['image_list'])
-
-    with patch.object(PMC.__class__, 'push', fake_push):
-        _run_pmc_real(project, config, icon, tmp_path, {}, _AUTH, 0, images=True)
-
-    assert push_calls[0] == config['images']
+    assert push_calls[0] == '[b]hi[/b]'
 
 
 # ── 6. PMC.pull ───────────────────────────────────────────────────────────────
@@ -881,8 +840,8 @@ def test_upload_file_pmc_when_pmc_creds_present(push_pack_env, run_puppy, monkey
     }))
 
     called = []
-    monkeypatch.setattr('puppy.publisher.PMC.submit_log', lambda *a, **k: called.append(True))
-    run_puppy('push', '--file', '--force', '--version', '1.0.0', '--site', 'pmc')
+    monkeypatch.setattr('puppy.sites.PMC.submit_log', lambda *a, **k: called.append(True))
+    run_puppy('push', '-c', 'file', '--version', '1.0.0', '--site', 'pmc')
     assert called
 
 
@@ -900,8 +859,8 @@ def test_upload_file_pmc_auth_expired_raises_system_exit(push_pack_env, run_pupp
         'planetminecraft': {'cookie': 'pmc_autologin=test-cookie'},
     }))
     monkeypatch.setattr(
-        'puppy.publisher.PMC.submit_log',
+        'puppy.sites.PMC.submit_log',
         lambda *a, **k: (_ for _ in ()).throw(AuthExpiredError(401, 'Expired')),
     )
-    result = run_puppy('push', '--file', '--force', '--version', '1.0.0', '--site', 'pmc')
+    result = run_puppy('push', '-c', 'file', '--version', '1.0.0', '--site', 'pmc')
     assert result == 'PlanetMinecraft auth expired (HTTP 401: Expired) — run: puppy auth --site pmc'

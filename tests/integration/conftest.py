@@ -335,11 +335,11 @@ class LifecycleBase:
         config['summary'] = ctx['updated_summary']
         (ctx['project_dir'] / 'puppy.yaml').write_text(yaml.dump(config, default_flow_style=False))
         self._before_push_images(ctx)
-        self._run(ctx, 'push', '--site', self.SITE, '--images')
+        self._run(ctx, 'push', '--site', self.SITE, '-c', 'images')
         self._assert_push_images(ctx)
 
     def test_04_pull_images(self, ctx):
-        self._run(ctx, 'pull', '--site', self.SITE, '--images')
+        self._run(ctx, 'pull', '--site', self.SITE, '-c', 'images')
         config = yaml.safe_load((ctx['project_dir'] / 'puppy.yaml').read_text())
         self._assert_pull_images(ctx, config)
 
@@ -349,7 +349,7 @@ class LifecycleBase:
         config = yaml.safe_load((ctx['project_dir'] / 'puppy.yaml').read_text())
         config['minecraft'] = '1.21.4'
         (ctx['project_dir'] / 'puppy.yaml').write_text(yaml.dump(config, default_flow_style=False))
-        self._run(ctx, 'push', '--site', self.SITE, '--file', '--version', '1.0.0')
+        self._run(ctx, 'push', '--site', self.SITE, '-c', 'file', '--version', '1.0.0')
         self._assert_push_pack(ctx)
 
     # ------------------------------------------------------------------

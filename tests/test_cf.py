@@ -566,15 +566,13 @@ def test_run_push_when_cf_token_present(tmp_path, monkeypatch):
         puppy_home=home,
         site='curseforge',
         version=None,
-        upload_file=False,
-        force=False,
-        images=False,
+        content=set(),
         verbosity=0,
         auth=auth,
     )
 
     assert len(cf_calls) == 1
-    # args: project, config, icon, puppy_dir, descriptions, auth, verbosity
+    # args: project, config, avatar_url, description, auth, verbosity
     called_config = cf_calls[0][1]
     assert called_config.get('curseforge', {}).get('id') == 99
 
@@ -601,7 +599,7 @@ def test_upload_file_in_push_pack(tmp_path, monkeypatch):
         z.writestr('pack.mcmeta', '{}')
 
     upload_calls = []
-    monkeypatch.setattr('puppy.publisher.CURSEFORGE.upload_file', lambda *a, **k: upload_calls.append(a))
+    monkeypatch.setattr('puppy.sites.CURSEFORGE.upload_file', lambda *a, **k: upload_calls.append(a))
     monkeypatch.chdir(project_dir)
 
     from puppy.runner import run
@@ -612,8 +610,7 @@ def test_upload_file_in_push_pack(tmp_path, monkeypatch):
         verbosity=0,
         site='curseforge',
         version='1.0',
-        upload_file=True,
-        force=True,
+        content={'file'},
     )
 
     assert len(upload_calls) == 1
@@ -760,49 +757,24 @@ def _cf_project(tmp_path):
     return p
 
 
-def test_run_cf_skips_gallery_when_images_false(tmp_path):
+def test_run_cf_passes_avatar_and_description(tmp_path):
     with patch('puppy.syncer.CURSEFORGE.push') as mock_push:
         _run_cf_real(
-            project=_cf_project(tmp_path),
-            config={'curseforge': {'id': 99}, 'images': [{'file': 'img.jpg', 'description': ''}]},
-            icon=tmp_path / 'icon.png',
-            puppy_dir=tmp_path,
-            descriptions={},
-            auth=_AUTH,
-            verbosity=0,
-            images=False,
+            _cf_project(tmp_path),
+            {'curseforge': {'id': 99}},
+            'http://cdn/avatar.png',
+            '<p>desc</p>',
+            _AUTH,
+            0,
         )
-    assert mock_push.call_args.kwargs['image_list'] == []
-
-
-def test_run_cf_passes_image_list_when_images_true(tmp_path):
-    img_list = [{'file': 'img.jpg', 'description': ''}]
-    with patch('puppy.syncer.CURSEFORGE.push') as mock_push:
-        _run_cf_real(
-            project=_cf_project(tmp_path),
-            config={'curseforge': {'id': 99}, 'images': img_list},
-            icon=tmp_path / 'icon.png',
-            puppy_dir=tmp_path,
-            descriptions={},
-            auth=_AUTH,
-            verbosity=0,
-            images=True,
-        )
-    assert mock_push.call_args.kwargs['image_list'] == img_list
+    assert mock_push.call_args.kwargs['avatar_url'] == 'http://cdn/avatar.png'
+    assert mock_push.call_args.kwargs['description'] == '<p>desc</p>'
 
 
 def test_run_cf_auth_expired_raises_system_exit(tmp_path):
     with patch('puppy.syncer.CURSEFORGE.push', side_effect=AuthExpiredError(401, 'expired')):
         with pytest.raises(SystemExit, match='CurseForge auth expired'):
-            _run_cf_real(
-                project=_cf_project(tmp_path),
-                config={'curseforge': {'id': 99}},
-                icon=tmp_path / 'icon.png',
-                puppy_dir=tmp_path,
-                descriptions={},
-                auth=_AUTH,
-                verbosity=0,
-            )
+            _run_cf_real(_cf_project(tmp_path), {'curseforge': {'id': 99}}, None, '', _AUTH, 0)
 
 
 # ── pull images / auth-expired ────────────────────────────────────────────────
@@ -894,15 +866,17 @@ def _cf_upload_env(tmp_path):
     return project_dir
 
 
-def test_upload_file_cf_skips_when_already_current(tmp_path, monkeypatch):
+def test_upload_file_cf_skips_when_hash_matches(tmp_path, monkeypatch):
+    import hashlib
     project_dir = _cf_upload_env(tmp_path)
+    local_sha = hashlib.sha512((project_dir / 'mypack-1.0.zip').read_bytes()).hexdigest()
+    (project_dir / 'hashes.yaml').write_text(yaml.dump({'curseforge': {'file': local_sha}}))
     upload_calls = []
-    monkeypatch.setattr('puppy.publisher.CURSEFORGE.needs_upload', lambda *a, **k: False)
-    monkeypatch.setattr('puppy.publisher.CURSEFORGE.upload_file', lambda *a, **k: upload_calls.append(a))
+    monkeypatch.setattr('puppy.sites.CURSEFORGE.upload_file', lambda *a, **k: upload_calls.append(a))
     monkeypatch.chdir(project_dir)
     from puppy.runner import run
     run(action='push', directory=project_dir, dry_run=False, verbosity=0,
-        site='curseforge', version='1.0', upload_file=True, force=False)
+        site='curseforge', version='1.0', content=set())
     assert upload_calls == []
 
 
@@ -912,9 +886,9 @@ def test_upload_file_cf_auth_expired_raises_system_exit(tmp_path, monkeypatch):
     def raise_auth(*a, **k):
         raise AuthExpiredError(401, 'token expired')
 
-    monkeypatch.setattr('puppy.publisher.CURSEFORGE.upload_file', raise_auth)
+    monkeypatch.setattr('puppy.sites.CURSEFORGE.upload_file', raise_auth)
     monkeypatch.chdir(project_dir)
     from puppy.runner import run
     with pytest.raises(SystemExit, match='CurseForge auth expired'):
         run(action='push', directory=project_dir, dry_run=False, verbosity=0,
-            site='curseforge', version='1.0', upload_file=True, force=True)
+            site='curseforge', version='1.0', content={'file'})

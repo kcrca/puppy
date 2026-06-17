@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from puppy.errors import AuthExpiredError, SiteError
-from puppy.images import find_image, prepare_gallery_image, prepare_icon
+from puppy.images import find_image, prepare_gallery_image
 from puppy.renderer import md_to_html
 from puppy.sites.base import Site
 
@@ -352,26 +352,6 @@ class CurseForgeSite(Site):
         if sc.get('license'):
             rows.append(('License', str(sc['license'])))
         return rows
-
-    def needs_upload(self, site_id, auth: dict, zip_path: Path, version: str, project) -> bool:
-        local_size = zip_path.stat().st_size
-        cf_auth = auth.get('curseforge', {})
-        params = urllib.parse.urlencode({
-            'filter': json.dumps({'projectId': site_id}),
-            'range': '[0, 0]',
-            'sort': '["DateCreated", "DESC"]',
-        })
-        files = _cf_get(
-            f'https://authors.curseforge.com/_api/project-files?{params}',
-            {'Cookie': cf_auth.get('cookie', '')},
-        ) or []
-        if not files:
-            return True
-        latest = files[0]
-        return not (
-            latest.get('size') == local_size
-            and f'v{version}' in latest.get('displayName', '')
-        )
 
     _DONATION_LINK_KEYS = ['patreon', 'kofi', 'paypal', 'buyMeACoffee', 'github_sponsors', 'other']
 
@@ -793,22 +773,25 @@ class CurseForgeSite(Site):
             if item.get('title') and item.get('imageUrl')
         }
 
+    def gallery_urls(self, project_id, auth: dict) -> dict[str, str]:
+        h = self._cookie_headers(auth)
+        params = urllib.parse.urlencode({'filter': '{}', 'range': '[0,24]', 'sort': '["id","DESC"]'})
+        gallery = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []
+        return {
+            Path(item['title']).stem: item.get('imageUrl', '')
+            for item in gallery
+            if item.get('title') and item.get('imageUrl')
+        }
+
     def push(
         self,
         *,
         project_id,
         config: dict,
         description: str,
-        icon_path: Path,
-        logo_path: Path,
-        banner_path: Path,
-        image_list: list,
-        images_dir: Path,
         auth: dict,
         verbosity: int,
-        pack_path: Path = None,
-        version: str = None,
-        force: bool = False,
+        avatar_url: str = None,
     ) -> None:
         sc = {
             'name': config.get('name', ''),
@@ -824,36 +807,12 @@ class CurseForgeSite(Site):
             print(f'  [CurseForge] updating description')
         self.update_description(project_id, auth, description)
 
-        if verbosity >= 1:
-            print(f'  [CurseForge] uploading icon')
-        icon_bytes = prepare_icon(icon_path, verbosity=verbosity)
-        avatar_url = self.upload_icon(project_id, auth, icon_bytes)
-
-        images = []
-        for img_entry in image_list:
-            src = find_image(img_entry['file'], images_dir)
-            data = prepare_gallery_image(src, verbosity=verbosity)
-            images.append({
-                'filename': src.stem + '.jpg',
-                'data': data,
-                'mime_type': 'image/jpeg',
-                'name': img_entry.get('name', ''),
-                'description': img_entry.get('description', ''),
-                'featured': img_entry.get('featured', False),
-            })
-        if images:
-            if verbosity >= 1:
-                print(f'  [CurseForge] syncing gallery ({len(images)} images)')
-            self.sync_gallery(project_id, auth, images, verbosity=verbosity)
+        if avatar_url is None:
+            avatar_url = self.fetch_project(project_id, auth).get('avatarUrl', '')
 
         if verbosity >= 1:
             print(f'  [CurseForge] updating details')
         self.update_details(project_id, auth, sc, avatar_url=avatar_url)
-
-        if pack_path and version:
-            if verbosity >= 1:
-                print(f'  [CurseForge] uploading file v{version}')
-            self.upload_file(project_id, auth, pack_path, version, config)
 
     def pull(
         self,

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import urllib.error
 import urllib.parse
@@ -9,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from puppy.errors import AuthExpiredError, SiteError
-from puppy.images import find_image, prepare_gallery_image, prepare_icon
+from puppy.images import find_image, prepare_gallery_image
 from puppy.sites.base import Site
 
 
@@ -234,15 +233,6 @@ class ModrinthSite(Site):
         if sc.get('license'):
             rows.append(('License', str(sc['license'])))
         return rows
-
-    def needs_upload(self, site_id, auth: dict, zip_path: Path, version: str, project) -> bool:
-        local_hash = hashlib.sha512(zip_path.read_bytes()).hexdigest()
-        versions = _mr_get(f'https://api.modrinth.com/v2/project/{site_id}/version', auth) or []
-        for v in versions:
-            for f in v.get('files', []):
-                if f.get('hashes', {}).get('sha512') == local_hash:
-                    return False
-        return True
 
     def upload_version(
         self,
@@ -484,48 +474,38 @@ class ModrinthSite(Site):
             if item.get('title') and item.get('url')
         }
 
+    def gallery_urls(self, project_id: str, auth: dict) -> dict[str, str]:
+        project = _mr_get(f'{_MR_API}/project/{project_id}', auth) or {}
+        gallery = project.get('gallery') or []
+        return {
+            Path(item['title']).stem: item.get('url', '')
+            for item in gallery
+            if item.get('title') and item.get('url')
+        }
+
+    def latest_file_sha(self, project_id: str, auth: dict) -> str | None:
+        versions = _mr_get(f'{_MR_API}/project/{project_id}/version', auth) or []
+        if not versions:
+            return None
+        files = versions[0].get('files', [])
+        primary = next((f for f in files if f.get('primary')), files[0] if files else None)
+        return primary.get('hashes', {}).get('sha512') if primary else None
+
     def push(
         self,
         *,
         project_id: str,
         config: dict,
         description: str,
-        icon_path: Path,
-        logo_path: Path,
-        banner_path: Path,
-        image_list: list,
-        images_dir: Path,
         auth: dict,
         verbosity: int,
-        pack_path: Path = None,
-        version: str = None,
-        force: bool = False,
+        avatar_url: str = None,
     ) -> None:
         sc = {
             'name': config.get('name', ''),
             'summary': config.get('summary', ''),
             **config.get('modrinth', {}),
         }
-
-        if verbosity >= 1:
-            print('  [Modrinth] uploading icon')
-        icon_bytes = prepare_icon(icon_path, verbosity=verbosity)
-        self.upload_icon(project_id, auth, icon_bytes)
-
-        images = []
-        for img_entry in image_list:
-            src = find_image(img_entry['file'], images_dir)
-            data = prepare_gallery_image(src, verbosity=verbosity)
-            images.append({
-                'filename': src.stem + '.jpg',
-                'data': data,
-                'mime_type': 'image/jpeg',
-            })
-        if images:
-            if verbosity >= 1:
-                print(f'  [Modrinth] syncing gallery ({len(images)} images)')
-            self.sync_gallery(project_id, auth, images)
-
         if verbosity >= 1:
             print('  [Modrinth] updating project')
         self.update_project(project_id, auth, sc, description, config)

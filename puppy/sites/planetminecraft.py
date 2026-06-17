@@ -616,19 +616,30 @@ class PlanetMinecraftSite(Site):
                 result[stem] = full_url
         return result
 
+    def gallery_urls(self, project_id, auth: dict, project_type: str = 'pack') -> dict[str, str]:
+        cookie = auth.get('planetminecraft', {}).get('cookie', '')
+        soup, _ = _pmc_get_page(project_id, cookie, project_type)
+        result = {}
+        for thumb in soup.select('.image_list > .thumbnail'):
+            url = thumb.get('data-full-filename', '')
+            caption = thumb.get('data-caption', '')
+            if not url or caption in ('Project Thumbnail', 'Project Logo'):
+                continue
+            title = caption.split(' - ')[0]
+            full_url = f'{_PMC_BASE}{url}' if not url.startswith('http') else url
+            stem = Path(title).stem if '.' in title else title
+            result[stem] = full_url
+        return result
+
     def push(
         self,
         *,
         project_id,
         config: dict,
         description: str,
-        icon_path: Path,
-        logo_path: Path,
-        banner_path: Path,
-        image_list: list,
-        images_dir: Path,
         auth: dict,
         verbosity: int,
+        avatar_url: str = None,
     ) -> None:
         cookie = auth.get('planetminecraft', {}).get('cookie', '')
         sc = config.get('planetminecraft', {})
@@ -642,11 +653,6 @@ class PlanetMinecraftSite(Site):
         hidden = {name: _pmc_scrape_hidden(soup, name) for name in hidden_names}
         current_op1 = _pmc_select_value(soup, 'op1')
         tag_ids = _pmc_tag_ids(soup)
-
-        if image_list:
-            if verbosity >= 1:
-                print(f'  [PlanetMinecraft] syncing gallery ({len(image_list)} images)')
-            _pmc_sync_gallery(project_id, cookie, csrf, soup, image_list, images_dir, verbosity, project_type)
 
         wurl1, wtitle1 = _pmc_wurl1(config)
         wurl0, wtitle0 = _pmc_wurl0(config)

@@ -88,9 +88,11 @@ Puppy has the following actions:
   Any file that already exists is left untouched with a warning.
   `puppy.yaml` is pre-populated with skeleton entries for the supported sites for that type, and type-appropriate neutral fields (`resolution` for packs, `loaders` for mods, `progress` for packs and worlds).
   `description.md` contains a short comment.
-* **`push`** (Default): Updates metadata, summaries, descriptions, images, and icons.
-  With `-F/--file`, also uploads the zip artifact.
-  Requires `version` in `puppy.yaml` or `-V/--version` when using `-F`.
+* **`push`** (Default): Updates metadata, summaries, descriptions, images, icons, and (when current) the zip artifact.
+  By default (`use_hashes: true` in `puppy.yaml`) only categories whose content changed since the last push are uploaded; the content hashes are stored in `puppy/hashes.yaml`.
+  Use `-c/--content` to force specific categories regardless of the hash check.
+  Uploading the zip requires `version` in `puppy.yaml` or `-V/--version`.
+  See "Upload selection & change detection" below for the full model.
 * **`pull`:** Pulls live site data.
   Update yaml in puppy home and the project home (if different).
   Does **not** create description templates (those are created by `init`).
@@ -124,29 +126,42 @@ Puppy has the following actions:
 * **`-V/--version [string]`:** Version string override.
   Falls back to `version` in `puppy.yaml`.
   Artifact matched via any `.zip` in `puppy/` whose filename ends with `[-_.]version.zip`.
-* **`-F/--file`:** Valid for `push`.
-  Include zip artifact upload in `push`.
-  Requires `minecraft` or `versions` in `puppy.yaml`.
-  Upload is skipped per-site if the artifact is already current:
-  * **Modrinth:** Compares SHA-512 hash of local zip against the hash stored in the latest version's file listing.
-  * **CurseForge:** Compares both version string and file size (bytes) against the most recent uploaded file; uploads if either differs.
-  * **Planet Minecraft:** Compares version string against the most recent uploaded file version on PMC.
-* **`-f/--force`:** Valid for `push` and `create`.
-  With `push -F`, bypasses skip logic and uploads unconditionally on all sites.
-  With `create`, skips the confirmation prompt.
-* **`-I/--images`:** Controls image gallery handling.
-  For `push`: include the image gallery in the upload (default: no images).
-  For `pull`: download the image gallery and icon (`pack.png`) from the site.
-  Without this flag on pull, images and icon are downloaded automatically only on first pull (when no image info is present); subsequent pulls leave existing image info untouched.
-  When images are downloaded on pull, files go to `images/` and metadata to `images/images.yaml`; any top-level `images.yaml` is removed.
-  Icon is copied as `pack.png` only if no icon PNG is already present.
-  CurseForge and Modrinth provide the icon; PMC does not.
-* **`-A/--all`:** Upload everything — equivalent to `-F -I` combined.
-  Any future upload-type options should also be activated by this flag.
+* **`-c/--content CATEGORIES`:** Names content categories, the same way for `push` and `pull`.
+  Categories are `file` (`f`), `images` (`i`, gallery + icon), and `data` (`d`, description + metadata); combine as `-c fid` or `--content file,images`, or use `-c all`.
+  * On `push`: force-upload the named categories regardless of the hash check.
+    Categories not named still upload on this run if their content hash changed (when `use_hashes: true`).
+    When `use_hashes: false`, `-c` is the only thing that uploads, defaulting to `data`.
+    Including `file` requires `minecraft` or `versions` in `puppy.yaml` and a version.
+  * On `pull`: `-c images` downloads the image gallery and icon (`pack.png`) from the site.
+    Without it, images and icon are downloaded automatically only on first pull (when no image info is present); subsequent pulls leave existing image info untouched.
+    When images are downloaded on pull, files go to `images/` and metadata to `images/images.yaml`; any top-level `images.yaml` is removed.
+    Icon is copied as `pack.png` only if no icon PNG is already present.
+    CurseForge and Modrinth provide the icon; PMC does not.
+    `-c file` is not valid for `pull` (there is no file to download).
+* **`-f/--force`:** Valid for `create` — skips the confirmation prompt.
 
 ### Arguments
 * **`project ...`** (positional): Limits action to one or more projects, matched by handle.
   Example: `puppy push neon dark` will push only those two projects in a multi-project repo.
+
+## Upload selection & change detection
+
+`push` works in three upload categories: **`data`** (description + metadata), **`images`** (gallery + icon), and **`file`** (the zip).
+
+The `use_hashes` config key (default `true`) controls change detection:
+
+* **`use_hashes: true`** — every category is considered each run and uploaded only if its content changed since the last push.
+  After each successful upload, a content hash of what was sent is written to `puppy/hashes.yaml`, keyed by site then category.
+  A hash is written only after that artifact's own upload succeeds, independently per artifact; a failed upload withholds only its own hash, so the next run retries exactly the missing/stale ones.
+  Hashing is over the final rendered/staged bytes (post-Jinja, post-Markdown-conversion, post-image-encoding), so a `puppy.yaml` edit that changes a rendered description is caught and one that doesn't is not.
+  `hashes.yaml` is a local cache assuming puppy is the only updater — an edit made directly on a site is not detected (except the Modrinth zip, below); force with `-u` to overwrite.
+* **`use_hashes: false`** — no hashes are read or written; `push` uploads exactly the categories named by `-c/--content`, defaulting to `data`.
+
+`-c/--content` force-uploads the named categories regardless of the hash check; categories not named still upload if their hash changed (when hashing is on).
+
+**`file` change detection** uses the same hash system. For Modrinth the local zip's SHA-512 is compared against Modrinth's server-reported hash directly (correct even on a fresh checkout); if that server hash differs from the value in `hashes.yaml`, the site copy changed out of band, so puppy updates `hashes.yaml` and prints a notice. CurseForge and PMC compare the local SHA-512 against `hashes.yaml` alone.
+
+`init` adds `hashes.yaml` to `puppy/.gitignore` by default, but this is not enforced (unlike `auth.yaml`): committing it lets a team share the last-pushed state.
 
 ## Known Sites
 
@@ -180,7 +195,7 @@ planetminecraft: pmc_autologin=<cookie>
 In puppy.yaml, `minecraft` sets the Minecraft game version for artifact uploads across all sites.
 A string value is treated as an exact version (`minecraft: '26.1'` → `type: exact, version: '26.1'`).
 A dict value is used as-is (`minecraft: {type: latest}`).
-Required when using `push --file` unless `versions` is fully specified.
+Required when using `push -c file` unless `versions` is fully specified.
 
 ## Template Expansion
 
@@ -223,7 +238,7 @@ Example: `sites: [cf, mr]`
 
 **Standard config fields:**
 * `summary` — one-line project description shown in search results
-* `changelog` — release notes text included in version file uploads (`push --file`) on all sites
+* `changelog` — release notes text included in version file uploads (`push -c file`) on all sites
 * `optifine: true/false` — whether the pack requires [OptiFine](https://optifine.net/) (default false)
 * `video: <youtube-id>` — a youtube ID for an associated video (default none)
 * `links:` — external URLs for the project (all optional):
@@ -256,7 +271,7 @@ Example: `sites: [cf, mr]`
 
 ### Referencing Gallery Images in Descriptions
 
-When `-I/--images` is active on `push`, puppy uploads gallery images to each site **before** rendering descriptions, so CDN URLs are available as Jinja variables.
+On `push`, puppy makes gallery image CDN URLs available **before** rendering descriptions — uploading changed images first (or fetching the existing gallery's URLs when the `images` category is skipped) — so they can be referenced as Jinja variables.
 Two helpers are injected into the template context:
 
 * **`images`** — a mapping from image name (stem without extension) to CDN URL for that site.
@@ -278,7 +293,7 @@ Here is a closer look:
 ```
 
 The same source file works on all three sites — each renders the correct markup for its platform.
-When running without `-I`, `images.*` returns `''` for every name and `img()` returns `''`, so descriptions render cleanly in dry-run and text-only pushes.
+When no gallery URLs are available (for example a dry-run with no image info), `images.*` returns `''` for every name and `img()` returns `''`, so descriptions still render cleanly.
 
 ### Path Resolution Rules
 * **Internal Files:** Follow the file cascade (section 5.2).
@@ -341,7 +356,7 @@ If both neutral `resolution` and `modrinth.resolution` are set, the neutral tier
 Site-specific fields with no neutral equivalent (for example CF `category`, PMC `category`, PMC `modifies`, PMC `tags`) should list all options explicitly so intent is clear.
 `planetminecraft.download`: if set, puppy skips uploading the file to PMC and uses this external URL as the PMC download link instead.
 The values `curseforge` and `modrinth` are accepted as shorthands and expand to the project's CF or MR URL.
-If not set, `push --file` uploads the file to PMC and the uploaded file is the primary download.
+If not set, `push -c file` uploads the file to PMC and the uploaded file is the primary download.
 `planetminecraft.alt_download` sets a second external link on PMC.
 PMC has two external link slots (wurl1 and wurl0).
 When `download:` is set, wurl1 = the download URL and wurl0 = `alt_download` (if set).

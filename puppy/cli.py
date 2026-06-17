@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 
+from puppy.hashes import parse_content
 from puppy.runner import run
 
 
@@ -72,11 +73,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        '-F',
-        '--file',
-        action='store_true',
-        dest='upload_file',
-        help='Include artifact file upload in push.',
+        '-c',
+        '--content',
+        dest='content',
+        default=None,
+        metavar='CATEGORIES',
+        help='Content categories to act on: file/f, images/i, data/d, or all '
+             '(combine as -c fid or --content file,images). '
+             'On push, named categories upload regardless of hash; on pull, '
+             'images means download the gallery and icon.',
     )
 
     parser.add_argument(
@@ -84,23 +89,7 @@ def build_parser() -> argparse.ArgumentParser:
         '--force',
         action='store_true',
         dest='force',
-        help='With push -F, bypass per-site skip checks. With create, skip confirmation prompt.',
-    )
-
-    parser.add_argument(
-        '-I',
-        '--images',
-        action='store_true',
-        dest='images',
-        help='Include image gallery. For pull: download from site. For push: include in upload.',
-    )
-
-    parser.add_argument(
-        '-A',
-        '--all',
-        action='store_true',
-        dest='all',
-        help='Equivalent to --file --images.',
+        help='With create, skip the confirmation prompt.',
     )
 
     parser.add_argument(
@@ -132,9 +121,8 @@ def main(argv: list[str] = None) -> None:
         verbosity=args.verbosity,
         site=args.site,
         version=args.version,
-        upload_file=args.upload_file or args.all,
+        content=parse_content(args.content) if args.content else None,
         handle_filter=args.handle_name or None,
         force=args.force,
-        images=args.images or args.all,
         open_browser=args.open_browser,
     )

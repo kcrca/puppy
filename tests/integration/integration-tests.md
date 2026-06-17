@@ -90,9 +90,9 @@ Each lifecycle class runs five tests in order:
 |---|---|
 | `test_01_create` | `puppy create` — id/slug written to config; site metadata verified |
 | `test_02_pull` | `puppy pull` — id/slug round-trip |
-| `test_03_push_images` | `puppy push --images` — description body, summary, links, license, icon, gallery, donation, discord |
-| `test_04_pull_images` | `puppy pull --images` — summary, license, links, socials, images.yaml written back |
-| `test_05_push_pack` | `puppy push --pack` — version file appears on site |
+| `test_03_push_images` | `puppy push -c images` — description body, summary, links, license, icon, gallery, donation, discord |
+| `test_04_pull_images` | `puppy pull -c images` — summary, license, links, socials, images.yaml written back |
+| `test_05_push_pack` | `puppy push -c file` — version file appears on site |
 
 State (project dir, project id) is shared between test methods within a class via a class-scoped `ctx` fixture.
 Auth and limit errors propagate as skips to all remaining tests in the class — see "Error handling" above.
@@ -116,7 +116,7 @@ A timestamp-based slug is injected per run to keep projects unique and cleanable
 - CurseForge bedrock: `curseforge.bedrock: true` still present after pull
 - PMC bedrock: `planetminecraft.bedrock: true` still present after pull
 
-### push --images
+### push -c images
 - Description body updated (new sentence appended to `description.md`)
 - Modrinth: `body` contains new sentence; `description` (summary) updated; `source_url`, `issues_url`, `wiki_url` all set; `license.id` == MIT; `icon_url` set; gallery non-empty; `donation_urls` contains ko-fi
 - Modrinth mod: `discord_url` reflects `modrinth.discord` per-site override (not neutral `socials.discord`)
@@ -124,13 +124,13 @@ A timestamp-based slug is injected per run to keep projects unique and cleanable
 - CurseForge: `summary` updated
 - PMC: project name still present on management page
 
-### pull --images
+### pull -c images
 - Modrinth: `summary`, `license`, `links.source`, `links.issues`, `links.wiki`, `socials.discord` all written back to `puppy.yaml`
 - Modrinth mod: `socials.discord` reflects the per-site `modrinth.discord` value (what MR actually stored)
 - CurseForge: `summary` updated
 - `images/images.yaml` written with at least one entry (MR, PMC always; CF conditional)
 
-### push --pack
+### push -c file
 - Modrinth: version with `version_number: 1.0.0` present; `changelog` matches `puppy.yaml`; mod: `loaders` contains `fabric`
 - CurseForge: file with `displayName` containing `v1.0.0` in project files list
 - PMC: manage page contains `Update v1.0.0` log entry
@@ -171,9 +171,9 @@ tests/integration/puppy/
     ├── icon.png
     ├── images.yaml
     └── images/
-tests/integration/puppypack/puppypack-1.0.0.zip   # artifact for pack push --pack
-tests/integration/puppymod/puppymod-1.0.0.jar     # artifact for mod push --pack
-tests/integration/puppyworld/puppyworld-1.0.0.zip # artifact for world push --pack
+tests/integration/puppypack/puppypack-1.0.0.zip   # artifact for pack push -c file
+tests/integration/puppymod/puppymod-1.0.0.jar     # artifact for mod push -c file
+tests/integration/puppyworld/puppyworld-1.0.0.zip # artifact for world push -c file
 ```
 
 Artifacts are made unique per test session by appending `puppy-run-id.txt` to each zip/jar.

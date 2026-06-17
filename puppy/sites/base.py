@@ -28,9 +28,6 @@ class Site:
     def preview_rows(self, sc: dict) -> list[tuple[str, str]]:
         return []
 
-    def needs_upload(self, site_id, auth: dict, zip_path: Path, version: str, project) -> bool:
-        return True
-
     def resolve_id(self, config: dict, auth: dict, verbosity: int) -> dict:
         return config
 

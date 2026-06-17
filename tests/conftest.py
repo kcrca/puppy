@@ -5,6 +5,12 @@ from PIL import Image
 
 
 @pytest.fixture(autouse=True)
+def _no_images(monkeypatch):
+    """Stub phase-1 image work (icon, gallery, URL fetch) so push tests stay offline."""
+    monkeypatch.setattr('puppy.syncer._push_images', lambda *a, **k: ({}, None))
+
+
+@pytest.fixture(autouse=True)
 def _clear_cf_cache():
     import puppy.sites as sites_mod
     sites_mod._cf_game_versions_cache.clear()
@@ -39,12 +45,12 @@ def _no_cf_pull(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _no_mr_upload(monkeypatch):
-    monkeypatch.setattr('puppy.publisher.MODRINTH.upload_version', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.sites.MODRINTH.upload_version', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
 def _no_cf_upload(monkeypatch):
-    monkeypatch.setattr('puppy.publisher.CURSEFORGE.upload_file', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.sites.CURSEFORGE.upload_file', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
@@ -59,7 +65,7 @@ def _no_pmc_pull(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _no_pmc_upload(monkeypatch):
-    monkeypatch.setattr('puppy.publisher.PMC.submit_log', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.sites.PMC.submit_log', lambda *a, **k: None)
 
 
 @pytest.fixture

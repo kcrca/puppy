@@ -274,9 +274,7 @@ def test_run_push_when_mr_token_present(tmp_path, monkeypatch):
         puppy_home=home,
         site='modrinth',
         version=None,
-        upload_file=False,
-        force=False,
-        images=False,
+        content=set(),
         verbosity=0,
         auth=auth,
     )
@@ -337,7 +335,7 @@ def test_upload_version_in_push_pack(tmp_path, monkeypatch):
         z.writestr('pack.mcmeta', '{}')
 
     upload_calls = []
-    monkeypatch.setattr('puppy.publisher.MODRINTH.upload_version', lambda *a, **k: upload_calls.append(a))
+    monkeypatch.setattr('puppy.sites.MODRINTH.upload_version', lambda *a, **k: upload_calls.append(a))
     monkeypatch.chdir(project_dir)
 
     from puppy.runner import run
@@ -348,8 +346,7 @@ def test_upload_version_in_push_pack(tmp_path, monkeypatch):
         verbosity=0,
         site='modrinth',
         version='1.0',
-        upload_file=True,
-        force=True,
+        content={'file'},
     )
 
     assert len(upload_calls) == 1
@@ -481,49 +478,22 @@ def _mr_project(tmp_path):
     return p
 
 
-def test_run_mr_skips_gallery_when_images_false(tmp_path):
+def test_run_mr_passes_description(tmp_path):
     with patch('puppy.syncer.MODRINTH.push') as mock_push:
         _run_mr_real(
-            project=_mr_project(tmp_path),
-            config={'modrinth': {'id': 'abc'}, 'images': [{'file': 'img.jpg', 'description': ''}]},
-            icon=tmp_path / 'icon.png',
-            puppy_dir=tmp_path,
-            descriptions={},
-            auth=_AUTH,
-            verbosity=0,
-            images=False,
+            _mr_project(tmp_path),
+            {'modrinth': {'id': 'abc'}},
+            '# body',
+            _AUTH,
+            0,
         )
-    assert mock_push.call_args.kwargs['image_list'] == []
-
-
-def test_run_mr_passes_image_list_when_images_true(tmp_path):
-    img_list = [{'file': 'img.jpg', 'description': ''}]
-    with patch('puppy.syncer.MODRINTH.push') as mock_push:
-        _run_mr_real(
-            project=_mr_project(tmp_path),
-            config={'modrinth': {'id': 'abc'}, 'images': img_list},
-            icon=tmp_path / 'icon.png',
-            puppy_dir=tmp_path,
-            descriptions={},
-            auth=_AUTH,
-            verbosity=0,
-            images=True,
-        )
-    assert mock_push.call_args.kwargs['image_list'] == img_list
+    assert mock_push.call_args.kwargs['description'] == '# body'
 
 
 def test_run_mr_auth_expired_raises_system_exit(tmp_path):
     with patch('puppy.syncer.MODRINTH.push', side_effect=AuthExpiredError(401, 'expired')):
         with pytest.raises(SystemExit, match='Modrinth auth expired'):
-            _run_mr_real(
-                project=_mr_project(tmp_path),
-                config={'modrinth': {'id': 'abc'}},
-                icon=tmp_path / 'icon.png',
-                puppy_dir=tmp_path,
-                descriptions={},
-                auth=_AUTH,
-                verbosity=0,
-            )
+            _run_mr_real(_mr_project(tmp_path), {'modrinth': {'id': 'abc'}}, '', _AUTH, 0)
 
 
 # ── pull images / auth-expired ────────────────────────────────────────────────
@@ -613,15 +583,17 @@ def _mr_upload_env(tmp_path):
     return project_dir
 
 
-def test_upload_file_mr_skips_when_already_current(tmp_path, monkeypatch):
+def test_upload_file_mr_skips_when_server_hash_matches(tmp_path, monkeypatch):
+    import hashlib
     project_dir = _mr_upload_env(tmp_path)
+    local_sha = hashlib.sha512((project_dir / 'mypack-1.0.zip').read_bytes()).hexdigest()
     upload_calls = []
-    monkeypatch.setattr('puppy.publisher.MODRINTH.needs_upload', lambda *a, **k: False)
-    monkeypatch.setattr('puppy.publisher.MODRINTH.upload_version', lambda *a, **k: upload_calls.append(a))
+    monkeypatch.setattr('puppy.sites.MODRINTH.latest_file_sha', lambda *a, **k: local_sha)
+    monkeypatch.setattr('puppy.sites.MODRINTH.upload_version', lambda *a, **k: upload_calls.append(a))
     monkeypatch.chdir(project_dir)
     from puppy.runner import run
     run(action='push', directory=project_dir, dry_run=False, verbosity=0,
-        site='modrinth', version='1.0', upload_file=True, force=False)
+        site='modrinth', version='1.0', content=set())
     assert upload_calls == []
 
 
@@ -631,9 +603,9 @@ def test_upload_file_mr_auth_expired_raises_system_exit(tmp_path, monkeypatch):
     def raise_auth(*a, **k):
         raise AuthExpiredError(401, 'token expired')
 
-    monkeypatch.setattr('puppy.publisher.MODRINTH.upload_version', raise_auth)
+    monkeypatch.setattr('puppy.sites.MODRINTH.upload_version', raise_auth)
     monkeypatch.chdir(project_dir)
     from puppy.runner import run
     with pytest.raises(SystemExit, match='Modrinth auth expired'):
         run(action='push', directory=project_dir, dry_run=False, verbosity=0,
-            site='modrinth', version='1.0', upload_file=True, force=True)
+            site='modrinth', version='1.0', content={'file'})

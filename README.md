@@ -588,8 +588,11 @@ Some of them only apply to some commands, but others apply universally.
 The overall syntax is:
 
 ```
-puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-F] [-f] [-I] [-A] [--no-open] [{auth,push,create,pull,init}] [project ...]
+puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-c CATEGORIES] [-f] [--no-open] [{auth,push,create,pull,init}] [project ...]
 ```
+
+The `-c/--content` flag names content categories — `file` (`f`), `images` (`i`, gallery + icon), and `data` (`d`, description + metadata) — and works the same way for both `push` and `pull`.
+Combine them as `-c fid` or `--content file,images`, or use `-c all`.
 
 ## Global Options
 
@@ -606,16 +609,18 @@ puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-F] [-f] [-I]
 * **create**: Create project on the site(s). If run from a terminal, this will prompt for confirmation.
     * `-f`, `--force`: Skip the confirmation prompt.
 * **pull**: Pull data from the site(s). This will not overwrite existing images, but it will merge new data into yaml files.
-    * `-I`, `--images`: Also pull logo, icon, banner, and image gallery.
-* **push**: Push description, metadata, logo, icon, and banner.
-    * `-I`, `--images`: Also push image gallery.
-    * `-F`, `--file`: Also upload the artifact file as a new version.
-      Upload is skipped per-site when that version is already current, but see `--force` below (Modrinth: SHA-512 hash; CurseForge: version string + file size; PMC: version string).
-    * `-A`, `--all`: Upload everything — equivalent to `-F -I`. Any future upload options will also be included.
-    * `-f`, `--force`: With `--file`, bypasses the already-current check and uploads unconditionally.
+    * `-c images`, `--content images`: Also pull logo, icon, banner, and image gallery.
+      (`-c file` is not valid for pull — there is no file to download.)
+* **push**: Push description, metadata, logo, icon, banner, gallery, and (when current) the artifact file.
+  By default (`use_hashes: true` in `puppy.yaml`) puppy uploads only what changed since the last push, tracked by content hashes stored in `puppy/hashes.yaml`.
+    * `-c`, `--content CATEGORIES`: Force-upload the named categories regardless of the hash check.
+      Other categories still upload on this run if their hash changed.
+      When `use_hashes: false`, hashing is off and `-c` is the *only* thing that uploads (default `data`).
     * `-V`, `--version VERSION`: Use this version, overriding other information.
     * `-n`, `--dry-run`: Create a pre-check HTML page, printing the URL and opening it.
     * `--no-open`: With `-n`, suppresses opening the file.
+
+  `file` change detection: Modrinth compares its server-reported SHA-512 against the local zip (and reconciles `hashes.yaml`, with a notice, if the site copy was changed elsewhere); CurseForge and PMC compare against the hash recorded in `hashes.yaml`.
 
 ## Projects
 
@@ -650,7 +655,7 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 | `optifine` | `true`/`false` — whether the pack requires OptiFine. Default `false`. |
 | `video` | YouTube video ID for an associated video. |
 | `after_push` | Message printed after all projects are pushed (not during dry-run). When set inside a site block, prints only when that site is active, prefixed with the site label. |
-| `minecraft` | Game version for artifact upload. String → exact version; dict → passed as-is. Required for `push --file` unless `versions` is set. |
+| `minecraft` | Game version for artifact upload. String → exact version; dict → passed as-is. Required for `push -c file` unless `versions` is set. |
 | `versions` | Explicit Minecraft version list. Alternative to `minecraft`. |
 | `loaders` | List of mod loaders (e.g. `[fabric, forge]`). Valid for `mod` only. Sets Modrinth `loaders` and resolves to CF game version IDs. |
 | `client_side` | `required`, `optional`, or `unsupported`. Valid for `mod` only. Sets Modrinth `client_side`. |
@@ -661,6 +666,7 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 | Field | Meaning |
 |---|---|
 | `md_html_tags` | List of HTML tags to protect during Markdown conversion and map to site equivalents (e.g. `<u>` → `[u]` for PMC). Default `['u']`. |
+| `use_hashes` | Whether `push` skips uploads whose content is unchanged since the last push, tracked in `puppy/hashes.yaml`. Default `true`. When `false`, push uploads only the categories named with `-u` (default `data`). |
 
 ## Multi-Pack
 
@@ -687,7 +693,7 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 | `links.github_sponsors` | GitHub Sponsors URL. CF: `type: github`. Modrinth: `donation.github`. |
 | `links.other` | Catch-all donation URL. Same expansion. |
 | `socials.discord` | Discord server URL. Sets Modrinth `discord_url` and CF `socials.discord`. Per-site `modrinth.discord` and `curseforge.socials.discord` override this. |
-| `changelog` | Release notes text included in version file uploads (`push --file`) on all sites. |
+| `changelog` | Release notes text included in version file uploads (`push -c file`) on all sites. |
 
 ## CurseForge block (`curseforge:`)
 
@@ -724,7 +730,7 @@ So when these are in the top level `puppy.yaml`, they can be overridden in lower
 | `tags` | List of tag strings (e.g. `['16x', '16x16']`). Neutral `resolution` appends to this; add others here. |
 | `category` | PMC category string. |
 | `modifies` | Map of modification target → `true`/`false`. |
-| `download` | If set, skips uploading the file to PMC and uses this URL as the primary download link instead. Accepts `curseforge` or `modrinth` as shorthands. If not set, `push --file` uploads the file to PMC. |
+| `download` | If set, skips uploading the file to PMC and uses this URL as the primary download link instead. Accepts `curseforge` or `modrinth` as shorthands. If not set, `push -c file` uploads the file to PMC. |
 | `alt_download` | An extra external link shown on PMC alongside the primary download. When `download:` is set, fills the second link slot. When `download:` is not set (file upload to PMC), fills the first link slot. |
 | `website.link` | Website URL. Set from `links.home`; override here. |
 | `website.title` | Website display title shown alongside the link. |

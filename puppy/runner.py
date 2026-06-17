@@ -62,12 +62,14 @@ def run(
     verbosity: int,
     site: str | None,
     version: str | None,
-    upload_file: bool = False,
+    content: set[str] | None = None,
     handle_filter: list[str] | None = None,
     force: bool = False,
-    images: bool = False,
     open_browser: bool = True,
 ) -> None:
+    content = content or set()
+    if action == 'pull' and 'file' in content:
+        raise SystemExit('puppy: error: pull has no file category (use data or images)')
     if action == 'init':
         if not handle_filter:
             raise SystemExit('puppy: error: init requires a type: pack, mod, or world')
@@ -117,13 +119,13 @@ def run(
             )
 
         resolved_version = version or config.get('version')
-        if action == 'push' and upload_file and not resolved_version:
+        if action == 'push' and 'file' in content and not resolved_version:
             raise SystemExit(
-                f'[{project.name}] push --file requires --version or version: in puppy.yaml'
+                f'[{project.name}] push -c file requires --version or version: in puppy.yaml'
             )
 
         if verbosity >= 1:
-            label = action + (' --file' if action == 'push' and upload_file else '')
+            label = action + (' -c file' if action == 'push' and 'file' in content else '')
             print(
                 f'[{project.name}] {label}'
                 + (f' v{resolved_version}' if resolved_version else '')
@@ -139,7 +141,7 @@ def run(
                 verbosity,
                 puppy_home,
                 site,
-                upload_file=upload_file,
+                upload_file=('file' in content),
                 print_url=single,
                 open_browser=open_browser and single,
             )
@@ -154,9 +156,8 @@ def run(
                 auth,
                 puppy_home,
                 site,
-                upload_file,
+                content,
                 force,
-                images,
                 verbosity,
                 all_labels=all_labels,
             )
@@ -307,7 +308,7 @@ def _collect_after_push(config: dict, site: str | None) -> list:
 
 
 def _dispatch(
-    action, project, config, version, auth, puppy_home, site, upload_file, force, images, verbosity,
+    action, project, config, version, auth, puppy_home, site, content, force, verbosity,
     all_labels=None,
 ):
     if action == 'create':
@@ -325,7 +326,7 @@ def _dispatch(
             config=config,
             auth=auth,
             site=site,
-            images=images,
+            images=('images' in content),
             verbosity=verbosity,
         )
     elif action == 'push':
@@ -335,9 +336,7 @@ def _dispatch(
             puppy_home=puppy_home,
             site=site,
             version=version,
-            upload_file=upload_file,
-            force=force,
-            images=images,
+            content=content,
             verbosity=verbosity,
             auth=auth,
             all_labels=all_labels,

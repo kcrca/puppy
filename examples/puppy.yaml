@@ -7,9 +7,14 @@
 name: Neon
 # pack: neon   # derived from name if omitted
 
-# Version published with 'puppy push --pack'.
+# Version published with 'puppy push -c file'.
 # Can be overridden on the CLI with --version.
 version: "1.0.0"
+
+# Whether 'push' skips uploads whose content is unchanged since the last push
+# (tracked in puppy/hashes.yaml). Default true. Set false to upload only the
+# categories named with -c (default 'data').
+# use_hashes: true
 
 # One-line description shown in site search results.
 summary: A vibrant, neon-lit resource pack that makes vanilla Minecraft glow.
