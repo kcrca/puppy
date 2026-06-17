@@ -9,7 +9,7 @@ from puppy.creator import (
     _resolve_asset,
     _validate_square,
 )
-from puppy.errors import AuthExpiredError
+from puppy.errors import AuthExpiredError, SiteError
 from puppy.parallel import run_sites_parallel
 from puppy.publisher import _resolve_zip, _sites_needing_upload
 from puppy.renderer import render
@@ -171,7 +171,7 @@ def run_push(
         tasks.append((MODRINTH.label, _mr_task))
     if PMC in visitor and pmc_id:
         tasks.append((PMC.label, _pmc_task))
-    run_sites_parallel(tasks, all_labels=all_labels)
+    run_sites_parallel(tasks, all_labels=all_labels, verbosity=verbosity)
 
     if verbosity >= 1:
         print(f'[{project.name}] push complete')
@@ -181,7 +181,10 @@ def _load_auth(puppy_dir: Path) -> dict:
     auth_path = puppy_dir / 'auth.yaml'
     if not auth_path.exists():
         return {}
-    return yaml.safe_load(auth_path.read_text()) or {}
+    try:
+        return yaml.safe_load(auth_path.read_text()) or {}
+    except yaml.YAMLError as e:
+        raise SystemExit(f'{auth_path}: {e}')
 
 
 def _run_cf(
@@ -215,6 +218,8 @@ def _run_cf(
         )
     except AuthExpiredError as e:
         raise SystemExit(f'CurseForge auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site cf')
+    except SiteError as e:
+        raise SystemExit(f'CurseForge error: {e}')
 
 
 def _upload_cf(
@@ -233,6 +238,8 @@ def _upload_cf(
         CURSEFORGE.post_upload(puppy_dir, version)
     except AuthExpiredError as e:
         raise SystemExit(f'CurseForge auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site cf')
+    except SiteError as e:
+        raise SystemExit(f'CurseForge error: {e}')
 
 
 def _run_mr(
@@ -267,6 +274,8 @@ def _run_mr(
         )
     except AuthExpiredError as e:
         raise SystemExit(f'Modrinth auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site modrinth')
+    except SiteError as e:
+        raise SystemExit(f'Modrinth error: {e}')
 
 
 def _upload_mr(
@@ -285,6 +294,8 @@ def _upload_mr(
         MODRINTH.post_upload(puppy_dir, version)
     except AuthExpiredError as e:
         raise SystemExit(f'Modrinth auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site modrinth')
+    except SiteError as e:
+        raise SystemExit(f'Modrinth error: {e}')
 
 
 def _run_pmc(
@@ -319,6 +330,8 @@ def _run_pmc(
         )
     except AuthExpiredError as e:
         raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site pmc')
+    except SiteError as e:
+        raise SystemExit(f'PlanetMinecraft error: {e}')
 
 
 def _upload_pmc(
@@ -337,5 +350,7 @@ def _upload_pmc(
         PMC.post_upload(puppy_dir, version)
     except AuthExpiredError as e:
         raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site pmc')
+    except SiteError as e:
+        raise SystemExit(f'PlanetMinecraft error: {e}')
 
 

@@ -404,7 +404,7 @@ def test_cf_create_non_bedrock_does_not_set_bedrock_flag():
     assert 'bedrock' not in result
 
 
-def test_cf_create_returns_id_when_slug_lookup_fails():
+def test_cf_create_exits_when_slug_lookup_fails():
     import urllib.error
     responses = [
         _make_response(b'https://cdn.cf.com/icon.png'),
@@ -413,12 +413,11 @@ def test_cf_create_returns_id_when_slug_lookup_fails():
     ]
     with patch('urllib.request.urlopen', side_effect=responses):
         with patch('time.sleep'):
-            result = CURSEFORGE.create(
-                config={'name': 'My Pack', 'summary': 'Cool'},
-                auth=_AUTH, icon_bytes=b'PNG',
-            )
-
-    assert result == {'id': 9999}
+            with pytest.raises(SystemExit, match='9999'):
+                CURSEFORGE.create(
+                    config={'name': 'My Pack', 'summary': 'Cool'},
+                    auth=_AUTH, icon_bytes=b'PNG',
+                )
 
 
 # ── bedrock pull ──────────────────────────────────────────────────────────────

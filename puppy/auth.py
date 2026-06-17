@@ -21,7 +21,10 @@ def _resolve_sites(site: str | None, puppy_home: Path | None = None) -> list[str
         if puppy_home:
             puppy_yaml = puppy_home / 'puppy.yaml'
             if puppy_yaml.exists():
-                config = yaml.safe_load(puppy_yaml.read_text()) or {}
+                try:
+                    config = yaml.safe_load(puppy_yaml.read_text()) or {}
+                except yaml.YAMLError as e:
+                    raise SystemExit(f'{puppy_yaml}: {e}')
                 declared = config.get('sites')
                 if declared:
                     result = []
@@ -121,7 +124,10 @@ def _check_missing_tokens(auth: dict, site_names: list[str]) -> None:
 def _load_auth(puppy_home: Path) -> dict:
     auth_file = puppy_home / 'auth.yaml'
     if auth_file.exists():
-        return yaml.safe_load(auth_file.read_text()) or {}
+        try:
+            return yaml.safe_load(auth_file.read_text()) or {}
+        except yaml.YAMLError as e:
+            raise SystemExit(f'{auth_file}: {e}')
     return {}
 
 

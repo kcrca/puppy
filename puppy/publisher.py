@@ -24,7 +24,10 @@ def _read_auth(puppy_dir: Path) -> dict:
     auth_path = puppy_dir / 'auth.yaml'
     if not auth_path.exists():
         return {}
-    return yaml.safe_load(auth_path.read_text()) or {}
+    try:
+        return yaml.safe_load(auth_path.read_text()) or {}
+    except yaml.YAMLError as e:
+        raise SystemExit(f'{auth_path}: {e}')
 
 
 def _sites_needing_upload(

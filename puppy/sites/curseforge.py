@@ -432,8 +432,9 @@ class CurseForgeSite(Site):
                     if verbosity >= 1:
                         print(f"Resolved CurseForge ID for slug '{slug}': {match['id']}")
                     return config
-            except Exception:
-                pass
+            except Exception as e:
+                if verbosity >= 1:
+                    print(f"  [CurseForge] authors API lookup failed (trying page scrape): {e}")
             # Try scraping the public project page
             project_type = config.get('type', 'pack')
             segments_to_try = [_CF_URL_SEGMENTS.get(project_type, 'texture-packs')]
@@ -752,8 +753,10 @@ class CurseForgeSite(Site):
                     segment = _CF_URL_SEGMENTS.get(project_type, 'texture-packs')
                 print(f'  [CurseForge] https://www.curseforge.com/minecraft/{segment}/{slug}')
         except Exception as e:
-            print(f'  [CurseForge] project created (id={project_id}) but slug lookup failed: {e}')
-            result = {'id': project_id}
+            raise SystemExit(
+                f'CurseForge project was created (id={project_id}) but slug lookup failed: {e}\n'
+                f'Add curseforge:\n  id: {project_id}\nto puppy.yaml manually.'
+            )
         return result
 
     def img_tag(self, url: str, name: str) -> str:

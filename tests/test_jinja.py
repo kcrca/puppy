@@ -3,8 +3,6 @@ import yaml
 import tempfile
 from pathlib import Path
 
-from jinja2 import UndefinedError
-
 from puppy.renderer import render
 from puppy.sites import MODRINTH
 
@@ -51,12 +49,12 @@ def test_config_string_direct_project_ref():
 
 
 def test_unknown_variable_raises():
-    with pytest.raises(UndefinedError):
+    with pytest.raises(SystemExit, match='no_such_var'):
         render('{{ no_such_var }}', {})
 
 
 def test_unknown_variable_in_config_string_raises():
-    with pytest.raises(UndefinedError):
+    with pytest.raises(SystemExit, match='no_such_var'):
         render('{{ x }}', {'x': '{{ no_such_var }}'})
 
 

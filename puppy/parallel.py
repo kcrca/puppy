@@ -1,5 +1,6 @@
 import sys
 import threading
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from puppy.errors import prefix_site_error
@@ -53,7 +54,7 @@ class _SiteCapture:
                     _orig_stdout.flush()
 
 
-def run_sites_parallel(tasks: list[tuple[str, callable]], all_labels: list[str] | None = None) -> None:
+def run_sites_parallel(tasks: list[tuple[str, callable]], all_labels: list[str] | None = None, verbosity: int = 0) -> None:
     if not tasks:
         return
     if len(tasks) == 1 and not all_labels:
@@ -70,8 +71,12 @@ def run_sites_parallel(tasks: list[tuple[str, callable]], all_labels: list[str] 
             fn()
         except SystemExit as e:
             errors.append(prefix_site_error(label, e))
+        except KeyboardInterrupt:
+            raise
         except BaseException as e:
-            errors.append(e)
+            if verbosity >= 1:
+                traceback.print_exc()
+            errors.append(SystemExit(f'{label}: unexpected error: {e}'))
         finally:
             captures[label]._flush_remaining()
             _tls.cap = None

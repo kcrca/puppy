@@ -52,7 +52,11 @@ def stage_image(src: Path, dest: Path) -> None:
 
 
 def prepare_icon(src: Path, verbosity: int = 0) -> bytes:
-    with Image.open(src) as img:
+    try:
+        img_obj = Image.open(src)
+    except Exception as e:
+        raise SystemExit(f'Failed to read icon {src}: {e}')
+    with img_obj as img:
         w, h = img.size
         if w != h:
             print(f'Warning: icon {src.name} is not square ({w}×{h}) — padding to 512×512')
@@ -72,7 +76,11 @@ def prepare_icon(src: Path, verbosity: int = 0) -> bytes:
 def prepare_gallery_image(src: Path, verbosity: int = 0) -> bytes:
     if verbosity >= 1:
         print(f'  {src.name} → {_GALLERY_SIZE[0]}×{_GALLERY_SIZE[1]} JPEG')
-    with Image.open(src) as img:
+    try:
+        img_obj = Image.open(src)
+    except Exception as e:
+        raise SystemExit(f'Failed to read image {src}: {e}')
+    with img_obj as img:
         out = img.convert('RGB')
         out.thumbnail(_GALLERY_SIZE, Image.LANCZOS)
     buf = BytesIO()
@@ -83,7 +91,11 @@ def prepare_gallery_image(src: Path, verbosity: int = 0) -> bytes:
 def prepare_logo(src: Path, verbosity: int = 0) -> bytes:
     if verbosity >= 1:
         print(f'  {src.name} → {_LOGO_SIZE[0]}×{_LOGO_SIZE[1]} PNG')
-    with Image.open(src) as img:
+    try:
+        img_obj = Image.open(src)
+    except Exception as e:
+        raise SystemExit(f'Failed to read image {src}: {e}')
+    with img_obj as img:
         out = img.convert('RGBA')
         out.thumbnail(_LOGO_SIZE, Image.LANCZOS)
     buf = BytesIO()

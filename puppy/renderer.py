@@ -150,7 +150,10 @@ def render(text: str, config: dict, source: str = '<description>', *, site=None,
         discovery = ContentDiscovery(ctx['puppy'], ctx['project'])
         ctx = _pre_populate_files(text, ctx, discovery)
         del ctx['_site']
-    ctx = _resolve_config_strings(ctx)
+    try:
+        ctx = _resolve_config_strings(ctx)
+    except UndefinedError as e:
+        raise SystemExit(f'{source}: {e}')
     image_map = _ImageMap(image_urls or {})
     ctx['images'] = image_map
     if site:
@@ -160,7 +163,10 @@ def render(text: str, config: dict, source: str = '<description>', *, site=None,
         ctx['img'] = lambda name: _img_fn(image_map.get(name), name) if image_map.get(name) else ''
     else:
         ctx['img'] = lambda name: image_map.get(name)
-    result = _env.from_string(text).render(ctx)
+    try:
+        result = _env.from_string(text).render(ctx)
+    except UndefinedError as e:
+        raise SystemExit(f'{source}: {e}')
     if site:
         open_map, close_map = site.shield_tags(tags)
         for tag, native in open_map.items():

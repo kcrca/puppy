@@ -34,7 +34,10 @@ def check_auth(puppy_home: Path, site: str = None) -> dict:
     if not gitignore.exists() or 'auth.yaml' not in gitignore.read_text().splitlines():
         raise SystemExit(f'auth.yaml must be listed in {gitignore} — refusing to run')
 
-    auth = yaml.safe_load(auth_file.read_text())
+    try:
+        auth = yaml.safe_load(auth_file.read_text())
+    except yaml.YAMLError as e:
+        raise SystemExit(f'{auth_file}: {e}')
     if not auth:
         raise SystemExit('auth.yaml is empty — add your site credentials')
     visitor = SiteVisitor(site)

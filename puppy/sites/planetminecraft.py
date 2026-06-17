@@ -115,7 +115,8 @@ def _pmc_fetch_description(project_id, cookie: str, project_type: str = 'pack') 
             text = page.eval_on_selector('textarea[name="description"]', 'el => el.value')
             browser.close()
             return text or None
-    except Exception:
+    except Exception as e:
+        print(f'  [PlanetMinecraft] description fetch failed: {e} — paste manually into description.bbcode')
         return None
 
 
@@ -214,7 +215,8 @@ def _pmc_resolve_tag(resource_id: int, cookie: str, csrf: str, tag: str, project
     ]
     try:
         result = _pmc_post(resource_id, cookie, csrf, fields, referrer=referrer, project_type=project_type)
-    except Exception:
+    except Exception as e:
+        print(f'  [PlanetMinecraft] tag resolution failed for {tag!r}: {e}')
         return None
     if result.get('status') != 'success':
         return None
@@ -809,9 +811,8 @@ class PlanetMinecraftSite(Site):
                     if not dest.exists():
                         try:
                             _pmc_download(url, dest, cookie)
-                        except Exception:
-                            if verbosity >= 1:
-                                print('    failed to download banner')
+                        except Exception as e:
+                            raise SystemExit(f'[PlanetMinecraft] failed to download banner: {e}')
                 continue
             if caption == 'Project Logo':
                 if images:
@@ -819,9 +820,8 @@ class PlanetMinecraftSite(Site):
                     if not dest.exists():
                         try:
                             _pmc_download(url, dest, cookie)
-                        except Exception:
-                            if verbosity >= 1:
-                                print('    failed to download logo')
+                        except Exception as e:
+                            raise SystemExit(f'[PlanetMinecraft] failed to download logo: {e}')
                 continue
             parts = caption.split(' - ', 1)
             description = parts[1] if len(parts) > 1 else ''
@@ -837,9 +837,8 @@ class PlanetMinecraftSite(Site):
                 dest = images_dir / f'{item["file"]}.png'
                 try:
                     _pmc_download(item['url'], dest, cookie)
-                except Exception:
-                    if verbosity >= 1:
-                        print(f'    failed to download: {item["file"]}')
+                except Exception as e:
+                    raise SystemExit(f'[PlanetMinecraft] failed to download {item["file"]}: {e}')
 
         image_entries = [{'file': item['file'], 'description': item['description']} for item in image_items]
 
@@ -850,7 +849,7 @@ class PlanetMinecraftSite(Site):
         if desc:
             desc_file.write_text(desc)
         elif verbosity >= 1:
-            print('  [PlanetMinecraft] description unavailable — paste manually into description.bbcode')
+            print('  [PlanetMinecraft] no description found on server — paste manually into description.bbcode')
 
         config_result: dict = {'images': image_entries}
         if name:

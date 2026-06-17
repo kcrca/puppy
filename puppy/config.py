@@ -22,8 +22,11 @@ def _deep_merge(base: dict, override: dict) -> dict:
 def _load_yaml(path: Path) -> dict:
     if not path.exists():
         return {}
-    with path.open() as f:
-        return yaml.safe_load(f) or {}
+    try:
+        with path.open() as f:
+            return yaml.safe_load(f) or {}
+    except yaml.YAMLError as e:
+        raise SystemExit(f'{path}: {e}')
 
 
 _PATH_KEYS = {'icon', 'file'}
