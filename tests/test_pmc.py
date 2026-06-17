@@ -14,7 +14,7 @@ import puppy.syncer as _syncer
 from puppy.core import Project
 from puppy.errors import AuthExpiredError
 from puppy.sites import PMC
-from puppy.puller import _run_pmc_pull as _run_pmc_pull_real
+from puppy.puller import _run_pull
 from puppy.syncer import run_push
 
 # Real dispatch wrapper, captured before conftest's offline fixtures stub it out.
@@ -732,12 +732,12 @@ def test_run_pull_when_pmc_creds_present(push_env, run_puppy):
 
     called = []
     import puppy.puller as puller_mod
-    orig = puller_mod._run_pmc_pull
-    puller_mod._run_pmc_pull = lambda *a, **k: called.append(True)
+    orig = puller_mod._run_pull
+    puller_mod._run_pull = lambda *a, **k: called.append(True)
     try:
         run_puppy('pull', '--site', 'pmc')
     finally:
-        puller_mod._run_pmc_pull = orig
+        puller_mod._run_pull = orig
 
     assert called
 
@@ -753,7 +753,7 @@ def test_run_pmc_pull_images_forced_when_no_image_info(tmp_path):
         return {'config': {}, 'planetminecraft': {'id': project_id}}
 
     with patch.object(PMC.__class__, 'pull', fake_pull):
-        _run_pmc_pull_real(project, config, _AUTH, None, False, 0)
+        _run_pull(PMC, project, config, _AUTH, None, False, 0)
 
     # No images.yaml exists → images forced True
     assert pull_calls[0] is True
@@ -771,7 +771,7 @@ def test_run_pmc_pull_images_skipped_when_info_exists(tmp_path):
         return {'config': {}, 'planetminecraft': {'id': project_id}}
 
     with patch.object(PMC.__class__, 'pull', fake_pull):
-        _run_pmc_pull_real(project, config, _AUTH, None, False, 0)
+        _run_pull(PMC, project, config, _AUTH, None, False, 0)
 
     assert pull_calls[0] is False
 
@@ -788,7 +788,7 @@ def test_run_pmc_pull_images_true_fetches_even_when_info_exists(tmp_path):
         return {'config': {}, 'planetminecraft': {'id': project_id}}
 
     with patch.object(PMC.__class__, 'pull', fake_pull):
-        _run_pmc_pull_real(project, config, _AUTH, None, True, 0)
+        _run_pull(PMC, project, config, _AUTH, None, True, 0)
 
     assert pull_calls[0] is True
 
@@ -799,7 +799,7 @@ def test_run_pmc_pull_auth_expired_raises_system_exit(tmp_path):
 
     with patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
         with pytest.raises(SystemExit, match='PlanetMinecraft auth expired'):
-            _run_pmc_pull_real(project, config, _AUTH, None, False, 0)
+            _run_pull(PMC, project, config, _AUTH, None, False, 0)
 
 
 # ── 8. PMC.submit_log ────────────────────────────────────────────────────────

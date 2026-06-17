@@ -35,12 +35,12 @@ def _no_mr_push(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _no_mr_pull(monkeypatch):
-    monkeypatch.setattr('puppy.puller._run_mr_pull', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.puller._run_pull', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
 def _no_cf_pull(monkeypatch):
-    monkeypatch.setattr('puppy.puller._run_cf_pull', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.puller._run_pull', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)
@@ -60,7 +60,7 @@ def _no_pmc_push(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _no_pmc_pull(monkeypatch):
-    monkeypatch.setattr('puppy.puller._run_pmc_pull', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.puller._run_pull', lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)

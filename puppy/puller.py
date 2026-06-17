@@ -28,12 +28,12 @@ def run_pull(
     puppy_dir = project.puppy_dir
     results = []
 
-    # MR first, then CF, then PMC (download-link / merge order).
-    for s, runner in ((MODRINTH, _run_mr_pull), (CURSEFORGE, _run_cf_pull), (PMC, _run_pmc_pull)):
+    # MR first, then CF, then PMC (merge order: richer API data fills first).
+    for s in (MODRINTH, CURSEFORGE, PMC):
         if s not in visitor or not s.ref(config):
             continue
         try:
-            r = runner(project, config, auth, site, images, verbosity)
+            r = _run_pull(s, project, config, auth, site, images, verbosity)
         except SystemExit as e:
             raise prefix_site_error(s.label, e) from None
         if r is not None:
@@ -46,7 +46,8 @@ def run_pull(
         print(f'[{project.name}] pull complete')
 
 
-def _run_mr_pull(
+def _run_pull(
+    s,
     project: Project,
     config: dict,
     auth: dict,
@@ -54,65 +55,13 @@ def _run_mr_pull(
     images: bool,
     verbosity: int,
 ) -> dict:
-    mr = config.get('modrinth', {})
-    project_id = mr.get('id') or mr.get('slug')
     puppy_dir = project.puppy_dir
     project_type = config.get('type', 'pack')
     do_images = images or not _has_image_info(puppy_dir, site, project_type)
 
     try:
-        return MODRINTH.pull(
-            project_id=project_id,
-            auth=auth,
-            puppy_dir=puppy_dir,
-            images=do_images,
-            verbosity=verbosity,
-        )
-    except AuthExpiredError as e:
-        raise SystemExit(f'Modrinth auth expired (HTTP {e.code}) — run: puppy auth --site modrinth')
-
-
-def _run_cf_pull(
-    project: Project,
-    config: dict,
-    auth: dict,
-    site: str | None,
-    images: bool,
-    verbosity: int,
-) -> dict:
-    cf_id = config.get('curseforge', {}).get('id')
-    puppy_dir = project.puppy_dir
-    project_type = config.get('type', 'pack')
-    do_images = images or not _has_image_info(puppy_dir, site, project_type)
-
-    try:
-        return CURSEFORGE.pull(
-            project_id=cf_id,
-            auth=auth,
-            puppy_dir=puppy_dir,
-            images=do_images,
-            verbosity=verbosity,
-        )
-    except AuthExpiredError as e:
-        raise SystemExit(f'CurseForge auth expired (HTTP {e.code}) — run: puppy auth --site cf')
-
-
-def _run_pmc_pull(
-    project: Project,
-    config: dict,
-    auth: dict,
-    site: str | None,
-    images: bool,
-    verbosity: int,
-) -> dict:
-    pmc_id = config.get('planetminecraft', {}).get('id')
-    puppy_dir = project.puppy_dir
-    project_type = config.get('type', 'pack')
-    do_images = images or not _has_image_info(puppy_dir, site, project_type)
-
-    try:
-        return PMC.pull(
-            project_id=pmc_id,
+        return s.pull(
+            project_id=s.ref(config),
             auth=auth,
             puppy_dir=puppy_dir,
             images=do_images,
@@ -120,7 +69,7 @@ def _run_pmc_pull(
             project_type=project_type,
         )
     except AuthExpiredError as e:
-        raise SystemExit(f'PlanetMinecraft auth expired (HTTP {e.code}) — run: puppy auth --site pmc')
+        raise SystemExit(f'{s.label} auth expired (HTTP {e.code}) — run: puppy auth --site {s.auth_arg}')
 
 
 def _merge_results(results: list[dict]) -> dict:

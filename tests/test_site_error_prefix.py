@@ -51,7 +51,7 @@ def test_pull_mr_error_gets_site_label(tmp_path):
     auth = {'modrinth': {'token': 'tok'}}
 
     with patch('puppy.puller._resolve_ids', return_value=config), \
-         patch('puppy.puller._run_mr_pull', side_effect=SystemExit('API error')):
+         patch('puppy.puller._run_pull', side_effect=SystemExit('API error')):
         with pytest.raises(SystemExit, match=r'\[Modrinth\] API error'):
             run_pull(project=_make_project(tmp_path), config=config, auth=auth,
                      site='modrinth', images=False, verbosity=0)
@@ -64,7 +64,7 @@ def test_pull_cf_error_gets_site_label(tmp_path):
     auth = {'curseforge': {'token': 'tok', 'cookie': 'c=1'}}
 
     with patch('puppy.puller._resolve_ids', return_value=config), \
-         patch('puppy.puller._run_cf_pull', side_effect=SystemExit('CF error')):
+         patch('puppy.puller._run_pull', side_effect=SystemExit('CF error')):
         with pytest.raises(SystemExit, match=r'\[CurseForge\] CF error'):
             run_pull(project=_make_project(tmp_path), config=config, auth=auth,
                      site='cf', images=False, verbosity=0)
@@ -77,7 +77,7 @@ def test_pull_pmc_error_gets_site_label(tmp_path):
     auth = {'planetminecraft': 'cookie=val'}
 
     with patch('puppy.puller._resolve_ids', return_value=config), \
-         patch('puppy.puller._run_pmc_pull', side_effect=SystemExit('PMC error')):
+         patch('puppy.puller._run_pull', side_effect=SystemExit('PMC error')):
         with pytest.raises(SystemExit, match=r'\[PlanetMinecraft\] PMC error'):
             run_pull(project=_make_project(tmp_path), config=config, auth=auth,
                      site='pmc', images=False, verbosity=0)

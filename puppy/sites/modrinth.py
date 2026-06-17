@@ -550,6 +550,7 @@ class ModrinthSite(Site):
         puppy_dir: Path,
         images: bool = True,
         verbosity: int = 0,
+        project_type: str = 'pack',
     ) -> dict:
         if verbosity >= 1:
             print('  [Modrinth] fetching project')

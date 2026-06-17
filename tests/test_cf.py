@@ -13,7 +13,7 @@ from puppy.errors import AuthExpiredError, SiteError
 from puppy.sites import CURSEFORGE
 from puppy.sites.curseforge import _CF_DASH, _CF_API
 from puppy.syncer import run_push
-from puppy.puller import _run_cf_pull as _run_cf_pull_real
+from puppy.puller import _run_pull
 
 # Real dispatch wrapper, captured before conftest's offline fixtures stub it out.
 _REAL_RUN_SITE = _syncer._run_site
@@ -728,7 +728,7 @@ def test_run_pull_when_cf_creds_present(tmp_path, monkeypatch):
     }))
 
     cf_calls = []
-    monkeypatch.setattr('puppy.puller._run_cf_pull', lambda *a, **k: cf_calls.append(a))
+    monkeypatch.setattr('puppy.puller._run_pull', lambda *a, **k: cf_calls.append(a))
     monkeypatch.chdir(project_dir)
 
     from puppy.config import ConfigSynthesizer
@@ -802,7 +802,8 @@ def test_run_cf_pull_images_forced_when_no_image_info(tmp_path):
     (tmp_path / 'puppy.yaml').write_text('name: T\npack: t\ncurseforge:\n  id: 99\n  slug: mypack\n')
     pull_calls = []
     with patch('puppy.puller.CURSEFORGE.pull', side_effect=lambda **kw: (pull_calls.append(kw), _cf_pull_result())[1]):
-        _run_cf_pull_real(
+        _run_pull(
+            CURSEFORGE,
             project=_cf_project(tmp_path),
             config={'curseforge': {'id': 99, 'slug': 'mypack'}},
             auth=_AUTH,
@@ -818,7 +819,8 @@ def test_run_cf_pull_images_skipped_when_info_exists(tmp_path):
     (tmp_path / 'images.yaml').write_text('[]\n')
     pull_calls = []
     with patch('puppy.puller.CURSEFORGE.pull', side_effect=lambda **kw: (pull_calls.append(kw), _cf_pull_result())[1]):
-        _run_cf_pull_real(
+        _run_pull(
+            CURSEFORGE,
             project=_cf_project(tmp_path),
             config={'curseforge': {'id': 99, 'slug': 'mypack'}},
             auth=_AUTH,
@@ -834,7 +836,8 @@ def test_run_cf_pull_images_true_fetches_even_when_info_exists(tmp_path):
     (tmp_path / 'images.yaml').write_text('[]\n')
     pull_calls = []
     with patch('puppy.puller.CURSEFORGE.pull', side_effect=lambda **kw: (pull_calls.append(kw), _cf_pull_result())[1]):
-        _run_cf_pull_real(
+        _run_pull(
+            CURSEFORGE,
             project=_cf_project(tmp_path),
             config={'curseforge': {'id': 99, 'slug': 'mypack'}},
             auth=_AUTH,
@@ -848,7 +851,8 @@ def test_run_cf_pull_images_true_fetches_even_when_info_exists(tmp_path):
 def test_run_cf_pull_auth_expired_raises_system_exit(tmp_path):
     with patch('puppy.puller.CURSEFORGE.pull', side_effect=AuthExpiredError(401, 'expired')):
         with pytest.raises(SystemExit, match='CurseForge auth expired'):
-            _run_cf_pull_real(
+            _run_pull(
+            CURSEFORGE,
                 project=_cf_project(tmp_path),
                 config={'curseforge': {'id': 99, 'slug': 'mypack'}},
                 auth=_AUTH,

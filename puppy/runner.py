@@ -13,7 +13,7 @@ from puppy.images import find_image
 from puppy.publisher import _resolve_zip
 from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
-from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor, _ALIASES
+from puppy.sites import SITES, SiteVisitor, _ALIASES
 from puppy.creator import run_create
 from puppy.syncer import run_push, apply_env_sides, add_image_name_aliases
 
@@ -97,13 +97,12 @@ def run(
     all_labels = None
     if action == 'push' and len(project_entries) > 1:
         visitor = SiteVisitor(site)
-        _site_order = [(CURSEFORGE, 'curseforge'), (MODRINTH, 'modrinth'), (PMC, 'planetminecraft')]
         seen: set[str] = set()
         for _, cfg, _ in project_entries:
-            for s, key in _site_order:
-                if s in visitor and cfg.get(key, {}).get('id'):
+            for s in SITES:
+                if s in visitor and s.assigned_id(cfg):
                     seen.add(s.label)
-        ordered = [s.label for s, _ in _site_order if s.label in seen]
+        ordered = [s.label for s in SITES if s.label in seen]
         if len(ordered) > 1:
             all_labels = ordered
 
