@@ -93,26 +93,31 @@ def test_sync_gallery_deletes_removed_and_uploads_new():
         {'filename': 'keep.jpg', 'data': b'IMGDATA', 'mime_type': 'image/jpeg'},
         {'filename': 'new-image.jpg', 'data': b'NEWDATA', 'mime_type': 'image/jpeg'},
     ]
+    uploaded = [
+        {'id': 2, 'title': 'keep.jpg'},
+        {'id': 50, 'title': 'new-image.jpg'},
+    ]
     responses = [
-        _make_response(existing),       # GET existing gallery
-        _make_response(None),           # DELETE old-image
-        _make_response({'id': 50}),     # POST upload new-image
-        _make_response(None),           # PUT metadata
+        _make_response(existing),   # GET existing gallery
+        _make_response(None),       # DELETE old-image
+        _make_response({'id': 50}), # POST upload new-image
+        _make_response(uploaded),   # GET uploaded for metadata
+        _make_response(None),       # PUT metadata keep.jpg
+        _make_response(None),       # PUT metadata new-image.jpg
     ]
 
     with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
         CURSEFORGE.sync_gallery(_PROJECT_ID, _AUTH, new_images)
 
     calls = mock_open.call_args_list
-    assert len(calls) == 4
+    assert len(calls) == 6
 
     get_req = calls[0][0][0]
-    assert 'image-attachments/image' in get_req.full_url
-    assert str(_PROJECT_ID) in get_req.full_url
+    assert f'image-attachments/{_PROJECT_ID}' in get_req.full_url
+    assert 'image-attachments/image' not in get_req.full_url
 
     delete_req = calls[1][0][0]
     assert delete_req.method == 'DELETE'
-    assert 'image-attachments' in delete_req.full_url
     assert '1/1' in delete_req.full_url
 
     post_req = calls[2][0][0]
@@ -120,20 +125,28 @@ def test_sync_gallery_deletes_removed_and_uploads_new():
     assert f'image-attachments/image/{_PROJECT_ID}' in post_req.full_url
     assert b'new-image.jpg' in post_req.data
 
-    put_req = calls[3][0][0]
+    get2_req = calls[3][0][0]
+    assert f'image-attachments/{_PROJECT_ID}' in get2_req.full_url
+
+    put_req = calls[4][0][0]
     assert put_req.method == 'PUT'
-    assert 'image-attachments/50' in put_req.full_url
+    assert f'image-attachments/{_PROJECT_ID}' in put_req.full_url
+    assert 'image-attachments/50' not in put_req.full_url
 
 
 def test_sync_gallery_no_changes_when_images_match():
     existing = [{'id': 1, 'title': 'keep.jpg'}]
     images = [{'filename': 'keep.jpg', 'data': b'DATA', 'mime_type': 'image/jpeg'}]
-    responses = [_make_response(existing)]
+    responses = [
+        _make_response(existing),   # GET existing gallery
+        _make_response(existing),   # GET uploaded for metadata
+        _make_response(None),       # PUT metadata
+    ]
 
     with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
         CURSEFORGE.sync_gallery(_PROJECT_ID, _AUTH, images)
 
-    assert mock_open.call_count == 1
+    assert mock_open.call_count == 3
 
 
 # ── 4. upload_file ───────────────────────────────────────────────────────────

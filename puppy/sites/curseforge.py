@@ -506,14 +506,7 @@ class CurseForgeSite(Site):
             'range': '[0,24]',
             'sort': '["id","DESC"]',
         })
-        try:
-            existing = _cf_get(f'{_CF_DASH}/image-attachments/image/{project_id}?{params}', h) or []
-        except SiteError as e:
-            if e.code == 404:
-                if verbosity >= 1:
-                    print('  [CurseForge] image gallery not available for this project state, skipping')
-                return
-            raise
+        existing = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []
         desired_filenames = {img['filename'] for img in images}
         existing_by_filename = {item['title']: item for item in existing}
 
@@ -523,25 +516,29 @@ class CurseForgeSite(Site):
 
         for img in images:
             if img['filename'] not in existing_by_filename:
-                try:
-                    result = _cf_post_multipart(
-                        f'{_CF_DASH}/image-attachments/image/{project_id}',
-                        h,
-                        fields={},
-                        files=[('image', img['filename'], img['data'], img['mime_type'])],
-                    )
-                except SiteError as e:
-                    if e.code == 404:
-                        if verbosity >= 1:
-                            print('  [CurseForge] image upload not available for this project state, skipping')
-                        return
-                    raise
-                if result and result.get('id'):
-                    _cf_put_json(
-                        f'{_CF_DASH}/image-attachments/{result["id"]}',
-                        h,
-                        {'title': img['filename'], 'description': img.get('description', '')},
-                    )
+                _cf_post_multipart(
+                    f'{_CF_DASH}/image-attachments/image/{project_id}',
+                    h,
+                    fields={'id': str(project_id)},
+                    files=[('files', img['filename'], img['data'], img['mime_type'])],
+                )
+
+        uploaded = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []
+        uploaded_by_filename = {item['title']: item for item in uploaded}
+        for img in images:
+            item = uploaded_by_filename.get(img['filename'])
+            if item and item.get('id'):
+                _cf_put_json(
+                    f'{_CF_DASH}/image-attachments/{project_id}',
+                    h,
+                    {
+                        'id': item['id'],
+                        'title': img.get('name', img['filename']),
+                        'description': img.get('description', ''),
+                        'isFeatured': img.get('featured', False),
+                        'type': 1,
+                    },
+                )
 
     def update_details(self, project_id, auth: dict, sc: dict, avatar_url: str = None) -> None:
         h = self._cookie_headers(auth)
@@ -784,12 +781,7 @@ class CurseForgeSite(Site):
         self.sync_gallery(project_id, auth, images, verbosity=verbosity)
         h = self._cookie_headers(auth)
         params = urllib.parse.urlencode({'filter': '{}', 'range': '[0,24]', 'sort': '["id","DESC"]'})
-        try:
-            gallery = _cf_get(f'{_CF_DASH}/image-attachments/image/{project_id}?{params}', h) or []
-        except SiteError as e:
-            if e.code == 404:
-                return {}
-            raise
+        gallery = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []
         return {
             Path(item['title']).stem: item.get('imageUrl', '')
             for item in gallery
