@@ -886,25 +886,6 @@ def test_upload_file_pmc_when_pmc_creds_present(push_pack_env, run_puppy, monkey
     assert called
 
 
-def test_upload_file_pmc_skips_when_already_current(push_pack_env, run_puppy, monkeypatch):
-    source = push_pack_env['project']
-    (source / 'puppy.yaml').write_text(
-        yaml.dump({
-            'name': 'NeonGlow', 'handle': 'neonglow', 'minecraft': '1.20',
-            'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
-        })
-    )
-    (push_pack_env['home'] / 'auth.yaml').write_text(yaml.dump({
-        'planetminecraft': {'cookie': 'pmc_autologin=test-cookie'},
-    }))
-    state = {'planetminecraft': {'version': '1.0.0'}}
-    (source / '.publish_state.yaml').write_text(yaml.dump(state))
-
-    called = []
-    monkeypatch.setattr('puppy.publisher.PMC.submit_log', lambda *a, **k: called.append(True))
-    run_puppy('push', '--file', '--version', '1.0.0', '--site', 'pmc')
-    assert not called
-
 
 def test_upload_file_pmc_auth_expired_raises_system_exit(push_pack_env, run_puppy, monkeypatch):
     source = push_pack_env['project']

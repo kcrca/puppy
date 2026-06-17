@@ -133,7 +133,7 @@ A timestamp-based slug is injected per run to keep projects unique and cleanable
 ### push --pack
 - Modrinth: version with `version_number: 1.0.0` present; `changelog` matches `puppy.yaml`; mod: `loaders` contains `fabric`
 - CurseForge: file with `displayName` containing `v1.0.0` in project files list
-- PMC: `.publish_state.yaml` records `planetminecraft.version == 1.0.0`
+- PMC: manage page contains `Update v1.0.0` log entry
 
 ---
 

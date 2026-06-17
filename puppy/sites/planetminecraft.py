@@ -7,7 +7,6 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-import yaml
 from bs4 import BeautifulSoup
 
 from puppy.errors import AuthExpiredError
@@ -365,20 +364,6 @@ class PlanetMinecraftSite(Site):
         if sc.get('credit'):
             rows.append(('Credit', str(sc['credit'])))
         return rows
-
-    def needs_upload(self, site_id, auth: dict, zip_path: Path, version: str, project) -> bool:
-        state_path = project.puppy_dir / '.publish_state.yaml'
-        if not state_path.exists():
-            return True
-        state = yaml.safe_load(state_path.read_text()) or {}
-        return state.get(self.name, {}).get('version') != str(version)
-
-    def post_upload(self, puppy_dir: Path, version: str) -> None:
-        state_path = puppy_dir / '.publish_state.yaml'
-        state = yaml.safe_load(state_path.read_text()) if state_path.exists() else {}
-        state = state or {}
-        state.setdefault(self.name, {})['version'] = str(version)
-        state_path.write_text(yaml.dump(state, default_flow_style=False))
 
     def apply_settings(self, settings: dict, sc: dict) -> None:
         pmc = settings.setdefault('planetminecraft', {})

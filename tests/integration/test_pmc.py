@@ -65,9 +65,8 @@ class TestPMCPackLifecycle(LifecycleBase):
         assert len(yaml.safe_load(images_yaml.read_text())) >= 1, 'images/images.yaml has no entries'
 
     def _assert_push_pack(self, ctx):
-        state = yaml.safe_load((ctx['project_dir'] / '.publish_state.yaml').read_text())
-        assert state.get('planetminecraft', {}).get('version') == '1.0.0', \
-            f'PMC version log not recorded: {state!r}'
+        html = _pmc_fetch(self.PMC_MANAGE_PATH, ctx)
+        assert 'Update v1.0.0' in html, 'PMC version log entry not found on manage page'
 
 
 class TestPMCWorldLifecycle(TestPMCPackLifecycle):
