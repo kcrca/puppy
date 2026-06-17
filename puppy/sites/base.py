@@ -13,9 +13,26 @@ class Site:
     label: str
     template_ext: str
     desc_exts: list[str]
-    auth_arg: str = ''      # value for `puppy auth --site X` in error hints
+    auth_arg: str = ''               # value for `puppy auth --site X` in error hints
+    required_auth_keys: set[str] | None = None   # auth.yaml keys checked for presence
+    project_types: set[str] = set()  # project types this site can publish
 
     _AUTH_URL: str = ''
+
+    def supports(self, project_type: str) -> bool:
+        return project_type in self.project_types
+
+    def assigned_id(self, config: dict):
+        """The site-assigned project id (present only once the project exists)."""
+        return config.get(self.name, {}).get('id')
+
+    def ref(self, config: dict):
+        """The id used to address an existing project for push/pull."""
+        return self.assigned_id(config)
+
+    def has_credentials(self, auth: dict) -> bool:
+        """Whether auth.yaml holds the credentials this site needs to act."""
+        return True
 
     def extract_cookies(self, ctx: BrowserContext) -> tuple[str | None, str | None]:
         """Pull this site's login cookie from a browser context.
@@ -116,6 +133,11 @@ class Site:
     def upload_artifact(self, project_id, auth: dict, zip_path: Path, version: str,
                         config: dict, puppy_dir: Path, verbosity: int) -> None:
         """Upload the version artifact to this site and record post-upload state."""
+        raise NotImplementedError
+
+    def create_project(self, *, config: dict, auth: dict, icon_bytes: bytes,
+                       image_list: list, images_dir: Path, verbosity: int) -> dict:
+        """Create the project on this site, taking only the inputs it needs."""
         raise NotImplementedError
 
     def url_for(self, site_config: dict) -> str | None:

@@ -18,7 +18,7 @@ from puppy.parallel import run_sites_parallel
 from puppy.publisher import _resolve_zip
 from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
-from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
+from puppy.sites import SITES, SiteVisitor
 
 
 def add_image_name_aliases(image_urls: dict, image_list: list) -> dict:
@@ -118,21 +118,7 @@ def run_push(
             if s not in visitor:
                 print(f'  [{s.label}] skipping — type "{project_type}" not supported')
 
-    cf_token = auth.get('curseforge', {}).get('token')
-    cf_id = config.get('curseforge', {}).get('id')
-    mr_token = auth.get('modrinth', {}).get('token', '')
-    mr = config.get('modrinth', {})
-    mr_id = mr.get('id') or mr.get('slug')
-    pmc_cookie = auth.get('planetminecraft', '')
-    pmc_id = config.get('planetminecraft', {}).get('id')
-
-    missing = []
-    if CURSEFORGE in visitor and cf_id and not cf_token:
-        missing.append(CURSEFORGE)
-    if MODRINTH in visitor and mr_id and not mr_token:
-        missing.append(MODRINTH)
-    if PMC in visitor and pmc_id and not pmc_cookie:
-        missing.append(PMC)
+    missing = [s for s in SITES if s in visitor and s.ref(config) and not s.has_credentials(auth)]
     if missing:
         raise SystemExit(f'Credentials missing for: {", ".join(s.label for s in missing)} — run: puppy auth')
 
@@ -146,7 +132,8 @@ def run_push(
 
     # Phase 1: images (icon + gallery) must happen before descriptions render,
     # because descriptions reference image CDN URLs.
-    for s, site_id in ((CURSEFORGE, cf_id), (MODRINTH, mr_id), (PMC, pmc_id)):
+    for s in SITES:
+        site_id = s.ref(config)
         if s not in visitor or not site_id:
             continue
         site_store = store.setdefault(s.name, {})
@@ -219,9 +206,9 @@ def run_push(
         return task
 
     tasks = [
-        (s.label, _make_task(s, site_id))
-        for s, site_id in ((CURSEFORGE, cf_id), (MODRINTH, mr_id), (PMC, pmc_id))
-        if s in visitor and site_id
+        (s.label, _make_task(s, s.ref(config)))
+        for s in SITES
+        if s in visitor and s.ref(config)
     ]
 
     try:

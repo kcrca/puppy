@@ -8,12 +8,6 @@ from puppy.sites import SiteVisitor
 
 REQUIRED_TOOLS = ['git']
 
-_AUTH_SHAPE = {
-    'curseforge': {'token', 'cookie'},
-    'modrinth': None,
-    'planetminecraft': None,
-}
-
 
 def check_preflight() -> None:
     missing = [t for t in REQUIRED_TOOLS if shutil.which(t) is None]
@@ -47,7 +41,7 @@ def check_auth(puppy_home: Path, site: str = None) -> dict:
             f'auth.yaml credentials unchanged for: {", ".join(unchanged)}'
         )
     for s in visitor:
-        required_keys = _AUTH_SHAPE.get(s.name)
+        required_keys = s.required_auth_keys
         if required_keys:
             entry = auth.get(s.name) or {}
             missing = required_keys - entry.keys()

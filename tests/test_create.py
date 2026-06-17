@@ -376,9 +376,9 @@ def test_run_create_calls_site_create_and_writes_ids(create_env, monkeypatch):
     project = Project.from_config(project_dir, config, dry_run=False)
     auth = yaml.safe_load((home / 'auth.yaml').read_text())
 
-    monkeypatch.setattr('puppy.creator.CURSEFORGE.create', lambda **k: {'id': 111, 'slug': 'mypack'})
-    monkeypatch.setattr('puppy.creator.MODRINTH.create', lambda **k: {'id': 'abc', 'slug': 'mypack'})
-    monkeypatch.setattr('puppy.creator.PMC.create', lambda **k: {'id': 42, 'slug': 'mypack'})
+    monkeypatch.setattr('puppy.sites.CURSEFORGE.create', lambda **k: {'id': 111, 'slug': 'mypack'})
+    monkeypatch.setattr('puppy.sites.MODRINTH.create', lambda **k: {'id': 'abc', 'slug': 'mypack'})
+    monkeypatch.setattr('puppy.sites.PMC.create', lambda **k: {'id': 42, 'slug': 'mypack'})
 
     run_create(
         project=project, config=config, puppy_home=home,
@@ -410,10 +410,10 @@ def test_run_create_skips_sites_with_existing_id(create_env, monkeypatch):
     auth = _yaml.safe_load((home / 'auth.yaml').read_text())
 
     mr_create_calls = []
-    monkeypatch.setattr('puppy.creator.MODRINTH.create',
+    monkeypatch.setattr('puppy.sites.MODRINTH.create',
                         lambda **k: mr_create_calls.append(k) or {'id': 'new', 'slug': 'x'})
-    monkeypatch.setattr('puppy.creator.CURSEFORGE.create', lambda **k: {'id': 222, 'slug': 'mypack'})
-    monkeypatch.setattr('puppy.creator.PMC.create', lambda **k: {'id': 43, 'slug': 'mypack'})
+    monkeypatch.setattr('puppy.sites.CURSEFORGE.create', lambda **k: {'id': 222, 'slug': 'mypack'})
+    monkeypatch.setattr('puppy.sites.PMC.create', lambda **k: {'id': 43, 'slug': 'mypack'})
 
     run_create(
         project=project, config=config, puppy_home=home,

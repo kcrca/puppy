@@ -307,9 +307,18 @@ class CurseForgeSite(Site):
     template_ext = '.html'
     desc_exts = ['.html', '.md']
     auth_arg = 'cf'
+    required_auth_keys = {'token', 'cookie'}
+    project_types = {'pack', 'mod', 'world'}
 
     _AUTH_URL = 'https://authors.curseforge.com'
     _REQUIRED_COOKIES = ('AuthorsUser', 'CobaltSession')
+
+    def has_credentials(self, auth: dict) -> bool:
+        cf = auth.get('curseforge', {})
+        return bool(cf.get('token') and cf.get('cookie'))
+
+    def create_project(self, *, config, auth, icon_bytes, image_list, images_dir, verbosity):
+        return self.create(config=config, auth=auth, icon_bytes=icon_bytes, verbosity=verbosity)
 
     def extract_cookies(self, ctx) -> tuple[str | None, str | None]:
         found = {c['name']: c['value'] for c in ctx.cookies([self._AUTH_URL])}

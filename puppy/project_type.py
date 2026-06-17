@@ -12,7 +12,6 @@ _ALL_NEUTRAL = _UNIVERSAL | _PACK | _MOD | _WORLD
 class ProjectInfo(NamedTuple):
     name: str
     valid_neutral_fields: frozenset[str]
-    supported_site_names: frozenset[str]
 
     def warn_inapplicable(self, config: dict) -> dict:
         offenders = sorted(f for f in _ALL_NEUTRAL - self.valid_neutral_fields if f in config)
@@ -25,9 +24,9 @@ class ProjectInfo(NamedTuple):
         return config
 
 
-PACK = ProjectInfo('pack', _UNIVERSAL | _PACK, frozenset({'curseforge', 'modrinth', 'planetminecraft'}))
-MOD = ProjectInfo('mod', _UNIVERSAL | _MOD, frozenset({'curseforge', 'modrinth'}))
-WORLD = ProjectInfo('world', _UNIVERSAL | _WORLD, frozenset({'curseforge', 'planetminecraft'}))
+PACK = ProjectInfo('pack', _UNIVERSAL | _PACK)
+MOD = ProjectInfo('mod', _UNIVERSAL | _MOD)
+WORLD = ProjectInfo('world', _UNIVERSAL | _WORLD)
 
 PROJECT_TYPES: dict[str, ProjectInfo] = {
     t.name: t for t in [PACK, MOD, WORLD]

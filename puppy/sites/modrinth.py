@@ -190,6 +190,17 @@ class ModrinthSite(Site):
     template_ext = '.md'
     desc_exts = ['.md']
     auth_arg = 'modrinth'
+    project_types = {'pack', 'mod'}
+
+    def ref(self, config: dict):
+        mr = config.get('modrinth', {})
+        return mr.get('id') or mr.get('slug')
+
+    def has_credentials(self, auth: dict) -> bool:
+        return bool(auth.get('modrinth', {}).get('token'))
+
+    def create_project(self, *, config, auth, icon_bytes, image_list, images_dir, verbosity):
+        return self.create(config=config, auth=auth, verbosity=verbosity)
 
     def missing_token_warning(self, auth: dict) -> str | None:
         return self._token_warning(auth)

@@ -26,7 +26,7 @@ def _puppy_yaml(name: str, handle: str, project_type: str) -> str:
     if pt is None:
         raise SystemExit(f'Unknown project type: {project_type!r}. Valid: pack, mod, world')
 
-    supported_sites = [s for s in SITES if s.name in pt.supported_site_names]
+    supported_sites = [s for s in SITES if s.supports(project_type)]
     site_entries = '\n'.join(s.puppy_yaml_entry(handle) for s in supported_sites)
 
     type_fields = ''

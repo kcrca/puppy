@@ -4,7 +4,7 @@ import yaml
 
 from puppy.core import Project
 from puppy.errors import AuthExpiredError, prefix_site_error
-from puppy.sites import CURSEFORGE, MODRINTH, PMC, SiteVisitor
+from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
 from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
 
 
@@ -21,47 +21,21 @@ def run_pull(
     config = _resolve_ids(config, auth, site, verbosity, project_type)
     visitor = SiteVisitor(site, project_type=project_type)
 
-    mr_token = auth.get('modrinth', {}).get('token', '')
-    mr = config.get('modrinth', {})
-    mr_id = mr.get('id') or mr.get('slug')
-    cf_token = auth.get('curseforge', {}).get('token')
-    cf_cookie = auth.get('curseforge', {}).get('cookie')
-    cf_id = config.get('curseforge', {}).get('id')
-    pmc_cookie = auth.get('planetminecraft', '')
-    pmc_id = config.get('planetminecraft', {}).get('id')
-
-    missing = []
-    if MODRINTH in visitor and mr_id and not mr_token:
-        missing.append(MODRINTH)
-    if CURSEFORGE in visitor and cf_id and not (cf_token and cf_cookie):
-        missing.append(CURSEFORGE)
-    if PMC in visitor and pmc_id and not pmc_cookie:
-        missing.append(PMC)
+    missing = [s for s in SITES if s in visitor and s.ref(config) and not s.has_credentials(auth)]
     if missing:
         raise SystemExit(f'Credentials missing for: {", ".join(s.label for s in missing)} — run: puppy auth')
 
     puppy_dir = project.puppy_dir
     results = []
 
-    if MODRINTH in visitor and mr_id:
+    # MR first, then CF, then PMC (download-link / merge order).
+    for s, runner in ((MODRINTH, _run_mr_pull), (CURSEFORGE, _run_cf_pull), (PMC, _run_pmc_pull)):
+        if s not in visitor or not s.ref(config):
+            continue
         try:
-            r = _run_mr_pull(project, config, auth, site, images, verbosity)
+            r = runner(project, config, auth, site, images, verbosity)
         except SystemExit as e:
-            raise prefix_site_error(MODRINTH.label, e) from None
-        if r is not None:
-            results.append(r)
-    if CURSEFORGE in visitor and cf_id:
-        try:
-            r = _run_cf_pull(project, config, auth, site, images, verbosity)
-        except SystemExit as e:
-            raise prefix_site_error(CURSEFORGE.label, e) from None
-        if r is not None:
-            results.append(r)
-    if PMC in visitor and pmc_id:
-        try:
-            r = _run_pmc_pull(project, config, auth, site, images, verbosity)
-        except SystemExit as e:
-            raise prefix_site_error(PMC.label, e) from None
+            raise prefix_site_error(s.label, e) from None
         if r is not None:
             results.append(r)
 

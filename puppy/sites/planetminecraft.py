@@ -308,8 +308,16 @@ class PlanetMinecraftSite(Site):
     template_ext = '.bbcode'
     desc_exts = ['.bbcode', '.md']
     auth_arg = 'pmc'
+    project_types = {'pack', 'world'}
 
     _AUTH_URL = 'https://www.planetminecraft.com'
+
+    def has_credentials(self, auth: dict) -> bool:
+        return bool(auth.get('planetminecraft'))
+
+    def create_project(self, *, config, auth, icon_bytes, image_list, images_dir, verbosity):
+        return self.create(config=config, auth=auth, image_list=image_list,
+                           images_dir=images_dir, verbosity=verbosity)
 
     def upload_artifact(self, project_id, auth: dict, zip_path: Path, version: str,
                         config: dict, puppy_dir: Path, verbosity: int) -> None:
