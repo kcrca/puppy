@@ -96,6 +96,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        '-A',
+        '--all',
+        action='store_true',
+        dest='all',
+        help='Equivalent to --file --images.',
+    )
+
+    parser.add_argument(
         '--no-open',
         action='store_false',
         dest='open_browser',
@@ -124,9 +132,9 @@ def main(argv: list[str] = None) -> None:
         verbosity=args.verbosity,
         site=args.site,
         version=args.version,
-        upload_file=args.upload_file,
+        upload_file=args.upload_file or args.all,
         handle_filter=args.handle_name or None,
         force=args.force,
-        images=args.images,
+        images=args.images or args.all,
         open_browser=args.open_browser,
     )

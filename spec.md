@@ -141,6 +141,8 @@ Puppy has the following actions:
   When images are downloaded on pull, files go to `images/` and metadata to `images/images.yaml`; any top-level `images.yaml` is removed.
   Icon is copied as `pack.png` only if no icon PNG is already present.
   CurseForge and Modrinth provide the icon; PMC does not.
+* **`-A/--all`:** Upload everything — equivalent to `-F -I` combined.
+  Any future upload-type options should also be activated by this flag.
 
 ### Arguments
 * **`project ...`** (positional): Limits action to one or more projects, matched by handle.

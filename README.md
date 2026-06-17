@@ -572,7 +572,7 @@ Some of them only apply to some commands, but others apply universally.
 The overall syntax is:
 
 ```
-puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-F] [-f] [-I] [--no-open] [{auth,push,create,pull,init}] [project ...]
+puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-F] [-f] [-I] [-A] [--no-open] [{auth,push,create,pull,init}] [project ...]
 ```
 
 ## Global Options
@@ -595,6 +595,7 @@ puppy [-h] [-n] [-v | -vv] [-d PATH] [-s SITE[,SITE]] [-V STRING] [-F] [-f] [-I]
     * `-I`, `--images`: Also push image gallery.
     * `-F`, `--file`: Also upload the artifact file as a new version.
       Upload is skipped per-site when that version is already current, but see `--force` below (Modrinth: SHA-512 hash; CurseForge: version string + file size; PMC: version string).
+    * `-A`, `--all`: Upload everything — equivalent to `-F -I`. Any future upload options will also be included.
     * `-f`, `--force`: With `--file`, bypasses the already-current check and uploads unconditionally.
     * `-V`, `--version VERSION`: Use this version, overriding other information.
     * `-n`, `--dry-run`: Create a pre-check HTML page, printing the URL and opening it.
