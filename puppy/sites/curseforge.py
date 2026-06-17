@@ -503,7 +503,7 @@ class CurseForgeSite(Site):
         })
         existing = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []
         desired_filenames = {img['filename'] for img in images}
-        existing_by_filename = {item['title']: item for item in existing}
+        existing_by_filename = {item['title']: item for item in existing if item.get('type') == 1}
 
         for title, item in existing_by_filename.items():
             if title not in desired_filenames:
@@ -770,6 +770,9 @@ class CurseForgeSite(Site):
                 'filename': src.stem + '.jpg',
                 'data': data,
                 'mime_type': 'image/jpeg',
+                'name': img_entry.get('name', ''),
+                'description': img_entry.get('description', ''),
+                'featured': img_entry.get('featured', False),
             })
         if verbosity >= 1:
             print(f'  [CurseForge] syncing gallery ({len(images)} images)')
@@ -827,6 +830,9 @@ class CurseForgeSite(Site):
                 'filename': src.stem + '.jpg',
                 'data': data,
                 'mime_type': 'image/jpeg',
+                'name': img_entry.get('name', ''),
+                'description': img_entry.get('description', ''),
+                'featured': img_entry.get('featured', False),
             })
         if images:
             if verbosity >= 1:
@@ -878,7 +884,7 @@ class CurseForgeSite(Site):
             'sort': '["id","DESC"]',
         })
         try:
-            gallery = _cf_get(f'{_CF_DASH}/image-attachments/image/{project_id}?{params}', h) or []
+            gallery = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []
         except SiteError as e:
             if e.code == 404:
                 gallery = []

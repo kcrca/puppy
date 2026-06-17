@@ -86,16 +86,16 @@ def test_upload_icon_sends_multipart_to_correct_endpoint():
 
 def test_sync_gallery_deletes_removed_and_uploads_new():
     existing = [
-        {'id': 1, 'title': 'old-image.jpg'},
-        {'id': 2, 'title': 'keep.jpg'},
+        {'id': 1, 'title': 'old-image.jpg', 'type': 1},
+        {'id': 2, 'title': 'keep.jpg', 'type': 1},
     ]
     new_images = [
         {'filename': 'keep.jpg', 'data': b'IMGDATA', 'mime_type': 'image/jpeg'},
         {'filename': 'new-image.jpg', 'data': b'NEWDATA', 'mime_type': 'image/jpeg'},
     ]
     uploaded = [
-        {'id': 2, 'title': 'keep.jpg'},
-        {'id': 50, 'title': 'new-image.jpg'},
+        {'id': 2, 'title': 'keep.jpg', 'type': 1},
+        {'id': 50, 'title': 'new-image.jpg', 'type': 1},
     ]
     responses = [
         _make_response(existing),   # GET existing gallery
@@ -135,7 +135,7 @@ def test_sync_gallery_deletes_removed_and_uploads_new():
 
 
 def test_sync_gallery_no_changes_when_images_match():
-    existing = [{'id': 1, 'title': 'keep.jpg'}]
+    existing = [{'id': 1, 'title': 'keep.jpg', 'type': 1}]
     images = [{'filename': 'keep.jpg', 'data': b'DATA', 'mime_type': 'image/jpeg'}]
     responses = [
         _make_response(existing),   # GET existing gallery
