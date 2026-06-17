@@ -1,6 +1,6 @@
 .DS_Store
 tests/integration/puppy/auth.yaml
-.claude/
+publicize/
 
 # vi
 .*.sw[op]
@@ -191,6 +191,10 @@ cython_debug/
 # Ignore directories containing user credentials, local state, and settings.
 # Learn more at https://abstra.io/docs
 .abstra/
+
+# Claude
+# Claude is an AI-powered code devlopment tool
+.claude/
 
 # Visual Studio Code
 #  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
