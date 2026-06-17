@@ -74,26 +74,14 @@ def _push_images(s, site_id, auth, image_list, images_dir, icon, img_fp,
     do_images = hashes.decide('images', img_fp, upload_set=content, use_hashes=use_hashes, prior=site_store)
     avatar = None
     if do_images:
-        if s is CURSEFORGE:
-            avatar = s.upload_icon(site_id, auth, prepare_icon(icon, verbosity=verbosity))
-        elif s is MODRINTH:
-            s.upload_icon(site_id, auth, prepare_icon(icon, verbosity=verbosity))
-        if image_list:
-            if s is PMC:
-                urls = s.upload_images(site_id, auth, image_list, images_dir, verbosity, project_type)
-            else:
-                urls = s.upload_images(site_id, auth, image_list, images_dir, verbosity)
-        else:
-            urls = {}
+        avatar = s.upload_icon(site_id, auth, prepare_icon(icon, verbosity=verbosity))
+        urls = s.upload_images(site_id, auth, image_list, images_dir, verbosity, project_type) if image_list else {}
         if use_hashes:
             site_store['images'] = img_fp
     else:
         if verbosity >= 1 and image_list:
             print(f'  [{s.label}] gallery unchanged, skipping')
-        if image_list:
-            urls = s.gallery_urls(site_id, auth, project_type) if s is PMC else s.gallery_urls(site_id, auth)
-        else:
-            urls = {}
+        urls = s.gallery_urls(site_id, auth, project_type) if image_list else {}
     return urls, avatar
 
 
@@ -153,7 +141,7 @@ def run_push(
     image_list = config.get('images', [])
     img_fp = _images_fingerprint(icon, image_list, images_dir)
 
-    cf_avatar = None
+    avatars: dict[str, str | None] = {}
     image_urls_by_site: dict[str, dict[str, str]] = {}
 
     # Phase 1: images (icon + gallery) must happen before descriptions render,
@@ -175,8 +163,7 @@ def run_push(
             if use_hashes:
                 hashes.save(puppy_dir, store)
             raise SystemExit(f'{s.label} error: {e}')
-        if s is CURSEFORGE and avatar is not None:
-            cf_avatar = avatar
+        avatars[s.name] = avatar
         if urls:
             image_urls_by_site[s.name] = add_image_name_aliases(urls, image_list)
 
@@ -211,21 +198,14 @@ def run_push(
             return forced
         if forced:
             return True
-        if s is MODRINTH:
-            server_hash = s.latest_file_sha(site_id, auth)
-            recorded = site_store.get('file')
-            if server_hash and recorded and server_hash != recorded:
-                print(f'  [Modrinth] file on site differs from last push — updating {hashes.HASH_FILE}')
-                site_store['file'] = server_hash
-            return server_hash != local_sha
-        return site_store.get('file') != local_sha
+        return s.file_changed(site_id, auth, local_sha, site_store, hashes.HASH_FILE)
 
     def _cf_task():
         site_store = store.setdefault('curseforge', {})
         desc = descriptions.get('curseforge', '')
         sc = {'name': config.get('name', ''), 'summary': config.get('summary', ''), **config.get('curseforge', {})}
         if hashes.decide('data', _data_fingerprint(desc, sc, config), upload_set=content, use_hashes=use_hashes, prior=site_store):
-            _run_cf(project, config, cf_avatar, desc, auth, verbosity)
+            _run_cf(project, config, avatars.get('curseforge'), desc, auth, verbosity)
             if use_hashes:
                 site_store['data'] = _data_fingerprint(desc, sc, config)
         elif verbosity >= 1:

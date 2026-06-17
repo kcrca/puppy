@@ -190,6 +190,9 @@ class ModrinthSite(Site):
     template_ext = '.md'
     desc_exts = ['.md']
 
+    def missing_token_warning(self, auth: dict) -> str | None:
+        return self._token_warning(auth)
+
     def apply_neutral(self, config: dict) -> None:
         resolution = config.get('resolution')
         if resolution is not None:
@@ -449,7 +452,8 @@ class ModrinthSite(Site):
     def img_tag(self, url: str, name: str) -> str:
         return f'<img src="{url}" width="600" alt="{name}"><br><br>'
 
-    def upload_images(self, project_id: str, auth: dict, image_list: list, images_dir: Path, verbosity: int) -> dict[str, str]:
+    def upload_images(self, project_id: str, auth: dict, image_list: list, images_dir: Path,
+                      verbosity: int, project_type: str = 'pack') -> dict[str, str]:
         if not image_list:
             return {}
         images = []
@@ -474,7 +478,7 @@ class ModrinthSite(Site):
             if item.get('title') and item.get('url')
         }
 
-    def gallery_urls(self, project_id: str, auth: dict) -> dict[str, str]:
+    def gallery_urls(self, project_id: str, auth: dict, project_type: str = 'pack') -> dict[str, str]:
         project = _mr_get(f'{_MR_API}/project/{project_id}', auth) or {}
         gallery = project.get('gallery') or []
         return {
@@ -490,6 +494,16 @@ class ModrinthSite(Site):
         files = versions[0].get('files', [])
         primary = next((f for f in files if f.get('primary')), files[0] if files else None)
         return primary.get('hashes', {}).get('sha512') if primary else None
+
+    def file_changed(self, project_id: str, auth: dict, local_sha: str, site_store: dict, hash_file: str) -> bool:
+        # Modrinth reports a real SHA-512, so compare against the server directly
+        # (correct even on a fresh checkout) and reconcile out-of-band site edits.
+        server_hash = self.latest_file_sha(project_id, auth)
+        recorded = site_store.get('file')
+        if server_hash and recorded and server_hash != recorded:
+            print(f'  [Modrinth] file on site differs from last push — updating {hash_file}')
+            site_store['file'] = server_hash
+        return server_hash != local_sha
 
     def push(
         self,

@@ -276,23 +276,16 @@ def _pmc_sync_gallery(
 
 
 def _pmc_wurl1(config: dict) -> tuple[str, str]:
+    from puppy.sites import SITE_MAP
+
     sc = config.get('planetminecraft', {})
     download = sc.get('download', '')
-    project_type = config.get('type', 'pack')
-    mr = config.get('modrinth', {})
-    cf = config.get('curseforge', {})
-    mr_slug = mr.get('slug') or mr.get('id')
-    cf_slug = cf.get('slug')
 
-    if download == 'curseforge':
-        if not cf_slug:
-            return '', ''
-        segment = 'worlds' if project_type == 'world' else 'texture-packs'
-        return f'https://www.curseforge.com/minecraft/{segment}/{cf_slug}', 'Download'
-    if download == 'modrinth':
-        if not mr_slug:
-            return '', ''
-        return f'https://modrinth.com/{"world" if project_type == "world" else "resourcepack"}/{mr_slug}', 'Download'
+    # 'curseforge'/'modrinth' are shorthands for that site's own project URL.
+    if download in SITE_MAP:
+        site_cfg = {**config.get(download, {}), 'type': config.get('type', 'pack')}
+        url = SITE_MAP[download].url_for(site_cfg)
+        return (url, 'Download') if url else ('', '')
     if download:
         return str(download), 'Download'
     alt = sc.get('alt_download', '')
@@ -314,6 +307,16 @@ class PlanetMinecraftSite(Site):
     label = 'PlanetMinecraft'
     template_ext = '.bbcode'
     desc_exts = ['.bbcode', '.md']
+
+    _AUTH_URL = 'https://www.planetminecraft.com'
+
+    def extract_cookies(self, ctx) -> tuple[str | None, str | None]:
+        found = ctx.cookies([self._AUTH_URL])
+        match = next((c for c in found if 'autologin' in c['name'].lower()), None)
+        if not match:
+            names = ', '.join(c['name'] for c in found) or 'none'
+            return None, self._login_error(f'cookies found: {names}')
+        return f"{match['name']}={match['value']}", None
 
     def convert_md(self, text: str) -> str:
         return md_to_bbcode(text)

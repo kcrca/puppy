@@ -307,6 +307,20 @@ class CurseForgeSite(Site):
     template_ext = '.html'
     desc_exts = ['.html', '.md']
 
+    _AUTH_URL = 'https://authors.curseforge.com'
+    _REQUIRED_COOKIES = ('AuthorsUser', 'CobaltSession')
+
+    def extract_cookies(self, ctx) -> tuple[str | None, str | None]:
+        found = {c['name']: c['value'] for c in ctx.cookies([self._AUTH_URL])}
+        missing = [n for n in self._REQUIRED_COOKIES if n not in found]
+        if missing:
+            names = ', '.join(found.keys()) or 'none'
+            return None, self._login_error(f'found: {names}, missing: {", ".join(missing)}')
+        return '; '.join(f'{n}={found[n]}' for n in self._REQUIRED_COOKIES), None
+
+    def missing_token_warning(self, auth: dict) -> str | None:
+        return self._token_warning(auth)
+
     def convert_md(self, text: str) -> str:
         return md_to_html(text)
 
@@ -746,7 +760,8 @@ class CurseForgeSite(Site):
     def img_tag(self, url: str, name: str) -> str:
         return f'<img src="{url}" width="600" alt="{name}"><br>'
 
-    def upload_images(self, project_id, auth: dict, image_list: list, images_dir: Path, verbosity: int) -> dict[str, str]:
+    def upload_images(self, project_id, auth: dict, image_list: list, images_dir: Path,
+                      verbosity: int, project_type: str = 'pack') -> dict[str, str]:
         if not image_list:
             return {}
         images = []
@@ -773,7 +788,7 @@ class CurseForgeSite(Site):
             if item.get('title') and item.get('imageUrl')
         }
 
-    def gallery_urls(self, project_id, auth: dict) -> dict[str, str]:
+    def gallery_urls(self, project_id, auth: dict, project_type: str = 'pack') -> dict[str, str]:
         h = self._cookie_headers(auth)
         params = urllib.parse.urlencode({'filter': '{}', 'range': '[0,24]', 'sort': '["id","DESC"]'})
         gallery = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []

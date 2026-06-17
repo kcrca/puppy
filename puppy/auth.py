@@ -6,14 +6,9 @@ import yaml
 from playwright.sync_api import sync_playwright
 
 from puppy.core import find_puppy_home
+from puppy.sites import SITE_MAP, Site, _ALIASES
 
-_CF_URL = 'https://authors.curseforge.com'
-_PMC_URL = 'https://www.planetminecraft.com'
-
-_COOKIE_SITES = {'curseforge', 'planetminecraft'}
-_TOKEN_SITES = {'curseforge', 'modrinth'}
-_ALL_SITES = {'curseforge', 'modrinth', 'planetminecraft'}
-_ALIASES = {'cf': 'curseforge', 'mr': 'modrinth', 'pmc': 'planetminecraft'}
+_ALL_SITES = set(SITE_MAP)
 
 
 def _resolve_sites(site: str | None, puppy_home: Path | None = None) -> list[str]:
@@ -83,42 +78,23 @@ def _open_context(p):
         raise SystemExit(f'Failed to open Firefox profile: {e}') from e
 
 
-_CF_REQUIRED_COOKIES = ('AuthorsUser', 'CobaltSession')
-
-
 def _extract_site_cookies(ctx, site_names: list[str]) -> tuple[dict[str, str], dict[str, str]]:
     """Returns (cookies, errors) — both keyed by site name."""
     cookies, errors = {}, {}
     for site in site_names:
-        if site == 'curseforge':
-            found = {c['name']: c['value'] for c in ctx.cookies([_CF_URL])}
-            missing = [n for n in _CF_REQUIRED_COOKIES if n not in found]
-            if missing:
-                names = ', '.join(found.keys()) or 'none'
-                errors[site] = (
-                    f'Not logged into {site} (found: {names}, missing: {", ".join(missing)}). '
-                    f'Log into {_CF_URL} in Firefox, quit Firefox, then re-run puppy auth.'
-                )
-            else:
-                cookies[site] = '; '.join(f'{n}={found[n]}' for n in _CF_REQUIRED_COOKIES)
-        elif site == 'planetminecraft':
-            found = ctx.cookies([_PMC_URL])
-            match = next((c for c in found if 'autologin' in c['name'].lower()), None)
-            if not match:
-                names = ', '.join(c['name'] for c in found) or 'none'
-                errors[site] = (
-                    f'Not logged into {site} (cookies found: {names}). '
-                    f'Log into {_PMC_URL} in Firefox, quit Firefox, then re-run puppy auth.'
-                )
-            else:
-                cookies[site] = f"{match['name']}={match['value']}"
+        cookie, error = SITE_MAP[site].extract_cookies(ctx)
+        if error:
+            errors[site] = error
+        elif cookie:
+            cookies[site] = cookie
     return cookies, errors
 
 
 def _check_missing_tokens(auth: dict, site_names: list[str]) -> None:
-    for site in _TOKEN_SITES:
-        if site in site_names and not auth.get(site, {}).get('token'):
-            print(f'{site} token not set — add to auth.yaml', flush=True)
+    for site in site_names:
+        warning = SITE_MAP[site].missing_token_warning(auth)
+        if warning:
+            print(warning, flush=True)
 
 
 def _load_auth(puppy_home: Path) -> dict:
@@ -156,7 +132,10 @@ def run_auth(site: str | None, directory: Path) -> None:
     site_names = _resolve_sites(site, puppy_home)
     auth = _load_auth(puppy_home)
 
-    cookie_sites = [s for s in site_names if s in _COOKIE_SITES]
+    cookie_sites = [
+        s for s in site_names
+        if type(SITE_MAP[s]).extract_cookies is not Site.extract_cookies
+    ]
     if cookie_sites:
         print('Extracting cookies from Firefox…', flush=True)
         with sync_playwright() as p:
