@@ -432,6 +432,11 @@ class CurseForgeSite(Site):
                     if verbosity >= 1:
                         print(f"Resolved CurseForge ID for slug '{slug}': {match['id']}")
                     return config
+            except AuthExpiredError:
+                raise SystemExit(
+                    f"Could not resolve CurseForge ID for slug '{slug}': "
+                    f"auth expired — run: puppy auth --site cf"
+                )
             except Exception as e:
                 if verbosity >= 1:
                     print(f"  [CurseForge] authors API lookup failed (trying page scrape): {e}")
@@ -465,10 +470,9 @@ class CurseForgeSite(Site):
                 except Exception as e:
                     raise SystemExit(f"Could not resolve CurseForge ID for slug '{slug}': {e}")
         raise SystemExit(
-            f"Could not resolve CurseForge ID for slug '{slug}': "
-            f"set curseforge.id manually in puppy.yaml "
-            f"(find it at https://authors.curseforge.com/projects/ — "
-            f"the numeric ID is in the URL when you open your project)"
+            f"Could not resolve CurseForge ID for slug '{slug}' — check the slug is correct. "
+            f"Or set curseforge.id manually in puppy.yaml: "
+            f"find it at https://authors.curseforge.com/projects/ (numeric ID in the URL when you open your project)."
         )
 
     def _cookie_headers(self, auth: dict) -> dict:

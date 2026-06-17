@@ -254,18 +254,34 @@ So you will see many fields populated there from the site.
 #### Setup for Existing Sites
 
 If you already have a project at an existing site, you can pull the data from it to start your settings.
-Provide the `id`, or just the `slug` — puppy resolves the numeric ID automatically before pulling.
-These are stored in the site-specific parts of `puppy.yaml`.
+For each site you want to connect, add either a `slug` or a numeric `id` to the site block in `puppy.yaml`.
+Puppy resolves the numeric ID automatically from the slug before pulling, so `slug` alone is usually enough.
+
+**CurseForge** — the slug is the last part of your project's public URL:
+`https://www.curseforge.com/minecraft/texture-packs/neon-is-glowing` → slug is `neon-is-glowing`.
+Puppy resolves the numeric ID by searching the authors API (authenticated), which works even for projects pending approval, then falls back to scraping the public project page.
+If your auth cookie is expired, puppy will say so — run `puppy auth --site cf` to fix it.
+If resolution still fails, the slug is probably wrong — or set `curseforge.id` manually.
+Find the numeric ID at [authors.curseforge.com/projects](https://authors.curseforge.com/projects) — it appears in the URL when you open your project there.
+
+**Modrinth** — the slug is in the project URL:
+`https://modrinth.com/resourcepack/neon-is-glowing` → slug is `neon-is-glowing`.
+
+**Planet Minecraft** — the slug is the full URL slug including the trailing numeric ID:
+`https://www.planetminecraft.com/texture-pack/neon-is-glowing-6911690` → slug is `neon-is-glowing-6911690`.
+Puppy extracts the numeric ID from the suffix automatically.
+You can also set `id: 6911690` directly if you prefer.
 
 ```yaml
 curseforge:
-  slug: neon-is-glowing   # id resolved automatically from slug
+  slug: neon-is-glowing        # numeric id resolved automatically via auth cookie
 
 modrinth:
-  slug: neon-is-glowing   # id resolved automatically from slug
+  slug: neon-is-glowing        # numeric id resolved automatically via API
 
 planetminecraft:
   slug: neon-is-glowing-6911690   # numeric id extracted from slug suffix
+  # or: id: 6911690
 ```
 
 (Any site you don't give info for will be skipped.)
