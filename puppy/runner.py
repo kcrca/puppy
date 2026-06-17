@@ -9,12 +9,13 @@ from puppy.core import Project, find_puppy_home
 from puppy.puller import run_pull
 from puppy.init import run_init
 from puppy.preview import generate as generate_preview
+from puppy.images import find_image
 from puppy.publisher import _resolve_zip
 from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
 from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor, _ALIASES
 from puppy.creator import run_create
-from puppy.syncer import run_push, apply_env_sides
+from puppy.syncer import run_push, apply_env_sides, add_image_name_aliases
 
 
 def _resolve_projects(puppy_home: Path) -> list[Path]:
@@ -242,6 +243,18 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, uplo
                 if s not in sites:
                     print(f'  [{s.label}] skipping — type "{project_type}" not supported')
         source_exts: dict[str, str] = {}
+        image_urls: dict[str, str] = {}
+        if config.get('images'):
+            images_source = config.get('images_source')
+            images_dir = Path(images_source) if images_source else (project.puppy_dir / 'images')
+            raw_urls: dict[str, str] = {}
+            for entry in config['images']:
+                try:
+                    p = find_image(entry['file'], images_dir)
+                    raw_urls[p.stem] = p.as_uri()
+                except SystemExit:
+                    pass
+            image_urls = add_image_name_aliases(raw_urls, config['images'])
         for s in sites:
             body, source_path = discovery.find_description(site=s)
             if body:
@@ -251,7 +264,8 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, uplo
                 site_config.setdefault('name', project.name)
                 site_config.setdefault('handle', project.handle)
                 site_config['projects'] = config['projects']
-                rendered = render(body, site_config, source=str(source_path), site=s)
+                rendered = render(body, site_config, source=str(source_path), site=s,
+                                  image_urls=image_urls)
                 staged_ext = source_path.suffix if source_path else s.template_ext
                 if source_path and source_path.suffix == '.md':
                     md_out = debug_dir / s.name / 'description.md'

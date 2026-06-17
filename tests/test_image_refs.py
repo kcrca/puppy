@@ -40,7 +40,19 @@ def test_img_mr():
 
 def test_img_pmc():
     result = render("{{ img('banner') }}", {}, site=PMC, image_urls=URLS)
-    assert result == '[img width=600]https://cdn.example.com/banner.jpg[/img]'
+    assert result == '[img]https://cdn.example.com/banner.jpg[/img]'
+
+
+def test_img_pmc_md_source():
+    result = render("{{ img('banner') }}", {}, source='desc.md', site=PMC, image_urls=URLS)
+    assert result == '![banner](https://cdn.example.com/banner.jpg)'
+
+
+def test_img_pmc_md_source_roundtrip():
+    from puppy.renderer import md_to_bbcode
+    rendered = render("{{ img('banner') }}", {}, source='desc.md', site=PMC, image_urls=URLS)
+    bbcode = md_to_bbcode(rendered)
+    assert '[img=banner]https://cdn.example.com/banner.jpg[/img]' in bbcode
 
 
 def test_img_missing_key_returns_empty():
@@ -65,7 +77,7 @@ def test_img_tag_mr_directly():
 
 def test_img_tag_pmc_directly():
     tag = PMC.img_tag('https://cdn.example.com/img.jpg', 'photo')
-    assert tag == '[img width=600]https://cdn.example.com/img.jpg[/img]'
+    assert tag == '[img]https://cdn.example.com/img.jpg[/img]'
 
 
 def test_images_coexist_with_other_vars():

@@ -196,7 +196,8 @@ def _pmc_post(project_id, cookie: str, csrf: str, fields: list[tuple], files: li
     )
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
-            return json.loads(r.read())
+            data = r.read()
+            return json.loads(data) if data else {}
     except urllib.error.HTTPError as e:
         if e.code in (401, 403):
             raise AuthExpiredError(e.code, e.read().decode(errors='replace'))
@@ -577,7 +578,10 @@ class PlanetMinecraftSite(Site):
         return result
 
     def img_tag(self, url: str, name: str) -> str:
-        return f'[img width=600]{url}[/img]'
+        return f'[img]{url}[/img]'
+
+    def img_tag_md(self, url: str, name: str) -> str:
+        return f'![{name}]({url})'
 
     def upload_images(
         self,

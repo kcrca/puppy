@@ -16,6 +16,18 @@ from puppy.renderer import render
 from puppy.searcher import ContentDiscovery
 from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
 
+def add_image_name_aliases(image_urls: dict, image_list: list) -> dict:
+    result = dict(image_urls)
+    for entry in image_list:
+        name = entry.get('name', '')
+        file_stem = Path(entry.get('file', '')).stem
+        if name and file_stem in result:
+            for alias in (name, name.lower()):
+                if alias and alias not in result:
+                    result[alias] = result[file_stem]
+    return result
+
+
 def apply_env_sides(config: dict) -> dict:
     from puppy.project_type import PROJECT_TYPES, PACK
     pt = PROJECT_TYPES.get(config.get('type', 'pack'), PACK)
@@ -68,16 +80,19 @@ def run_push(
     image_urls_by_site: dict[str, dict[str, str]] = {}
     if image_list:
         if CURSEFORGE in visitor and cf_id:
-            image_urls_by_site['curseforge'] = CURSEFORGE.upload_images(
-                cf_id, auth, image_list, images_dir, verbosity
+            image_urls_by_site['curseforge'] = add_image_name_aliases(
+                CURSEFORGE.upload_images(cf_id, auth, image_list, images_dir, verbosity),
+                image_list,
             )
         if MODRINTH in visitor and mr_id:
-            image_urls_by_site['modrinth'] = MODRINTH.upload_images(
-                mr_id, auth, image_list, images_dir, verbosity
+            image_urls_by_site['modrinth'] = add_image_name_aliases(
+                MODRINTH.upload_images(mr_id, auth, image_list, images_dir, verbosity),
+                image_list,
             )
         if PMC in visitor and pmc_id:
-            image_urls_by_site['planetminecraft'] = PMC.upload_images(
-                pmc_id, auth, image_list, images_dir, verbosity, project_type
+            image_urls_by_site['planetminecraft'] = add_image_name_aliases(
+                PMC.upload_images(pmc_id, auth, image_list, images_dir, verbosity, project_type),
+                image_list,
             )
 
     discovery = ContentDiscovery(puppy_home, project.root)

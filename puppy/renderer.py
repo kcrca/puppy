@@ -155,7 +155,9 @@ def render(text: str, config: dict, source: str = '<description>', *, site=None,
     ctx['images'] = image_map
     if site:
         _site = site
-        ctx['img'] = lambda name: _site.img_tag(image_map.get(name), name) if image_map.get(name) else ''
+        _is_md = source.endswith('.md')
+        _img_fn = _site.img_tag_md if _is_md else _site.img_tag
+        ctx['img'] = lambda name: _img_fn(image_map.get(name), name) if image_map.get(name) else ''
     else:
         ctx['img'] = lambda name: image_map.get(name)
     result = _env.from_string(text).render(ctx)

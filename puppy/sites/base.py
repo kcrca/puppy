@@ -55,6 +55,9 @@ class Site:
     def img_tag(self, url: str, name: str) -> str:
         return f'<img src="{url}" alt="{name}">'
 
+    def img_tag_md(self, url: str, name: str) -> str:
+        return self.img_tag(url, name)
+
     def upload_images(
         self,
         project_id,

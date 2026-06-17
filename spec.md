@@ -263,7 +263,7 @@ Two helpers are injected into the template context:
 
 * **`img(name)`** — emits site-appropriate markup for the named image:
   * CurseForge / Modrinth: `<img src="…" width="600" alt="…"><br>`
-  * Planet Minecraft: `[img width=600]…[/img]`
+  * Planet Minecraft: `[img=name]…[/img]` (`.md` source); `[img]…[/img]` (`.bbcode` source)
   Returns `''` if the name is not in the uploaded set.
 
 Example (description.md):
