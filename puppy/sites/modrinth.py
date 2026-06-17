@@ -237,16 +237,7 @@ class ModrinthSite(Site):
 
     def needs_upload(self, site_id, auth: dict, zip_path: Path, version: str, project) -> bool:
         local_hash = hashlib.sha512(zip_path.read_bytes()).hexdigest()
-        headers = {'User-Agent': 'puppy/1.0'}
-        token = auth.get('modrinth', {}).get('token', '')
-        if token:
-            headers['Authorization'] = token
-        req = urllib.request.Request(
-            f'https://api.modrinth.com/v2/project/{site_id}/version',
-            headers=headers,
-        )
-        with urllib.request.urlopen(req, timeout=30) as r:
-            versions = json.loads(r.read())
+        versions = _mr_get(f'https://api.modrinth.com/v2/project/{site_id}/version', auth) or []
         for v in versions:
             for f in v.get('files', []):
                 if f.get('hashes', {}).get('sha512') == local_hash:

@@ -361,15 +361,10 @@ class CurseForgeSite(Site):
             'range': '[0, 0]',
             'sort': '["DateCreated", "DESC"]',
         })
-        req = urllib.request.Request(
+        files = _cf_get(
             f'https://authors.curseforge.com/_api/project-files?{params}',
-            headers=_cf_headers({
-                'Cookie': cf_auth.get('cookie', ''),
-                'Content-Type': 'application/json',
-            }),
-        )
-        with urllib.request.urlopen(req, timeout=30) as r:
-            files = json.loads(r.read())
+            {'Cookie': cf_auth.get('cookie', '')},
+        ) or []
         if not files:
             return True
         latest = files[0]
