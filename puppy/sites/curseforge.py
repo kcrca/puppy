@@ -728,36 +728,40 @@ class CurseForgeSite(Site):
             print(f'  [CurseForge] project created (id={project_id}), waiting for slug...')
         time.sleep(5)
 
-        project_data = _cf_get(f'{_CF_DASH}/projects/{project_id}', h) or {}
-        if not isinstance(project_data, dict):
-            project_data = {}
-        slug = project_data.get('slug', '')
+        try:
+            project_data = _cf_get(f'{_CF_DASH}/projects/{project_id}', h) or {}
+            if not isinstance(project_data, dict):
+                project_data = {}
+            slug = project_data.get('slug', '')
 
-        result = {'id': project_id, 'slug': slug}
-        if bedrock:
-            result['bedrock'] = True
-        if project_data.get('primaryCategoryId') is not None:
-            result['category'] = project_data['primaryCategoryId']
-        license_id_inv = {v: k for k, v in _CF_LICENSE_IDS.items()}
-        harvested_license = license_id_inv.get(project_data.get('licenseId'))
-        if harvested_license:
-            result['license'] = harvested_license
-
-        social_inv = {v: k for k, v in _CF_SOCIAL_TYPES.items()}
-        socials = {
-            social_inv[link['type']]: link['url']
-            for link in (project_data.get('links') or [])
-            if link.get('type') in social_inv and link.get('url')
-        }
-        if socials:
-            result['socials'] = socials
-
-        if verbosity >= 1:
+            result = {'id': project_id, 'slug': slug}
             if bedrock:
-                segment = _CF_BEDROCK_URL_SEGMENTS.get(project_type, 'mc-addons')
-            else:
-                segment = _CF_URL_SEGMENTS.get(project_type, 'texture-packs')
-            print(f'  [CurseForge] https://www.curseforge.com/minecraft/{segment}/{slug}')
+                result['bedrock'] = True
+            if project_data.get('primaryCategoryId') is not None:
+                result['category'] = project_data['primaryCategoryId']
+            license_id_inv = {v: k for k, v in _CF_LICENSE_IDS.items()}
+            harvested_license = license_id_inv.get(project_data.get('licenseId'))
+            if harvested_license:
+                result['license'] = harvested_license
+
+            social_inv = {v: k for k, v in _CF_SOCIAL_TYPES.items()}
+            socials = {
+                social_inv[link['type']]: link['url']
+                for link in (project_data.get('links') or [])
+                if link.get('type') in social_inv and link.get('url')
+            }
+            if socials:
+                result['socials'] = socials
+
+            if verbosity >= 1:
+                if bedrock:
+                    segment = _CF_BEDROCK_URL_SEGMENTS.get(project_type, 'mc-addons')
+                else:
+                    segment = _CF_URL_SEGMENTS.get(project_type, 'texture-packs')
+                print(f'  [CurseForge] https://www.curseforge.com/minecraft/{segment}/{slug}')
+        except Exception as e:
+            print(f'  [CurseForge] project created (id={project_id}) but slug lookup failed: {e}')
+            result = {'id': project_id}
         return result
 
     def img_tag(self, url: str, name: str) -> str:
