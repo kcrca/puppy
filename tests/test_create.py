@@ -8,16 +8,15 @@ import pytest
 import yaml
 from PIL import Image
 
-import puppy.sites.modrinth as _mr_mod
 from puppy.errors import AuthExpiredError
 from puppy.sites import CURSEFORGE, MODRINTH, PMC
 from puppy.sites.curseforge import _DASH
-from puppy.sites.modrinth import _MR_API
+from puppy.sites.modrinth import _API
 
 
 @pytest.fixture(autouse=True)
 def _mr_category_cache(monkeypatch):
-    monkeypatch.setattr(_mr_mod, '_mr_category_header_cache', {
+    monkeypatch.setattr(MODRINTH, '_category_cache', {
         'realistic': 'categories',
         'simplistic': 'categories',
         'vanilla-like': 'categories',
@@ -77,7 +76,7 @@ def test_mr_create_posts_to_project_endpoint():
         MODRINTH.create(config=config, auth=_MR_AUTH)
 
     post_req = mock_open.call_args_list[1][0][0]
-    assert post_req.full_url == f'{_MR_API}/project'
+    assert post_req.full_url == f'{_API}/project'
     assert post_req.method == 'POST'
     assert b'mypack' in post_req.data
     assert b'My Pack' in post_req.data

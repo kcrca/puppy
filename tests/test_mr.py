@@ -9,7 +9,7 @@ from PIL import Image
 import puppy.syncer as _syncer
 from puppy.errors import AuthExpiredError, SiteError
 from puppy.sites import MODRINTH
-from puppy.sites.modrinth import _MR_API
+from puppy.sites.modrinth import _API
 import puppy.puller as _puller
 from puppy.sites import CURSEFORGE, PMC
 from puppy.syncer import run_push
@@ -54,7 +54,7 @@ def test_upload_icon_sends_patch_to_correct_endpoint():
         MODRINTH.upload_icon(_PROJECT_ID, _AUTH, icon_bytes)
 
     req = mock_open.call_args[0][0]
-    assert req.full_url == f'{_MR_API}/project/{_PROJECT_ID}/icon?ext=png'
+    assert req.full_url == f'{_API}/project/{_PROJECT_ID}/icon?ext=png'
     assert req.method == 'PATCH'
     assert req.get_header('Content-type') == 'image/png'
     assert req.get_header('Authorization') == 'test-token'
@@ -130,7 +130,7 @@ def test_update_project_sends_correct_json_fields():
         MODRINTH.update_project(_PROJECT_ID, _AUTH, sc, '<description>', config)
 
     req = mock_open.call_args[0][0]
-    assert req.full_url == f'{_MR_API}/project/{_PROJECT_ID}'
+    assert req.full_url == f'{_API}/project/{_PROJECT_ID}'
     assert req.method == 'PATCH'
     assert req.get_header('Content-type') == 'application/json'
 
@@ -309,7 +309,7 @@ def test_upload_version_sends_multipart_with_correct_fields(tmp_path):
         real_upload(MODRINTH, 'abc123', _AUTH, zip_path, '1.0', config)
 
     req = mock_open.call_args[0][0]
-    assert req.full_url == f'{_MR_API}/version'
+    assert req.full_url == f'{_API}/version'
     assert req.method == 'POST'
     assert 'multipart/form-data' in req.get_header('Content-type')
     assert b'application/zip' in req.data

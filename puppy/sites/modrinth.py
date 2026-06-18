@@ -13,165 +13,20 @@ from puppy.images import find_image, prepare_gallery_image
 from puppy.sites.base import Site
 
 
-_MR_API = 'https://api.modrinth.com/v2'
-_MR_UA = 'puppy/1.0'
+_API = 'https://api.modrinth.com/v2'
+_UA = 'puppy/1.0'
 
-_MR_TYPE_MAP = {
+_TYPE_MAP = {
     'pack': 'resourcepack',
     'mod': 'mod',
     'world': 'world',
 }
 
-_MR_RESOLUTION_TIERS = frozenset({'8x-', '16x', '32x', '48x', '64x', '128x', '256x', '512x+'})
-
-
-def _mr_headers(auth: dict, extra: dict = None) -> dict:
-    h = {'User-Agent': _MR_UA}
-    token = auth.get('modrinth', {}).get('token', '')
-    if token:
-        h['Authorization'] = token
-    if extra:
-        h.update(extra)
-    return h
-
-
-def _mr_send(req: urllib.request.Request) -> Any:
-    try:
-        body = urlopen_retrying(req, timeout=30)
-    except urllib.error.HTTPError as e:
-        body = e.read().decode(errors='replace')
-        if e.code == 401:
-            raise AuthExpiredError(e.code, body)
-        raise SiteError(e.code, body)
-    if not body:
-        return None
-    try:
-        return json.loads(body)
-    except (json.JSONDecodeError, ValueError):
-        return body.decode()
-
-
-def _mr_get(url: str, auth: dict) -> Any:
-    return _mr_send(urllib.request.Request(url, headers=_mr_headers(auth)))
-
-
-def _mr_patch_json(url: str, auth: dict, body: dict) -> Any:
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(
-        url, data=data,
-        headers=_mr_headers(auth, {'Content-Type': 'application/json'}),
-        method='PATCH',
-    )
-    return _mr_send(req)
-
-
-def _mr_patch_raw(url: str, auth: dict, data: bytes, mime: str) -> Any:
-    req = urllib.request.Request(
-        url, data=data,
-        headers=_mr_headers(auth, {'Content-Type': mime}),
-        method='PATCH',
-    )
-    return _mr_send(req)
-
-
-def _mr_post_raw(url: str, auth: dict, data: bytes, mime: str) -> Any:
-    req = urllib.request.Request(
-        url, data=data,
-        headers=_mr_headers(auth, {'Content-Type': mime}),
-        method='POST',
-    )
-    return _mr_send(req)
-
-
-def _mr_delete(url: str, auth: dict) -> None:
-    _mr_send(urllib.request.Request(url, headers=_mr_headers(auth), method='DELETE'))
-
-
-def _mr_post_multipart(url: str, auth: dict, fields: dict, files: list) -> Any:
-    boundary = b'----PuppyMRBoundary'
-    parts = []
-    for name, value in fields.items():
-        parts.append(
-            f'--{boundary.decode()}\r\nContent-Disposition: form-data; name="{name}"\r\nContent-Type: application/json\r\n\r\n{value}\r\n'.encode()
-        )
-    for field_name, filename, data, mime_type in files:
-        parts.append(
-            f'--{boundary.decode()}\r\nContent-Disposition: form-data; name="{field_name}"; filename="{filename}"\r\nContent-Type: {mime_type}\r\n\r\n'.encode()
-            + data + b'\r\n'
-        )
-    parts.append(f'--{boundary.decode()}--\r\n'.encode())
-    body = b''.join(parts)
-    req = urllib.request.Request(
-        url, data=body,
-        headers=_mr_headers(auth, {'Content-Type': f'multipart/form-data; boundary={boundary.decode()}'}),
-        method='POST',
-    )
-    return _mr_send(req)
-
-
-def _mr_download(url: str, dest: Path) -> None:
-    req = urllib.request.Request(url, headers={'User-Agent': _MR_UA})
-    dest.write_bytes(urlopen_retrying(req, timeout=30))
-
-
-def _mr_resolve_game_versions(spec: dict, auth: dict) -> list[str]:
-    if not spec:
-        return []
-    version_type = spec.get('type', 'exact')
-    if version_type == 'exact':
-        v = spec.get('version') or spec.get('exact')
-        return [str(v)] if v else []
-    include_snapshots = spec.get('snapshots', False)
-    all_versions = _mr_get(f'{_MR_API}/tag/game_version', auth) or []
-    def _accepted(v: dict) -> bool:
-        return include_snapshots or v.get('version_type') == 'release'
-    accepted = [v['version'] for v in all_versions if _accepted(v)]
-    if version_type == 'latest':
-        return [accepted[0]] if accepted else []
-    if version_type in ('range', 'between'):
-        from_v = spec.get('from') or spec.get('start', '')
-        to_v = spec.get('to') or spec.get('end', '')
-        return [v for v in accepted if (not from_v or v >= from_v) and (not to_v or v <= to_v)]
-    if version_type == 'since':
-        from_v = spec.get('version') or spec.get('from', '')
-        return [v for v in accepted if not from_v or v >= from_v]
-    return []
-
-
-def _mr_normalize_resolution(value) -> list[str]:
-    items = [value] if not isinstance(value, list) else value
-    return [f'{r}x' if str(r).isdigit() else str(r) for r in items]
-
-
-_mr_category_header_cache: dict[str, str] = {}
-
-
-def _mr_category_headers(auth: dict) -> dict[str, str]:
-    global _mr_category_header_cache
-    if not _mr_category_header_cache:
-        cats = _mr_get(f'{_MR_API}/tag/category', auth)
-        if isinstance(cats, list):
-            _mr_category_header_cache = {c['name']: c['header'] for c in cats}
-    return _mr_category_header_cache
-
-
-def _mr_build_categories(sc: dict, config: dict, auth: dict) -> tuple[list[str], list[str]]:
-    resolution = sc.get('resolution') if sc.get('resolution') is not None else config.get('resolution')
-    resolution_cats = _mr_normalize_resolution(resolution) if resolution is not None else []
-    raw = sc.get('category')
-    content_cats = []
-    if raw is not None:
-        for c in ([raw] if isinstance(raw, str) else list(raw)):
-            if c not in content_cats:
-                content_cats.append(c)
-    headers = _mr_category_headers(auth)
-    primary = [c for c in content_cats if headers.get(c) == 'categories']
-    additional = [c for c in content_cats if headers.get(c) != 'categories'] + resolution_cats
-    return primary, additional
+_RESOLUTION_TIERS = frozenset({'8x-', '16x', '32x', '48x', '64x', '128x', '256x', '512x+'})
 
 
 # Reverse map: Modrinth donation platform id → puppy key
-_MR_DONATION_ID_TO_KEY = {
+_DONATION_ID_TO_KEY = {
     'patreon': 'patreon',
     'ko-fi': 'kofi',
     'paypal': 'paypal',
@@ -179,7 +34,6 @@ _MR_DONATION_ID_TO_KEY = {
     'github-sponsors': 'github',
     'other': 'other',
 }
-
 
 
 class ModrinthSite(Site):
@@ -191,9 +45,130 @@ class ModrinthSite(Site):
     auth_arg = 'modrinth'
     project_types = {'pack', 'mod'}
 
+    def __init__(self):
+        self._category_cache: dict[str, str] = {}
+
+    # ── HTTP transport ─────────────────────────────────────────────────────────
+    def classify_http_error(self, e: urllib.error.HTTPError) -> Exception:
+        # Modrinth uses 401 for auth; 403 is a genuine permission/validation error.
+        body = e.read().decode(errors='replace')
+        if e.code == 401:
+            return AuthExpiredError(e.code, body)
+        return SiteError(e.code, body)
+
+    @staticmethod
+    def _headers(auth: dict, extra: dict = None) -> dict:
+        h = {'User-Agent': _UA}
+        token = auth.get('modrinth', {}).get('token', '')
+        if token:
+            h['Authorization'] = token
+        if extra:
+            h.update(extra)
+        return h
+
+    def _get(self, url: str, auth: dict) -> Any:
+        return self._send(urllib.request.Request(url, headers=self._headers(auth)))
+
+    def _patch_json(self, url: str, auth: dict, body: dict) -> Any:
+        req = urllib.request.Request(
+            url, data=json.dumps(body).encode(),
+            headers=self._headers(auth, {'Content-Type': 'application/json'}),
+            method='PATCH',
+        )
+        return self._send(req)
+
+    def _patch_raw(self, url: str, auth: dict, data: bytes, mime: str) -> Any:
+        req = urllib.request.Request(
+            url, data=data, headers=self._headers(auth, {'Content-Type': mime}), method='PATCH',
+        )
+        return self._send(req)
+
+    def _post_raw(self, url: str, auth: dict, data: bytes, mime: str) -> Any:
+        req = urllib.request.Request(
+            url, data=data, headers=self._headers(auth, {'Content-Type': mime}), method='POST',
+        )
+        return self._send(req)
+
+    def _delete(self, url: str, auth: dict) -> None:
+        self._send(urllib.request.Request(url, headers=self._headers(auth), method='DELETE'))
+
+    def _post_multipart(self, url: str, auth: dict, fields: dict, files: list) -> Any:
+        boundary = b'----PuppyMRBoundary'
+        parts = []
+        for name, value in fields.items():
+            parts.append(
+                f'--{boundary.decode()}\r\nContent-Disposition: form-data; name="{name}"\r\nContent-Type: application/json\r\n\r\n{value}\r\n'.encode()
+            )
+        for field_name, filename, data, mime_type in files:
+            parts.append(
+                f'--{boundary.decode()}\r\nContent-Disposition: form-data; name="{field_name}"; filename="{filename}"\r\nContent-Type: {mime_type}\r\n\r\n'.encode()
+                + data + b'\r\n'
+            )
+        parts.append(f'--{boundary.decode()}--\r\n'.encode())
+        req = urllib.request.Request(
+            url, data=b''.join(parts),
+            headers=self._headers(auth, {'Content-Type': f'multipart/form-data; boundary={boundary.decode()}'}),
+            method='POST',
+        )
+        return self._send(req)
+
+    def _download(self, url: str, dest: Path) -> None:
+        req = urllib.request.Request(url, headers={'User-Agent': _UA})
+        dest.write_bytes(urlopen_retrying(req, timeout=30))
+
+    def _resolve_game_versions(self, spec: dict, auth: dict) -> list[str]:
+        if not spec:
+            return []
+        version_type = spec.get('type', 'exact')
+        if version_type == 'exact':
+            v = spec.get('version') or spec.get('exact')
+            return [str(v)] if v else []
+        include_snapshots = spec.get('snapshots', False)
+        all_versions = self._get(f'{_API}/tag/game_version', auth) or []
+
+        def _accepted(v: dict) -> bool:
+            return include_snapshots or v.get('version_type') == 'release'
+        accepted = [v['version'] for v in all_versions if _accepted(v)]
+        if version_type == 'latest':
+            return [accepted[0]] if accepted else []
+        if version_type in ('range', 'between'):
+            from_v = spec.get('from') or spec.get('start', '')
+            to_v = spec.get('to') or spec.get('end', '')
+            return [v for v in accepted if (not from_v or v >= from_v) and (not to_v or v <= to_v)]
+        if version_type == 'since':
+            from_v = spec.get('version') or spec.get('from', '')
+            return [v for v in accepted if not from_v or v >= from_v]
+        return []
+
+    @staticmethod
+    def _normalize_resolution(value) -> list[str]:
+        items = [value] if not isinstance(value, list) else value
+        return [f'{r}x' if str(r).isdigit() else str(r) for r in items]
+
+    def _category_headers(self, auth: dict) -> dict[str, str]:
+        if not self._category_cache:
+            cats = self._get(f'{_API}/tag/category', auth)
+            if isinstance(cats, list):
+                self._category_cache = {c['name']: c['header'] for c in cats}
+        return self._category_cache
+
+    def _build_categories(self, sc: dict, config: dict, auth: dict) -> tuple[list[str], list[str]]:
+        resolution = sc.get('resolution') if sc.get('resolution') is not None else config.get('resolution')
+        resolution_cats = self._normalize_resolution(resolution) if resolution is not None else []
+        raw = sc.get('category')
+        content_cats = []
+        if raw is not None:
+            for c in ([raw] if isinstance(raw, str) else list(raw)):
+                if c not in content_cats:
+                    content_cats.append(c)
+        headers = self._category_headers(auth)
+        primary = [c for c in content_cats if headers.get(c) == 'categories']
+        additional = [c for c in content_cats if headers.get(c) != 'categories'] + resolution_cats
+        return primary, additional
+
     def ref(self, config: dict):
-        mr = config.get('modrinth', {})
-        return mr.get('id') or mr.get('slug')
+        sc = config.get('modrinth', {})
+        return sc.get('id') or sc.get('slug')
 
     def has_credentials(self, auth: dict) -> bool:
         return bool(auth.get('modrinth', {}).get('token'))
@@ -215,15 +190,15 @@ class ModrinthSite(Site):
         resolution = config.get('resolution')
         if resolution is not None:
             neutral_tier = f'{resolution}x'
-            mr = config.setdefault('modrinth', {})
-            existing = mr.get('resolution')
+            sc = config.setdefault('modrinth', {})
+            existing = sc.get('resolution')
             if existing is None:
-                mr['resolution'] = neutral_tier
+                sc['resolution'] = neutral_tier
             else:
-                existing_list = _mr_normalize_resolution(existing)
+                existing_list = self._normalize_resolution(existing)
                 if neutral_tier not in existing_list:
                     print(f'warning: adding {neutral_tier} from neutral resolution to modrinth.resolution')
-                    mr['resolution'] = existing_list + [neutral_tier]
+                    sc['resolution'] = existing_list + [neutral_tier]
 
         license_ = config.get('license')
         if license_:
@@ -232,8 +207,8 @@ class ModrinthSite(Site):
         links = config.get('links') or {}
         if isinstance(links, dict):
             donation = {
-                mr_key: links[link_key]
-                for link_key, mr_key in self._LINKS_TO_MR_DONATION.items()
+                donation_key: links[link_key]
+                for link_key, donation_key in self._LINKS_TO_DONATION.items()
                 if links.get(link_key)
             }
             if donation:
@@ -247,7 +222,7 @@ class ModrinthSite(Site):
         rows = []
         resolution = sc.get('resolution')
         if resolution is not None:
-            rows.append(('Resolution', ', '.join(_mr_normalize_resolution(resolution))))
+            rows.append(('Resolution', ', '.join(self._normalize_resolution(resolution))))
         if sc.get('category'):
             raw = sc['category']
             rows.append(('Category', ', '.join([raw] if isinstance(raw, str) else raw)))
@@ -271,11 +246,11 @@ class ModrinthSite(Site):
                 if not isinstance(minecraft, dict)
                 else minecraft
             )
-            mr_spec = explicit_versions.get('modrinth', base)
+            spec = explicit_versions.get('modrinth', base)
         else:
-            mr_spec = explicit_versions.get('modrinth', {})
+            spec = explicit_versions.get('modrinth', {})
 
-        game_versions = _mr_resolve_game_versions(mr_spec, auth)
+        game_versions = self._resolve_game_versions(spec, auth)
         slug = config.get('modrinth', {}).get('slug') or config.get('handle', '')
         project_type = config.get('type', 'pack')
         loaders = config.get('loaders')
@@ -301,18 +276,18 @@ class ModrinthSite(Site):
             'primary_file': 'file',
         }
         zip_bytes = zip_path.read_bytes()
-        _mr_post_multipart(
-            f'{_MR_API}/version',
+        self._post_multipart(
+            f'{_API}/version',
             auth,
             fields={'data': json.dumps(version_data)},
             files=[('file', zip_path.name, zip_bytes, 'application/zip')],
         )
 
     def resolve_id(self, config: dict, auth: dict, verbosity: int) -> dict:
-        mr = config.get('modrinth', {})
-        if mr.get('id') or not mr.get('slug'):
+        sc = config.get('modrinth', {})
+        if sc.get('id') or not sc.get('slug'):
             return config
-        slug = mr['slug']
+        slug = sc['slug']
         try:
             headers = {'User-Agent': 'puppy/1.0'}
             token = auth.get('modrinth', {}).get('token', '')
@@ -324,14 +299,14 @@ class ModrinthSite(Site):
             )
             data = json.loads(urlopen_retrying(req, timeout=30))
             config = dict(config)
-            config['modrinth'] = dict(mr, id=data['id'], slug=data['slug'])
+            config['modrinth'] = dict(sc, id=data['id'], slug=data['slug'])
             if verbosity >= 1:
                 print(f"Resolved Modrinth ID for slug '{slug}': {data['id']}")
         except Exception as e:
             raise SystemExit(f"Could not resolve Modrinth ID for slug '{slug}': {e}")
         return config
 
-    _LINKS_TO_MR_DONATION = {
+    _LINKS_TO_DONATION = {
         'patreon': 'patreon',
         'kofi': 'kofi',
         'paypal': 'paypal',
@@ -342,7 +317,7 @@ class ModrinthSite(Site):
 
     _DONATION_KEYS = ['buyMeACoffee', 'github', 'kofi', 'other', 'patreon', 'paypal']
 
-    _MR_DONATION_PLATFORMS = {
+    _DONATION_PLATFORMS = {
         'patreon': ('patreon', 'Patreon'),
         'kofi': ('ko-fi', 'Ko-fi'),
         'paypal': ('paypal', 'PayPal'),
@@ -352,13 +327,13 @@ class ModrinthSite(Site):
     }
 
     def create(self, *, config: dict, auth: dict, verbosity: int = 0) -> dict:
-        mr = config.get('modrinth', {})
-        base_slug = mr.get('slug') or config.get('handle', '')
+        sc = config.get('modrinth', {})
+        base_slug = sc.get('slug') or config.get('handle', '')
         slug = base_slug
         suffix = 0
         while True:
             try:
-                _mr_get(f'{_MR_API}/project/{slug}', auth)
+                self._get(f'{_API}/project/{slug}', auth)
                 suffix += 1
                 slug = f'{base_slug}-{suffix}'
             except SiteError as e:
@@ -368,8 +343,8 @@ class ModrinthSite(Site):
         if suffix and verbosity >= 1:
             print(f'  [Modrinth] slug "{base_slug}" taken, using "{slug}"')
 
-        license_id = config.get('license') or mr.get('license') or 'LicenseRef-All-Rights-Reserved'
-        categories, additional_categories = _mr_build_categories(mr, config, auth)
+        license_id = config.get('license') or sc.get('license') or 'LicenseRef-All-Rights-Reserved'
+        categories, additional_categories = self._build_categories(sc, config, auth)
         links = config.get('links') or {}
         socials = config.get('socials') or {}
 
@@ -386,12 +361,12 @@ class ModrinthSite(Site):
             'source_url': links.get('source') or None,
             'discord_url': socials.get('discord') or None,
             'license_id': license_id,
-            'type': _MR_TYPE_MAP.get(config.get('type', 'pack'), 'resourcepack'),
+            'type': _TYPE_MAP.get(config.get('type', 'pack'), 'resourcepack'),
             'is_draft': True,
             'initial_versions': [],
         }
-        r = _mr_post_multipart(
-            f'{_MR_API}/project',
+        r = self._post_multipart(
+            f'{_API}/project',
             auth,
             fields={'data': json.dumps(project_data)},
             files=[],
@@ -404,10 +379,10 @@ class ModrinthSite(Site):
         return {'id': r['id'], 'slug': r['slug']}
 
     def upload_icon(self, project_id: str, auth: dict, icon_bytes: bytes) -> None:
-        _mr_patch_raw(f'{_MR_API}/project/{project_id}/icon?ext=png', auth, icon_bytes, 'image/png')
+        self._patch_raw(f'{_API}/project/{project_id}/icon?ext=png', auth, icon_bytes, 'image/png')
 
     def sync_gallery(self, project_id: str, auth: dict, images: list[dict], changed: set) -> None:
-        project = _mr_get(f'{_MR_API}/project/{project_id}', auth) or {}
+        project = self._get(f'{_API}/project/{project_id}', auth) or {}
         existing = project.get('gallery') or []
         desired_filenames = {img['filename'] for img in images}
         existing_by_filename = {item['title']: item for item in existing}
@@ -417,7 +392,7 @@ class ModrinthSite(Site):
         for title, item in existing_by_filename.items():
             if title not in desired_filenames or title in upload_filenames:
                 params = urllib.parse.urlencode({'url': item['url']})
-                _mr_delete(f'{_MR_API}/project/{project_id}/gallery?{params}', auth)
+                self._delete(f'{_API}/project/{project_id}/gallery?{params}', auth)
 
         for i, img in enumerate(images):
             if img['stem'] in changed:
@@ -429,23 +404,23 @@ class ModrinthSite(Site):
                     'description': img.get('description', ''),
                     'ordering': i,
                 })
-                _mr_post_raw(
-                    f'{_MR_API}/project/{project_id}/gallery?{params}',
+                self._post_raw(
+                    f'{_API}/project/{project_id}/gallery?{params}',
                     auth, img['data'], img['mime_type'],
                 )
 
     def update_project(self, project_id: str, auth: dict, sc: dict, description: str, config: dict) -> None:
         links = config.get('links') or {}
         donation = sc.get('donation') or {}
-        categories, additional_categories = _mr_build_categories(sc, config, auth)
+        categories, additional_categories = self._build_categories(sc, config, auth)
 
         donation_urls = [
             {'id': pid, 'platform': platform, 'url': donation[key]}
-            for key, (pid, platform) in self._MR_DONATION_PLATFORMS.items()
+            for key, (pid, platform) in self._DONATION_PLATFORMS.items()
             if donation.get(key)
         ]
 
-        mr_type = _MR_TYPE_MAP.get(config.get('type', 'pack'), 'resourcepack')
+        kind = _TYPE_MAP.get(config.get('type', 'pack'), 'resourcepack')
         body: dict = {
             'title': sc.get('name', ''),
             'description': sc.get('summary', ''),
@@ -459,14 +434,14 @@ class ModrinthSite(Site):
             'donation_urls': donation_urls,
             'requested_status': 'approved',
         }
-        if mr_type == 'mod':
+        if kind == 'mod':
             body['client_side'] = config.get('client_side', 'required')
             body['server_side'] = config.get('server_side', 'unsupported')
         license_id = config.get('license')
         if license_id:
             body['license_id'] = license_id
 
-        _mr_patch_json(f'{_MR_API}/project/{project_id}', auth, body)
+        self._patch_json(f'{_API}/project/{project_id}', auth, body)
 
     def img_tag(self, url: str, name: str) -> str:
         return f'<img src="{url}" width="600" alt="{name}"><br><br>'
@@ -491,7 +466,7 @@ class ModrinthSite(Site):
         if verbosity >= 1:
             print(f'  [Modrinth] syncing gallery ({len(upload_set)} changed)')
         self.sync_gallery(project_id, auth, images, upload_set)
-        project = _mr_get(f'{_MR_API}/project/{project_id}', auth) or {}
+        project = self._get(f'{_API}/project/{project_id}', auth) or {}
         gallery = project.get('gallery') or []
         return {
             Path(item['title']).stem: item.get('url', '')
@@ -500,7 +475,7 @@ class ModrinthSite(Site):
         }
 
     def gallery_urls(self, project_id: str, auth: dict, project_type: str = 'pack') -> dict[str, str]:
-        project = _mr_get(f'{_MR_API}/project/{project_id}', auth) or {}
+        project = self._get(f'{_API}/project/{project_id}', auth) or {}
         gallery = project.get('gallery') or []
         return {
             Path(item['title']).stem: item.get('url', '')
@@ -509,7 +484,7 @@ class ModrinthSite(Site):
         }
 
     def latest_file_sha(self, project_id: str, auth: dict) -> str | None:
-        versions = _mr_get(f'{_MR_API}/project/{project_id}/version', auth) or []
+        versions = self._get(f'{_API}/project/{project_id}/version', auth) or []
         if not versions:
             return None
         files = versions[0].get('files', [])
@@ -556,7 +531,7 @@ class ModrinthSite(Site):
     ) -> dict:
         if verbosity >= 1:
             print('  [Modrinth] fetching project')
-        data = _mr_get(f'{_MR_API}/project/{project_id}', auth)
+        data = self._get(f'{_API}/project/{project_id}', auth)
         if not data or not isinstance(data, dict):
             raise SystemExit(f'Could not fetch Modrinth project: {project_id}')
 
@@ -588,7 +563,7 @@ class ModrinthSite(Site):
                 if not existing:
                     if verbosity >= 1:
                         print('  [Modrinth] downloading icon')
-                    _mr_download(icon_url, puppy_dir / 'pack.png')
+                    self._download(icon_url, puppy_dir / 'pack.png')
 
             if gallery:
                 images_dir = puppy_dir / 'images'
@@ -601,7 +576,7 @@ class ModrinthSite(Site):
                     if url and title:
                         stem = Path(title).stem.strip('_')
                         suffix = Path(url.split('?')[0]).suffix or '.jpg'
-                        _mr_download(url, images_dir / (stem + suffix))
+                        self._download(url, images_dir / (stem + suffix))
 
         license_id = (data.get('license') or {}).get('id') or None
 
@@ -620,13 +595,13 @@ class ModrinthSite(Site):
         donation = {
             key: entry['url']
             for entry in (data.get('donation_urls') or [])
-            for key in (_MR_DONATION_ID_TO_KEY.get(entry.get('id', '')),)
+            for key in (_DONATION_ID_TO_KEY.get(entry.get('id', '')),)
             if key and entry.get('url')
         }
 
         all_cats = (data.get('categories') or []) + (data.get('additional_categories') or [])
-        resolution = [cat for cat in all_cats if cat in _MR_RESOLUTION_TIERS]
-        category = [cat for cat in all_cats if cat not in _MR_RESOLUTION_TIERS]
+        resolution = [cat for cat in all_cats if cat in _RESOLUTION_TIERS]
+        category = [cat for cat in all_cats if cat not in _RESOLUTION_TIERS]
 
         return {
             'config': {
@@ -647,10 +622,10 @@ class ModrinthSite(Site):
         }
 
     def apply_settings(self, settings: dict, sc: dict) -> None:
-        mr = settings.setdefault('modrinth', {})
-        mr['discord'] = sc.get('discord')
+        entry = settings.setdefault('modrinth', {})
+        entry['discord'] = sc.get('discord')
         donation = sc.get('donation') or {}
-        mr['donation'] = {k: donation.get(k) for k in self._DONATION_KEYS}
+        entry['donation'] = {k: donation.get(k) for k in self._DONATION_KEYS}
 
     def auth_yaml_entry(self) -> str:
         return 'modrinth:\n  token: YOUR_MODRINTH_TOKEN\n'
@@ -662,5 +637,5 @@ class ModrinthSite(Site):
         ref = site_config.get('slug') or site_config.get('id')
         if not ref:
             return None
-        mr_type = _MR_TYPE_MAP.get(site_config.get('type', 'pack'), 'resourcepack')
-        return f'https://modrinth.com/{mr_type}/{ref}'
+        kind = _TYPE_MAP.get(site_config.get('type', 'pack'), 'resourcepack')
+        return f'https://modrinth.com/{kind}/{ref}'
