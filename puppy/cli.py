@@ -64,15 +64,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        '-V',
-        '--version',
-        dest='version',
-        default=None,
-        metavar='STRING',
-        help='Version string override; falls back to version: in puppy.yaml.',
-    )
-
-    parser.add_argument(
         '-c',
         '--content',
         dest='content',
@@ -133,7 +124,6 @@ def main(argv: list[str] = None) -> None:
         dry_run=args.dry_run,
         verbosity=args.verbosity,
         site=args.site,
-        version=args.version,
         content=parse_content(args.content) if args.content else None,
         rehash=args.rehash,
         handle_filter=args.handle_name or None,

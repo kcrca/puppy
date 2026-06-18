@@ -869,7 +869,7 @@ def test_upload_file_pmc_when_pmc_creds_present(push_pack_env, run_puppy, monkey
     (source / 'puppy.yaml').write_text(
         yaml.dump({
             'name': 'NeonGlow', 'handle': 'neonglow', 'minecraft': '1.20',
-            'type': 'pack',
+            'type': 'pack', 'version': '1.0.0',
             'curseforge': {'id': 111, 'slug': 'neonglow'},
             'modrinth': {'id': 'abc123', 'slug': 'neonglow'},
             'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
@@ -883,7 +883,7 @@ def test_upload_file_pmc_when_pmc_creds_present(push_pack_env, run_puppy, monkey
 
     called = []
     monkeypatch.setattr('puppy.sites.PMC.submit_log', lambda *a, **k: called.append(True))
-    run_puppy('push', '-c', 'file', '--version', '1.0.0', '--site', 'pmc')
+    run_puppy('push', '-c', 'file', '--site', 'pmc')
     assert called
 
 
@@ -893,7 +893,7 @@ def test_upload_file_pmc_auth_expired_raises_system_exit(push_pack_env, run_pupp
     (source / 'puppy.yaml').write_text(
         yaml.dump({
             'name': 'NeonGlow', 'handle': 'neonglow', 'minecraft': '1.20',
-            'type': 'pack',
+            'type': 'pack', 'version': '1.0.0',
             'planetminecraft': {'id': _PROJECT_ID, 'slug': 'neonglow'},
         })
     )
@@ -904,5 +904,5 @@ def test_upload_file_pmc_auth_expired_raises_system_exit(push_pack_env, run_pupp
         'puppy.sites.PMC.submit_log',
         lambda *a, **k: (_ for _ in ()).throw(AuthExpiredError(401, 'Expired')),
     )
-    result = run_puppy('push', '-c', 'file', '--version', '1.0.0', '--site', 'pmc')
+    result = run_puppy('push', '-c', 'file', '--site', 'pmc')
     assert result == 'PlanetMinecraft auth expired (HTTP 401: Expired) — run: puppy auth --site pmc'

@@ -348,8 +348,9 @@ class LifecycleBase:
         shutil.copy(artifact_src, ctx['project_dir'] / artifact_src.name)
         config = yaml.safe_load((ctx['project_dir'] / 'puppy.yaml').read_text())
         config['minecraft'] = '1.21.4'
+        config['version'] = '1.0.0'
         (ctx['project_dir'] / 'puppy.yaml').write_text(yaml.dump(config, default_flow_style=False))
-        self._run(ctx, 'push', '--site', self.SITE, '-c', 'file', '--version', '1.0.0')
+        self._run(ctx, 'push', '--site', self.SITE, '-c', 'file')
         self._assert_push_pack(ctx)
 
     # ------------------------------------------------------------------

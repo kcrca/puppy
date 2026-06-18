@@ -59,7 +59,6 @@ def run(
     dry_run: bool,
     verbosity: int,
     site: str | None,
-    version: str | None,
     content: set[str] | None = None,
     rehash: bool = False,
     handle_filter: list[str] | None = None,
@@ -122,10 +121,10 @@ def run(
                 f'[{project.name}] type is required in puppy.yaml (pack, mod, or world)'
             )
 
-        resolved_version = version or config.get('version')
+        resolved_version = config.get('version')
         if action == 'push' and 'file' in content and not resolved_version:
             raise SystemExit(
-                f'[{project.name}] push -c file requires --version or version: in puppy.yaml'
+                f'[{project.name}] push -c file requires version: in puppy.yaml'
             )
 
         if verbosity >= 1:

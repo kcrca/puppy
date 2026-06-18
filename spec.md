@@ -91,7 +91,7 @@ Puppy has the following actions:
 * **`push`** (Default): Updates metadata, summaries, descriptions, images, icons, and (when current) the zip artifact.
   By default (`use_hashes: true` in `puppy.yaml`) only categories whose content changed since the last push are uploaded; the content hashes are stored in `puppy/hashes.yaml`.
   Use `-c/--content` to force specific categories regardless of the hash check.
-  Uploading the zip requires `version` in `puppy.yaml` or `-V/--version`.
+  Uploading the zip requires `version` in `puppy.yaml`.
   `--rehash` records the current content as already-uploaded — see "Upload selection & change detection" below.
   See "Upload selection & change detection" below for the full model.
 * **`pull`:** Pulls live site data.
@@ -124,9 +124,6 @@ Puppy has the following actions:
   Accepts a single name or a comma-separated list (for example `modrinth`, `cf,mr`).
   Site abbreviations are accepted (`cf`, `mr`, `pmc`).
   When omitted, defaults to the `sites:` list in `puppy.yaml` if present, otherwise all three sites.
-* **`-V/--version [string]`:** Version string override.
-  Falls back to `version` in `puppy.yaml`.
-  Artifact matched via any `.zip` in `puppy/` whose filename ends with `[-_.]version.zip`.
 * **`-c/--content CATEGORIES`:** Names content categories, the same way for `push` and `pull`.
   Categories are `file` (`f`), `images` (`i`, gallery + icon), and `data` (`d`, description + metadata); combine as `-c fid` or `--content file,images`, or use `-c all`.
   * On `push`: force-upload the named categories regardless of the hash check.

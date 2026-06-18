@@ -609,7 +609,7 @@ def test_upload_file_in_push_pack(tmp_path, monkeypatch):
     }))
     (project_dir / 'puppy.yaml').write_text(yaml.dump({
         'name': 'MyPack', 'handle': 'mypack', 'minecraft': '1.21',
-        'type': 'pack',
+        'type': 'pack', 'version': '1.0',
         'curseforge': {'id': 99, 'slug': 'mypack'},
     }))
     Image.new('RGB', (64, 64), color='blue').save(project_dir / 'icon.png')
@@ -628,7 +628,6 @@ def test_upload_file_in_push_pack(tmp_path, monkeypatch):
         dry_run=False,
         verbosity=0,
         site='curseforge',
-        version='1.0',
         content={'file'},
     )
 
@@ -872,7 +871,7 @@ def _cf_upload_env(tmp_path):
     }))
     (project_dir / 'puppy.yaml').write_text(yaml.dump({
         'name': 'MyPack', 'handle': 'mypack', 'minecraft': '1.21',
-        'type': 'pack',
+        'type': 'pack', 'version': '1.0',
         'curseforge': {'id': 99, 'slug': 'mypack'},
     }))
     Image.new('RGB', (64, 64), color='blue').save(project_dir / 'icon.png')
@@ -891,7 +890,7 @@ def test_upload_file_cf_skips_when_hash_matches(tmp_path, monkeypatch):
     monkeypatch.chdir(project_dir)
     from puppy.runner import run
     run(action='push', directory=project_dir, dry_run=False, verbosity=0,
-        site='curseforge', version='1.0', content=set())
+        site='curseforge', content=set())
     assert upload_calls == []
 
 
@@ -906,4 +905,4 @@ def test_upload_file_cf_auth_expired_raises_system_exit(tmp_path, monkeypatch):
     from puppy.runner import run
     with pytest.raises(SystemExit, match='CurseForge auth expired'):
         run(action='push', directory=project_dir, dry_run=False, verbosity=0,
-            site='curseforge', version='1.0', content={'file'})
+            site='curseforge', content={'file'})

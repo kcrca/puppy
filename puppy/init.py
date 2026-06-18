@@ -44,7 +44,7 @@ def _puppy_yaml(name: str, handle: str, project_type: str) -> str:
         f'type: {project_type}\n\n'
         '# One-line project summary shown in site listings.\n'
         'summary:\n\n'
-        '# Current version. Used by publish if --version is not passed on the CLI.\n'
+        '# Current version. Used to tag the artifact when uploading the zip.\n'
         'version: "1.0.0"\n\n'
         '# Neutral metadata — expanded to site-specific fields automatically.\n'
         + type_fields +

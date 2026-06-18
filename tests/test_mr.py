@@ -334,6 +334,7 @@ def test_upload_version_in_push_pack(tmp_path, monkeypatch):
         'handle': 'mypack',
         'minecraft': '1.21',
         'type': 'pack',
+        'version': '1.0',
         'modrinth': {'id': 'abc123', 'slug': 'mypack'},
     }))
     Image.new('RGB', (64, 64), color='blue').save(project_dir / 'icon.png')
@@ -352,7 +353,6 @@ def test_upload_version_in_push_pack(tmp_path, monkeypatch):
         dry_run=False,
         verbosity=0,
         site='modrinth',
-        version='1.0',
         content={'file'},
     )
 
@@ -612,7 +612,7 @@ def _mr_upload_env(tmp_path):
     (home / 'auth.yaml').write_text(yaml.dump({'modrinth': {'token': 'tok'}}))
     (project_dir / 'puppy.yaml').write_text(yaml.dump({
         'name': 'MyPack', 'handle': 'mypack', 'minecraft': '1.21',
-        'type': 'pack',
+        'type': 'pack', 'version': '1.0',
         'modrinth': {'id': 'abc', 'slug': 'mypack'},
     }))
     Image.new('RGB', (64, 64), color='blue').save(project_dir / 'icon.png')
@@ -631,7 +631,7 @@ def test_upload_file_mr_skips_when_server_hash_matches(tmp_path, monkeypatch):
     monkeypatch.chdir(project_dir)
     from puppy.runner import run
     run(action='push', directory=project_dir, dry_run=False, verbosity=0,
-        site='modrinth', version='1.0', content=set())
+        site='modrinth', content=set())
     assert upload_calls == []
 
 
@@ -646,4 +646,4 @@ def test_upload_file_mr_auth_expired_raises_system_exit(tmp_path, monkeypatch):
     from puppy.runner import run
     with pytest.raises(SystemExit, match='Modrinth auth expired'):
         run(action='push', directory=project_dir, dry_run=False, verbosity=0,
-            site='modrinth', version='1.0', content={'file'})
+            site='modrinth', content={'file'})
