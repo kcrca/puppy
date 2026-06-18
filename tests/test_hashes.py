@@ -3,9 +3,29 @@ import pytest
 from PIL import Image
 
 from puppy import hashes
+from puppy import syncer
 from puppy.config import ConfigSynthesizer
 from puppy.core import Project
 from puppy.syncer import run_push
+
+
+# ── image hash folds in the encoding recipe ───────────────────────────────────
+
+def test_image_hash_changes_with_encoding(tmp_path, monkeypatch):
+    img = tmp_path / 'shot.png'
+    Image.new('RGB', (10, 10)).save(img)
+    entry = {'file': 'shot', 'name': 'Shot'}
+    h1 = syncer._image_hash(img, entry)
+    monkeypatch.setattr('puppy.syncer.GALLERY_ENCODING', 'jpeg:1x1:q1')
+    assert syncer._image_hash(img, entry) != h1
+
+
+def test_icon_hash_changes_with_encoding(tmp_path, monkeypatch):
+    icon = tmp_path / 'icon.png'
+    Image.new('RGB', (16, 16)).save(icon)
+    h1 = syncer._icon_hash(icon)
+    monkeypatch.setattr('puppy.syncer.ICON_ENCODING', 'png:1x1')
+    assert syncer._icon_hash(icon) != h1
 
 
 # ── parse_content ──────────────────────────────────────────────────────────────

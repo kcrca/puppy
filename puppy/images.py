@@ -6,6 +6,12 @@ from PIL import Image
 
 _ICON_SIZE = (512, 512)
 _GALLERY_SIZE = (1920, 1080)
+_GALLERY_QUALITY = 95
+
+# Encoding signatures folded into content hashes so that changing how an asset is
+# staged (size/quality/format) invalidates its hash and forces a re-upload.
+ICON_ENCODING = f'png:{_ICON_SIZE[0]}x{_ICON_SIZE[1]}'
+GALLERY_ENCODING = f'jpeg:{_GALLERY_SIZE[0]}x{_GALLERY_SIZE[1]}:q{_GALLERY_QUALITY}'
 
 _IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.tiff', '.tif']
 
@@ -83,7 +89,7 @@ def prepare_gallery_image(src: Path, verbosity: int = 0) -> bytes:
         out = img.convert('RGB')
         out.thumbnail(_GALLERY_SIZE, Image.LANCZOS)
     buf = BytesIO()
-    out.save(buf, format='JPEG', quality=95)
+    out.save(buf, format='JPEG', quality=_GALLERY_QUALITY)
     return buf.getvalue()
 
 

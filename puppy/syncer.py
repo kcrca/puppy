@@ -13,7 +13,7 @@ from puppy.creator import (
     _validate_square,
 )
 from puppy.errors import AuthExpiredError, SiteError
-from puppy.images import find_image, prepare_icon
+from puppy.images import find_image, prepare_icon, GALLERY_ENCODING, ICON_ENCODING
 from puppy.parallel import run_sites_parallel
 from puppy.publisher import _resolve_zip
 from puppy.renderer import render
@@ -44,7 +44,15 @@ def _image_hash(src: Path, entry: dict) -> str:
         {k: entry.get(k) for k in ('name', 'description', 'featured')},
         sort_keys=True, default=str,
     )
-    return hashes.compute(src.read_bytes() + b'\x00' + meta.encode('utf-8'))
+    # source bytes + per-image metadata + the staging recipe (so a re-encode change re-uploads)
+    return hashes.compute(
+        src.read_bytes() + b'\x00' + meta.encode('utf-8')
+        + b'\x00' + GALLERY_ENCODING.encode('utf-8')
+    )
+
+
+def _icon_hash(icon: Path) -> str:
+    return hashes.compute(icon.read_bytes() + b'\x00' + ICON_ENCODING.encode('utf-8'))
 
 
 def _data_fingerprint(description: str, sc: dict, config: dict) -> str:
@@ -61,7 +69,7 @@ def _local_image_hashes(image_list: list, images_dir: Path, icon) -> dict[str, s
     """Per-asset image hashes (icon + each gallery image) computed from local files."""
     result: dict[str, str] = {}
     if icon and icon.exists():
-        result[_ICON_KEY] = hashes.compute(icon.read_bytes())
+        result[_ICON_KEY] = _icon_hash(icon)
     for entry in image_list:
         try:
             src = find_image(entry['file'], images_dir)
@@ -95,7 +103,7 @@ def _push_images(s, site_id, auth, image_list, images_dir, icon,
     avatar = None
 
     # icon (independent asset)
-    icon_hash = hashes.compute(icon.read_bytes()) if (icon and icon.exists()) else None
+    icon_hash = _icon_hash(icon) if (icon and icon.exists()) else None
     if icon_hash is not None:
         new_hashes[_ICON_KEY] = icon_hash
         if _changed(_ICON_KEY, icon_hash):
