@@ -137,10 +137,7 @@ def _harvest_yaml(
                     existing[k] = v
 
     if imported.get('images') and (images or not _has_image_info(puppy_dir, site, project_type)):
-        image_list = [
-            {**img, 'file': img['file'].strip('_')} if 'file' in img else img
-            for img in imported['images']
-        ]
+        image_list = imported['images']
         images_yaml = puppy_dir / 'images' / 'images.yaml'
         images_yaml.parent.mkdir(parents=True, exist_ok=True)
         (puppy_dir / 'images.yaml').unlink(missing_ok=True)

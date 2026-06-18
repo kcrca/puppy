@@ -78,6 +78,22 @@ def test_merge_results_empty_list():
     assert _merge_results([]) == {}
 
 
+# ── image filenames preserved verbatim ────────────────────────────────────────
+
+def test_harvest_yaml_preserves_underscore_filenames(tmp_path):
+    _write_yaml(tmp_path, {'name': 'T'})
+    result_data = {
+        'config': {'name': 'T', 'images': [
+            {'file': '_intro', 'description': 'a'},
+            {'file': 'combo__', 'description': 'b'},
+            {'file': 'mid_name', 'description': 'c'},
+        ]},
+    }
+    _harvest_yaml(_project(tmp_path), result_data, tmp_path, None, True)
+    images = yaml.safe_load((tmp_path / 'images' / 'images.yaml').read_text())
+    assert [i['file'] for i in images] == ['_intro', 'combo__', 'mid_name']
+
+
 # ── license promotion ─────────────────────────────────────────────────────────
 
 def test_harvest_yaml_promotes_license_when_all_sites_agree(tmp_path):
