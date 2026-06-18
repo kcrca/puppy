@@ -4,7 +4,7 @@ import urllib.request
 
 import pytest
 
-from puppy.http import MAX_ATTEMPTS, urlopen_retrying
+from puppy.http import MAX_ATTEMPTS, MAX_DELAY, urlopen_retrying
 
 
 def _http_error(code: int, body: bytes = b'', hdrs=None):
@@ -88,3 +88,52 @@ def test_non_retryable_raises_immediately(monkeypatch):
     with pytest.raises(urllib.error.HTTPError):
         urlopen_retrying(urllib.request.Request('https://x'), timeout=30)
     assert len(calls) == 1   # 404 is not retried
+
+
+def test_urlerror_retries_then_succeeds(monkeypatch):
+    seq = [urllib.error.URLError('connection reset'), _Resp(b'ok')]
+    calls = []
+
+    def fake_urlopen(req, timeout=30):
+        calls.append(1)
+        r = seq[len(calls) - 1]
+        if isinstance(r, Exception):
+            raise r
+        return r
+
+    monkeypatch.setattr('time.sleep', lambda *a, **k: None)
+    monkeypatch.setattr('urllib.request.urlopen', fake_urlopen)
+    assert urlopen_retrying(urllib.request.Request('https://x'), timeout=30) == b'ok'
+    assert len(calls) == 2
+
+
+def test_urlerror_raises_after_max_attempts(monkeypatch):
+    calls = []
+
+    def fake_urlopen(req, timeout=30):
+        calls.append(1)
+        raise urllib.error.URLError('timeout')
+
+    monkeypatch.setattr('time.sleep', lambda *a, **k: None)
+    monkeypatch.setattr('urllib.request.urlopen', fake_urlopen)
+    with pytest.raises(urllib.error.URLError):
+        urlopen_retrying(urllib.request.Request('https://x'), timeout=30)
+    assert len(calls) == MAX_ATTEMPTS
+
+
+def test_retry_after_is_capped(monkeypatch):
+    sleeps = []
+    seq = [_http_error(429, b'', {'Retry-After': '3600'}), _Resp(b'ok')]
+    calls = []
+
+    def fake_urlopen(req, timeout=30):
+        calls.append(1)
+        r = seq[len(calls) - 1]
+        if isinstance(r, Exception):
+            raise r
+        return r
+
+    monkeypatch.setattr('time.sleep', lambda d: sleeps.append(d))
+    monkeypatch.setattr('urllib.request.urlopen', fake_urlopen)
+    urlopen_retrying(urllib.request.Request('https://x'), timeout=30)
+    assert sleeps == [MAX_DELAY]   # 3600 clamped to the cap
