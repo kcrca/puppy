@@ -2,10 +2,13 @@
 # For a single-pack repo, place at: puppy/puppy.yaml
 # For a multi-pack repo, place at: puppy/{packname}/puppy.yaml
 
-# Display name and internal slug.
+# Project type: pack, mod, or world. Required.
+type: pack
+
+# Display name and internal handle.
 # Both are derived from the directory name if omitted.
 name: Neon
-# pack: neon   # derived from name if omitted
+# handle: neon   # lowercase slug; derived from name if omitted
 
 # Version published with 'puppy push -c file'.
 # Can be overridden on the CLI with --version.
@@ -25,6 +28,10 @@ license: MIT
 # Minecraft version(s) to tag the upload against.
 # A plain string means exact version; see spec for range/latest options.
 minecraft: "1.21.4"
+
+# Pack resolution. A neutral field: it expands to the right per-site field
+# automatically (CurseForge category, Modrinth resolution, PMC tags).
+resolution: 16
 
 # Optional: YouTube video ID.
 # video: dQw4w9WgXcQ
@@ -46,24 +53,17 @@ links:
 curseforge:
   id: null
   slug: neon
-  mainCategory: 16x
-  additionalCategories:
-    modSupport: false
-    modern: false
+  # category: 16x   # resolution category; taken from neutral 'resolution' if omitted
 
 modrinth:
   id: null
   slug: neon
-  type: resourcepack
-  tags:
-    16x: featured
-    vanilla-like: true
+  category: vanilla-like   # Modrinth content category
 
 planetminecraft:
   id: null
   slug: neon
-  category: Simplistic
-  resolution: 16
+  category: Simplistic     # PMC content category
   progress: 100
   modifies:
     terrain: true

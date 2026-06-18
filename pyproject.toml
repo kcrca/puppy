@@ -37,8 +37,8 @@ where = ["."]
 include = ["puppy*"]
 
 [project.urls]
-Repository = "https://github.com/kenarnold/puppy"
-"Bug Tracker" = "https://github.com/kenarnold/puppy/issues"
+Repository = "https://github.com/kcrca/puppy"
+"Bug Tracker" = "https://github.com/kcrca/puppy/issues"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

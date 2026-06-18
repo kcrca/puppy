@@ -39,12 +39,12 @@ neon/
 
 ```
 cd my-pack
-puppy init             # create puppy/ skeleton (auth.yaml, .gitignore, puppy.yaml, description.md)
+puppy init pack        # create puppy/ skeleton (auth.yaml, .gitignore, puppy.yaml, description.md)
 # edit puppy/auth.yaml with your credentials
 # edit puppy/puppy.yaml with your project IDs and metadata
 puppy push --dry-run   # preview without uploading
 puppy push             # update descriptions, images, icon
-puppy push --pack      # also upload the zip artifact
+puppy push -c file     # also upload the zip artifact
 ```
 
 The files in this directory show what a complete project looks like after filling in the `init` skeleton.

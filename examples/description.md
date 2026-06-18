@@ -16,7 +16,7 @@
 
 ## Images
 
-{{ images }}
+{{ img("overview") }}
 
 ## Installation
 

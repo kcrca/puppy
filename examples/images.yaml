@@ -8,22 +8,24 @@
 # If absent, images are loaded from puppy/images/.
 source: ../screenshots
 
-- name: Overview
-  description: Default plains biome showing terrain and sky
-  file: overview           # .png extension optional; will also find .jpg, .webp
-  featured: true           # promoted as featured image on supporting sites
-  embed: true              # embedded in the description body via {{ images }}
+images:
+  - name: Overview
+    description: Default plains biome showing terrain and sky
+    file: overview           # .png extension optional; will also find .jpg, .webp
+    featured: true           # promoted as featured image on supporting sites
+    # To place this image in the description text, reference it there with
+    # {{ img("overview") }} (or its CDN url via {{ images.overview }}).
 
-- name: Villages
-  description: Village with custom textures
-  file: village
+  - name: Villages
+    description: Village with custom textures
+    file: village
 
-- name: Nether
-  description: Nether biome
-  file: nether
+  - name: Nether
+    description: Nether biome
+    file: nether
 
-# Special images (not in the regular gallery):
+# Special images (not part of the regular gallery):
 #
-# pack.png   — icon shown in site listings (400×400 square PNG, auto-discovered)
-# banner.png — large hero image (1920×1080, not part of gallery)
-# logo.png   — project logo (1280×256, not part of gallery)
+# pack.png   — icon shown in site listings (square PNG, staged to 512×512, auto-discovered)
+# banner.png — large hero image; downloaded by 'pull' when a site has one, not uploaded
+# logo.png   — project logo; downloaded by 'pull' when a site has one, not uploaded
