@@ -1,11 +1,41 @@
+import pytest
 import yaml
 
 from puppy.core import Project
-from puppy.puller import _harvest_yaml, _merge_results
+from puppy.errors import AuthExpiredError, SiteError
+from puppy.puller import _harvest_yaml, _merge_results, _run_pull
 
 
 def _project(tmp_path):
     return Project(tmp_path, override_name='Test', override_handle='test')
+
+
+# ── _run_pull error wrapping ──────────────────────────────────────────────────
+
+class _FakeSite:
+    label = 'CurseForge'
+    auth_arg = 'cf'
+
+    def __init__(self, exc):
+        self._exc = exc
+
+    def ref(self, config):
+        return 99
+
+    def pull(self, **kwargs):
+        raise self._exc
+
+
+def test_run_pull_wraps_site_error(tmp_path):
+    s = _FakeSite(SiteError(500, 'boom'))
+    with pytest.raises(SystemExit, match='CurseForge error'):
+        _run_pull(s, _project(tmp_path), {}, {}, False, 0, 'pack')
+
+
+def test_run_pull_wraps_auth_expired(tmp_path):
+    s = _FakeSite(AuthExpiredError(401, 'nope'))
+    with pytest.raises(SystemExit, match='auth expired'):
+        _run_pull(s, _project(tmp_path), {}, {}, False, 0, 'pack')
 
 
 def _write_yaml(tmp_path, data: dict):
