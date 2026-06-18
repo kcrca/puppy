@@ -141,6 +141,27 @@ def _push_images(s, site_id, auth, image_list, images_dir, icon,
     return urls, avatar
 
 
+def render_site(puppy_home, project_root, project_name, project_handle, s, projects_ctx, image_urls):
+    """Build a site's running config and render its description.
+
+    Returns (site_config, source, pre, final): `source` is the description source path,
+    `pre` the post-Jinja text before any Markdown→native conversion (None when there is
+    no description body), `final` the published text. Shared by push and the dry-run
+    preview so the two can't drift.
+    """
+    site_config = ConfigSynthesizer(puppy_home, project_root, site=s).get_running_config()
+    site_config.setdefault('name', project_name)
+    site_config.setdefault('handle', project_handle)
+    site_config['projects'] = projects_ctx
+    body, source = ContentDiscovery(puppy_home, project_root).find_description(site=s)
+    if not body:
+        return site_config, source, None, ''
+    rendered = render(body, site_config, source=str(source), site=s, image_urls=image_urls)
+    if source and source.suffix == '.md':
+        return site_config, source, rendered, s.convert_md(rendered)
+    return site_config, source, rendered, rendered
+
+
 def run_push(
     *,
     project: Project,
@@ -187,7 +208,6 @@ def run_push(
     image_list = config.get('images', [])
 
     projects_ctx = config['projects']
-    discovery = ContentDiscovery(puppy_home, project.root)
     file_in_scope = rehash and (not content or 'file' in content)
     zip_path, local_sha = _resolve_file(
         config, puppy_dir, version, project, content, use_hashes, file_in_scope,
@@ -205,16 +225,11 @@ def run_push(
 
     def _render_desc(s, image_urls):
         """Resolve this site's config and render its description; returns (config, desc)."""
-        site_config = ConfigSynthesizer(puppy_home, project.root, site=s).get_running_config()
-        site_config['projects'] = projects_ctx
+        site_config, _, _, desc = render_site(
+            puppy_home, project.root, project.name, project.handle, s, projects_ctx, image_urls,
+        )
         local_config = _deep_merge(config, {s.name: site_config[s.name]}) if s.name in site_config else dict(config)
         local_config['description'] = []
-        body, source = discovery.find_description(site=s)
-        desc = ''
-        if body:
-            desc = render(body, site_config, source=str(source), site=s, image_urls=image_urls)
-            if source and source.suffix == '.md':
-                desc = s.convert_md(desc)
         return local_config, desc
 
     def _data_fp(s, local_config, desc):

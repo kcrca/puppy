@@ -11,11 +11,9 @@ from puppy.init import run_init
 from puppy.preview import generate as generate_preview
 from puppy.images import find_image
 from puppy.publisher import _resolve_zip
-from puppy.renderer import render
-from puppy.searcher import ContentDiscovery
 from puppy.sites import SITES, SiteVisitor, _ALIASES
 from puppy.creator import run_create
-from puppy.syncer import run_push, apply_env_sides, add_image_name_aliases
+from puppy.syncer import run_push, render_site, apply_env_sides, add_image_name_aliases
 
 
 def _resolve_projects(puppy_home: Path) -> list[Path]:
@@ -244,7 +242,6 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, uplo
         config = dict(config)
         config['projects'] = build_projects_context(puppy_home)
         config = apply_env_sides(config)
-        discovery = ContentDiscovery(puppy_home, project.root)
         project_type = config.get('type', 'pack')
         sites = list(SiteVisitor(site, project_type=project_type))
         if verbosity >= 1 and not site:
@@ -265,28 +262,23 @@ def _run_dry(action, project, config, version, verbosity, puppy_home, site, uplo
                     pass
             image_urls = add_image_name_aliases(raw_urls, config['images'])
         for s in sites:
-            body, source_path = discovery.find_description(site=s)
-            if body:
-                site_config = ConfigSynthesizer(
-                    puppy_home, project.root, site=s
-                ).get_running_config()
-                site_config.setdefault('name', project.name)
-                site_config.setdefault('handle', project.handle)
-                site_config['projects'] = config['projects']
-                rendered = render(body, site_config, source=str(source_path), site=s,
-                                  image_urls=image_urls)
-                staged_ext = source_path.suffix if source_path else s.template_ext
-                if source_path and source_path.suffix == '.md':
-                    md_out = debug_dir / s.name / 'description.md'
-                    md_out.parent.mkdir(parents=True, exist_ok=True)
-                    md_out.write_text(rendered)
-                    rendered = s.convert_md(rendered)
-                    staged_ext = s.template_ext
-                ext = s.template_ext
-                out = debug_dir / s.name / f'description{ext}'
-                out.parent.mkdir(parents=True, exist_ok=True)
-                out.write_text(rendered)
-                source_exts[s.name] = staged_ext
+            _, source_path, pre, rendered = render_site(
+                puppy_home, project.root, project.name, project.handle,
+                s, config['projects'], image_urls,
+            )
+            if pre is None:   # no description body for this site
+                continue
+            staged_ext = source_path.suffix if source_path else s.template_ext
+            if source_path and source_path.suffix == '.md':
+                md_out = debug_dir / s.name / 'description.md'
+                md_out.parent.mkdir(parents=True, exist_ok=True)
+                md_out.write_text(pre)   # pre-conversion Markdown source
+                staged_ext = s.template_ext
+            ext = s.template_ext
+            out = debug_dir / s.name / f'description{ext}'
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(rendered)
+            source_exts[s.name] = staged_ext
 
         if upload_file:
             zip_src = _resolve_zip(config, project.puppy_dir, version, project)
