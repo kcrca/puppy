@@ -4,7 +4,8 @@ import yaml
 
 from puppy.core import Project
 from puppy.errors import AuthExpiredError, prefix_site_error
-from puppy.sites import CURSEFORGE, MODRINTH, PMC, SITES, SiteVisitor
+from puppy.parallel import run_sites_parallel
+from puppy.sites import CURSEFORGE, MODRINTH, PMC, SiteVisitor
 from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
 
 
@@ -20,27 +21,36 @@ def run_pull(
     project_type = config.get('type', 'pack')
     config = _resolve_ids(config, auth, site, verbosity, project_type)
     visitor = SiteVisitor(site, project_type=project_type)
+    puppy_dir = project.puppy_dir
 
-    missing = [s for s in SITES if s in visitor and s.ref(config) and not s.has_credentials(auth)]
+    # MR first, then CF, then PMC. The first present site is the single source for
+    # the shared image library + icon; the rest pull descriptions/metadata only.
+    pull_sites = [s for s in (MODRINTH, CURSEFORGE, PMC) if s in visitor and s.ref(config)]
+
+    missing = [s for s in pull_sites if not s.has_credentials(auth)]
     if missing:
         raise SystemExit(f'Credentials missing for: {", ".join(s.label for s in missing)} — run: puppy auth')
 
-    puppy_dir = project.puppy_dir
-    results = []
+    if pull_sites:
+        designated = pull_sites[0]
+        want_assets = images or not _has_image_info(puppy_dir, site, project_type)
 
-    # MR first, then CF, then PMC (merge order: richer API data fills first).
-    for s in (MODRINTH, CURSEFORGE, PMC):
-        if s not in visitor or not s.ref(config):
-            continue
-        try:
-            r = _run_pull(s, project, config, auth, site, images, verbosity)
-        except SystemExit as e:
-            raise prefix_site_error(s.label, e) from None
-        if r is not None:
-            results.append(r)
+        def _make_task(s):
+            download = (s is designated) and want_assets
+            return lambda: _run_pull(s, project, config, auth, download, verbosity, project_type)
 
-    if results:
-        _harvest_yaml(project, _merge_results(results), puppy_dir, site, images, project_type)
+        tasks = [(s.label, _make_task(s)) for s in pull_sites]
+        results_by_label = run_sites_parallel(tasks, verbosity=verbosity)
+
+        # Single image source: drop image metadata from non-designated sites so the
+        # library comes only from the site that actually downloaded the files.
+        for label, r in results_by_label.items():
+            if label != designated.label and isinstance(r, dict):
+                r.pop('images', None)
+
+        results = list(results_by_label.values())
+        if results:
+            _harvest_yaml(project, _merge_results(results), puppy_dir, site, images, project_type)
 
     if verbosity >= 1:
         print(f'[{project.name}] pull complete')
@@ -51,20 +61,16 @@ def _run_pull(
     project: Project,
     config: dict,
     auth: dict,
-    site: str | None,
-    images: bool,
+    download: bool,
     verbosity: int,
+    project_type: str,
 ) -> dict:
-    puppy_dir = project.puppy_dir
-    project_type = config.get('type', 'pack')
-    do_images = images or not _has_image_info(puppy_dir, site, project_type)
-
     try:
         return s.pull(
             project_id=s.ref(config),
             auth=auth,
-            puppy_dir=puppy_dir,
-            images=do_images,
+            puppy_dir=project.puppy_dir,
+            images=download,
             verbosity=verbosity,
             project_type=project_type,
         )

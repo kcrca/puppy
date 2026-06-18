@@ -151,33 +151,47 @@ def _cf_download(url: str, dest: Path) -> None:
         dest.write_bytes(r.read())
 
 
+_CF_RETRY_CODES = (429, 503)
+_CF_MAX_ATTEMPTS = 4
+
+
 def _cf_send(req: urllib.request.Request) -> Any:
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            body = r.read()
-            if not body:
-                return None
-            try:
-                return json.loads(body)
-            except (json.JSONDecodeError, ValueError):
-                return body.decode()
-    except urllib.error.HTTPError as e:
-        body = e.read().decode(errors='replace')
-        if e.code in (401, 403):
-            try:
-                msg = (json.loads(body).get('message') or '').lower()
-                if msg and 'unauthorized' not in msg and 'forbidden' not in msg:
-                    raise SiteError(e.code, body)
-            except (json.JSONDecodeError, AttributeError):
-                pass
-            raise AuthExpiredError(e.code, body)
-        if e.code == 400:
-            try:
-                if 'forbidden' in (json.loads(body).get('message') or '').lower():
-                    raise AuthExpiredError(e.code, body)
-            except (json.JSONDecodeError, AttributeError):
-                pass
-        raise SiteError(e.code, body)
+    for attempt in range(_CF_MAX_ATTEMPTS):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                body = r.read()
+                if not body:
+                    return None
+                try:
+                    return json.loads(body)
+                except (json.JSONDecodeError, ValueError):
+                    return body.decode()
+        except urllib.error.HTTPError as e:
+            # CurseForge's authors API throttles aggressively (429); back off and retry.
+            if e.code in _CF_RETRY_CODES and attempt < _CF_MAX_ATTEMPTS - 1:
+                retry_after = e.headers.get('Retry-After') if e.headers else None
+                try:
+                    delay = float(retry_after)
+                except (TypeError, ValueError):
+                    delay = 2 ** attempt
+                time.sleep(delay)
+                continue
+            body = e.read().decode(errors='replace')
+            if e.code in (401, 403):
+                try:
+                    msg = (json.loads(body).get('message') or '').lower()
+                    if msg and 'unauthorized' not in msg and 'forbidden' not in msg:
+                        raise SiteError(e.code, body)
+                except (json.JSONDecodeError, AttributeError):
+                    pass
+                raise AuthExpiredError(e.code, body)
+            if e.code == 400:
+                try:
+                    if 'forbidden' in (json.loads(body).get('message') or '').lower():
+                        raise AuthExpiredError(e.code, body)
+                except (json.JSONDecodeError, AttributeError):
+                    pass
+            raise SiteError(e.code, body)
 
 
 _CF_LICENSE_IDS = {

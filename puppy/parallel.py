@@ -61,9 +61,13 @@ def run_sites_parallel(tasks: list[tuple[str, callable]], all_labels: list[str] 
         return {}
     results: dict = {}
     if len(tasks) == 1 and not all_labels:
-        r = tasks[0][1]()
+        label, fn = tasks[0]
+        try:
+            r = fn()
+        except SystemExit as e:
+            raise prefix_site_error(label, e) from None
         if r is not None:
-            results[tasks[0][0]] = r
+            results[label] = r
         return results
 
     is_tty = _orig_stdout.isatty()

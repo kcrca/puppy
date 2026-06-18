@@ -10,11 +10,14 @@ import puppy.syncer as _syncer
 from puppy.errors import AuthExpiredError, SiteError
 from puppy.sites import MODRINTH
 from puppy.sites.modrinth import _MR_API
+import puppy.puller as _puller
+from puppy.sites import CURSEFORGE, PMC
 from puppy.syncer import run_push
-from puppy.puller import _run_pull
+from puppy.puller import run_pull
 
-# Real dispatch wrapper, captured before conftest's offline fixtures stub it out.
+# Real dispatch wrappers, captured before conftest's offline fixtures stub them out.
 _REAL_RUN_SITE = _syncer._run_site
+_REAL_RUN_PULL = _puller._run_pull
 
 
 _AUTH = {'modrinth': {'token': 'test-token'}}
@@ -519,68 +522,81 @@ def _mr_pull_result():
     return {'config': {'name': 'T', 'summary': '', 'images': []}, 'modrinth': {'id': 'abc', 'slug': 'mypack'}}
 
 
-def test_run_mr_pull_images_forced_when_no_image_info(tmp_path):
-    (tmp_path / 'puppy.yaml').write_text('name: T\npack: t\nmodrinth:\n  id: abc\n  slug: mypack\n')
-    pull_calls = []
-    with patch('puppy.puller.MODRINTH.pull', side_effect=lambda **kw: (pull_calls.append(kw), _mr_pull_result())[1]):
-        _run_pull(
-            MODRINTH,
+def _mr_pull(tmp_path, *, images, capture):
+    (tmp_path / 'puppy.yaml').write_text('name: T\ntype: pack\nmodrinth:\n  id: abc\n  slug: mypack\n')
+    with patch('puppy.puller._run_pull', _REAL_RUN_PULL), \
+         patch('puppy.sites.MODRINTH.pull',
+               side_effect=lambda **kw: (capture.append(kw), _mr_pull_result())[1]):
+        run_pull(
             project=_mr_project(tmp_path),
-            config={'modrinth': {'id': 'abc', 'slug': 'mypack'}},
-            auth=_AUTH,
-            site='modrinth',
-            images=False,
-            verbosity=0,
+            config={'type': 'pack', 'modrinth': {'id': 'abc', 'slug': 'mypack'}},
+            auth=_AUTH, site='modrinth', images=images, verbosity=0,
         )
-    assert pull_calls[0]['images'] is True
 
 
-def test_run_mr_pull_images_skipped_when_info_exists(tmp_path):
-    (tmp_path / 'puppy.yaml').write_text('name: T\npack: t\nmodrinth:\n  id: abc\n  slug: mypack\n')
+def test_mr_pull_downloads_images_on_first_pull(tmp_path):
+    calls = []
+    _mr_pull(tmp_path, images=False, capture=calls)
+    assert calls[0]['images'] is True
+
+
+def test_mr_pull_skips_images_when_info_exists(tmp_path):
     (tmp_path / 'images.yaml').write_text('[]\n')
-    pull_calls = []
-    with patch('puppy.puller.MODRINTH.pull', side_effect=lambda **kw: (pull_calls.append(kw), _mr_pull_result())[1]):
-        _run_pull(
-            MODRINTH,
-            project=_mr_project(tmp_path),
-            config={'modrinth': {'id': 'abc', 'slug': 'mypack'}},
-            auth=_AUTH,
-            site='modrinth',
-            images=False,
-            verbosity=0,
-        )
-    assert pull_calls[0]['images'] is False
+    calls = []
+    _mr_pull(tmp_path, images=False, capture=calls)
+    assert calls[0]['images'] is False
 
 
-def test_run_mr_pull_images_true_fetches_even_when_info_exists(tmp_path):
-    (tmp_path / 'puppy.yaml').write_text('name: T\npack: t\nmodrinth:\n  id: abc\n  slug: mypack\n')
+def test_mr_pull_forces_images_even_when_info_exists(tmp_path):
     (tmp_path / 'images.yaml').write_text('[]\n')
-    pull_calls = []
-    with patch('puppy.puller.MODRINTH.pull', side_effect=lambda **kw: (pull_calls.append(kw), _mr_pull_result())[1]):
-        _run_pull(
-            MODRINTH,
-            project=_mr_project(tmp_path),
-            config={'modrinth': {'id': 'abc', 'slug': 'mypack'}},
-            auth=_AUTH,
-            site='modrinth',
-            images=True,
-            verbosity=0,
-        )
-    assert pull_calls[0]['images'] is True
+    calls = []
+    _mr_pull(tmp_path, images=True, capture=calls)
+    assert calls[0]['images'] is True
 
 
-def test_run_mr_pull_auth_expired_raises_system_exit(tmp_path):
-    with patch('puppy.puller.MODRINTH.pull', side_effect=AuthExpiredError(401, 'expired')):
+def test_mr_pull_auth_expired_raises_system_exit(tmp_path):
+    (tmp_path / 'puppy.yaml').write_text('name: T\ntype: pack\nmodrinth:\n  id: abc\n  slug: mypack\n')
+    with patch('puppy.puller._run_pull', _REAL_RUN_PULL), \
+         patch('puppy.sites.MODRINTH.pull', side_effect=AuthExpiredError(401, 'expired')):
         with pytest.raises(SystemExit, match='Modrinth auth expired'):
-            _run_pull(
-            MODRINTH,
+            run_pull(
                 project=_mr_project(tmp_path),
-                config={'modrinth': {'id': 'abc', 'slug': 'mypack'}},
-                auth=_AUTH,
-                site='modrinth',
-                images=False,
-                verbosity=0,
+                config={'type': 'pack', 'modrinth': {'id': 'abc', 'slug': 'mypack'}},
+                auth=_AUTH, site='modrinth', images=False, verbosity=0,
             )
+
+
+def test_pull_downloads_images_only_from_designated_site(tmp_path):
+    """Multi-site pull: only the first site (MR) downloads the shared image library."""
+    (tmp_path / 'puppy.yaml').write_text('name: T\ntype: pack\n')
+    calls = {}
+
+    def _faker(site_key):
+        def fake_pull(self, *, project_id, auth, puppy_dir, images, verbosity, project_type='pack'):
+            calls[site_key] = images
+            return {'config': {}, site_key: {'id': project_id}}
+        return fake_pull
+
+    auth = {
+        'modrinth': {'token': 't'},
+        'curseforge': {'token': 't', 'cookie': 'c'},
+        'planetminecraft': {'cookie': 'c'},
+    }
+    config = {
+        'type': 'pack',
+        'modrinth': {'id': 'abc', 'slug': 'mypack'},
+        'curseforge': {'id': 99, 'slug': 'mypack'},
+        'planetminecraft': {'id': 7, 'slug': 'mypack'},
+    }
+    with patch('puppy.puller._run_pull', _REAL_RUN_PULL), \
+         patch.object(MODRINTH.__class__, 'pull', _faker('modrinth')), \
+         patch.object(CURSEFORGE.__class__, 'pull', _faker('curseforge')), \
+         patch.object(PMC.__class__, 'pull', _faker('planetminecraft')):
+        run_pull(project=_mr_project(tmp_path), config=config, auth=auth, site=None, images=False, verbosity=0)
+
+    assert calls['modrinth'] is True          # designated (first) → downloads
+    assert calls['curseforge'] is False
+    assert calls['planetminecraft'] is False
 
 
 # ── publisher auth-expired ────────────────────────────────────────────────────

@@ -13,11 +13,13 @@ import puppy.syncer as _syncer
 from puppy.core import Project
 from puppy.errors import AuthExpiredError
 from puppy.sites import PMC
-from puppy.puller import _run_pull
+import puppy.puller as _puller
+from puppy.puller import run_pull
 from puppy.syncer import run_push
 
-# Real dispatch wrapper, captured before conftest's offline fixtures stub it out.
+# Real dispatch wrappers, captured before conftest's offline fixtures stub them out.
 _REAL_RUN_SITE = _syncer._run_site
+_REAL_RUN_PULL = _puller._run_pull
 
 
 _AUTH = {'planetminecraft': {'cookie': 'pmc_autologin=test-cookie'}}
@@ -741,64 +743,54 @@ def test_run_pull_when_pmc_creds_present(push_env, run_puppy):
     assert called
 
 
-def test_run_pmc_pull_images_forced_when_no_image_info(tmp_path):
+def _pmc_pull_env(tmp_path):
     project = Project(tmp_path, override_name='Pack', override_handle='pack')
-    config = {'planetminecraft': {'id': _PROJECT_ID}}
+    (project.puppy_dir / 'puppy.yaml').write_text(
+        yaml.dump({'name': 'Pack', 'type': 'pack', 'planetminecraft': {'id': _PROJECT_ID}})
+    )
+    return project
 
-    pull_calls = []
+
+def _pmc_pull(tmp_path, *, images, capture):
+    project = _pmc_pull_env(tmp_path)
 
     def fake_pull(self, project_id, auth, puppy_dir, images, verbosity, project_type='pack'):
-        pull_calls.append(images)
+        capture.append(images)
         return {'config': {}, 'planetminecraft': {'id': project_id}}
 
-    with patch.object(PMC.__class__, 'pull', fake_pull):
-        _run_pull(PMC, project, config, _AUTH, None, False, 0)
+    with patch('puppy.puller._run_pull', _REAL_RUN_PULL), \
+         patch.object(PMC.__class__, 'pull', fake_pull):
+        run_pull(project=project, config={'type': 'pack', 'planetminecraft': {'id': _PROJECT_ID}},
+                 auth=_AUTH, site='pmc', images=images, verbosity=0)
 
-    # No images.yaml exists → images forced True
-    assert pull_calls[0] is True
+
+def test_pmc_pull_downloads_images_on_first_pull(tmp_path):
+    calls = []
+    _pmc_pull(tmp_path, images=False, capture=calls)
+    assert calls[0] is True
 
 
-def test_run_pmc_pull_images_skipped_when_info_exists(tmp_path):
-    project = Project(tmp_path, override_name='Pack', override_handle='pack')
-    config = {'planetminecraft': {'id': _PROJECT_ID}}
+def test_pmc_pull_skips_images_when_info_exists(tmp_path):
     (tmp_path / 'images.yaml').write_text('[]')
-
-    pull_calls = []
-
-    def fake_pull(self, project_id, auth, puppy_dir, images, verbosity, project_type='pack'):
-        pull_calls.append(images)
-        return {'config': {}, 'planetminecraft': {'id': project_id}}
-
-    with patch.object(PMC.__class__, 'pull', fake_pull):
-        _run_pull(PMC, project, config, _AUTH, None, False, 0)
-
-    assert pull_calls[0] is False
+    calls = []
+    _pmc_pull(tmp_path, images=False, capture=calls)
+    assert calls[0] is False
 
 
-def test_run_pmc_pull_images_true_fetches_even_when_info_exists(tmp_path):
-    project = Project(tmp_path, override_name='Pack', override_handle='pack')
-    config = {'planetminecraft': {'id': _PROJECT_ID}}
+def test_pmc_pull_forces_images_even_when_info_exists(tmp_path):
     (tmp_path / 'images.yaml').write_text('[]')
-
-    pull_calls = []
-
-    def fake_pull(self, project_id, auth, puppy_dir, images, verbosity, project_type='pack'):
-        pull_calls.append(images)
-        return {'config': {}, 'planetminecraft': {'id': project_id}}
-
-    with patch.object(PMC.__class__, 'pull', fake_pull):
-        _run_pull(PMC, project, config, _AUTH, None, True, 0)
-
-    assert pull_calls[0] is True
+    calls = []
+    _pmc_pull(tmp_path, images=True, capture=calls)
+    assert calls[0] is True
 
 
-def test_run_pmc_pull_auth_expired_raises_system_exit(tmp_path):
-    project = Project(tmp_path, override_name='Pack', override_handle='pack')
-    config = {'planetminecraft': {'id': _PROJECT_ID}}
-
-    with patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
+def test_pmc_pull_auth_expired_raises_system_exit(tmp_path):
+    project = _pmc_pull_env(tmp_path)
+    with patch('puppy.puller._run_pull', _REAL_RUN_PULL), \
+         patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
         with pytest.raises(SystemExit, match='PlanetMinecraft auth expired'):
-            _run_pull(PMC, project, config, _AUTH, None, False, 0)
+            run_pull(project=project, config={'type': 'pack', 'planetminecraft': {'id': _PROJECT_ID}},
+                     auth=_AUTH, site='pmc', images=False, verbosity=0)
 
 
 # ── 8. PMC.submit_log ────────────────────────────────────────────────────────

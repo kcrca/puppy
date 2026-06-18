@@ -8,14 +8,16 @@ import yaml
 from PIL import Image
 
 import puppy.syncer as _syncer
-from puppy.errors import AuthExpiredError
+from puppy.errors import AuthExpiredError, SiteError
 from puppy.sites import CURSEFORGE
 from puppy.sites.curseforge import _CF_DASH, _CF_API
+import puppy.puller as _puller
 from puppy.syncer import run_push
-from puppy.puller import _run_pull
+from puppy.puller import run_pull
 
-# Real dispatch wrapper, captured before conftest's offline fixtures stub it out.
+# Real dispatch wrappers, captured before conftest's offline fixtures stub them out.
 _REAL_RUN_SITE = _syncer._run_site
+_REAL_RUN_PULL = _puller._run_pull
 
 
 _AUTH = {
@@ -42,10 +44,51 @@ def _make_response(body: bytes | list | dict | None, status: int = 200):
     return resp
 
 
-def _make_http_error(code: int, body: str = ''):
+def _make_http_error(code: int, body: str = '', hdrs=None):
     import urllib.error
-    err = urllib.error.HTTPError(url='', code=code, msg='', hdrs={}, fp=io.BytesIO(body.encode()))
+    err = urllib.error.HTTPError(url='', code=code, msg='', hdrs=hdrs or {}, fp=io.BytesIO(body.encode()))
     return err
+
+
+# ── 0. _cf_send 429 retry ────────────────────────────────────────────────────
+
+def test_cf_send_retries_on_429_then_succeeds(monkeypatch):
+    from puppy.sites.curseforge import _cf_send
+    import urllib.request
+    seq = [
+        _make_http_error(429, 'throttled', hdrs={'Retry-After': '0'}),
+        _make_http_error(429, 'throttled'),
+        _make_response({'ok': True}),
+    ]
+    calls = []
+
+    def fake_urlopen(req, timeout=30):
+        calls.append(1)
+        r = seq[len(calls) - 1]
+        if isinstance(r, Exception):
+            raise r
+        return r
+
+    monkeypatch.setattr('time.sleep', lambda *a, **k: None)
+    monkeypatch.setattr('urllib.request.urlopen', fake_urlopen)
+    assert _cf_send(urllib.request.Request('https://x')) == {'ok': True}
+    assert len(calls) == 3   # two 429s retried, third succeeded
+
+
+def test_cf_send_raises_site_error_after_max_429(monkeypatch):
+    from puppy.sites.curseforge import _cf_send
+    import urllib.request
+    calls = []
+
+    def fake_urlopen(req, timeout=30):
+        calls.append(1)
+        raise _make_http_error(429, 'throttled')
+
+    monkeypatch.setattr('time.sleep', lambda *a, **k: None)
+    monkeypatch.setattr('urllib.request.urlopen', fake_urlopen)
+    with pytest.raises(SiteError, match='429'):
+        _cf_send(urllib.request.Request('https://x'))
+    assert len(calls) == 4   # _CF_MAX_ATTEMPTS
 
 
 # ── 1. update_description ────────────────────────────────────────────────────
@@ -797,67 +840,47 @@ def _cf_pull_result():
     return {'config': {'name': 'T', 'summary': '', 'images': []}, 'curseforge': {'id': 99, 'slug': 'mypack'}}
 
 
-def test_run_cf_pull_images_forced_when_no_image_info(tmp_path):
-    (tmp_path / 'puppy.yaml').write_text('name: T\npack: t\ncurseforge:\n  id: 99\n  slug: mypack\n')
-    pull_calls = []
-    with patch('puppy.puller.CURSEFORGE.pull', side_effect=lambda **kw: (pull_calls.append(kw), _cf_pull_result())[1]):
-        _run_pull(
-            CURSEFORGE,
+def _cf_pull(tmp_path, *, images, capture):
+    (tmp_path / 'puppy.yaml').write_text('name: T\ntype: pack\ncurseforge:\n  id: 99\n  slug: mypack\n')
+    with patch('puppy.puller._run_pull', _REAL_RUN_PULL), \
+         patch('puppy.sites.CURSEFORGE.pull',
+               side_effect=lambda **kw: (capture.append(kw), _cf_pull_result())[1]):
+        run_pull(
             project=_cf_project(tmp_path),
-            config={'curseforge': {'id': 99, 'slug': 'mypack'}},
-            auth=_AUTH,
-            site='curseforge',
-            images=False,
-            verbosity=0,
+            config={'type': 'pack', 'curseforge': {'id': 99, 'slug': 'mypack'}},
+            auth=_AUTH, site='curseforge', images=images, verbosity=0,
         )
-    assert pull_calls[0]['images'] is True
 
 
-def test_run_cf_pull_images_skipped_when_info_exists(tmp_path):
-    (tmp_path / 'puppy.yaml').write_text('name: T\npack: t\ncurseforge:\n  id: 99\n  slug: mypack\n')
+def test_cf_pull_downloads_images_on_first_pull(tmp_path):
+    calls = []
+    _cf_pull(tmp_path, images=False, capture=calls)
+    assert calls[0]['images'] is True
+
+
+def test_cf_pull_skips_images_when_info_exists(tmp_path):
     (tmp_path / 'images.yaml').write_text('[]\n')
-    pull_calls = []
-    with patch('puppy.puller.CURSEFORGE.pull', side_effect=lambda **kw: (pull_calls.append(kw), _cf_pull_result())[1]):
-        _run_pull(
-            CURSEFORGE,
-            project=_cf_project(tmp_path),
-            config={'curseforge': {'id': 99, 'slug': 'mypack'}},
-            auth=_AUTH,
-            site='curseforge',
-            images=False,
-            verbosity=0,
-        )
-    assert pull_calls[0]['images'] is False
+    calls = []
+    _cf_pull(tmp_path, images=False, capture=calls)
+    assert calls[0]['images'] is False
 
 
-def test_run_cf_pull_images_true_fetches_even_when_info_exists(tmp_path):
-    (tmp_path / 'puppy.yaml').write_text('name: T\npack: t\ncurseforge:\n  id: 99\n  slug: mypack\n')
+def test_cf_pull_forces_images_even_when_info_exists(tmp_path):
     (tmp_path / 'images.yaml').write_text('[]\n')
-    pull_calls = []
-    with patch('puppy.puller.CURSEFORGE.pull', side_effect=lambda **kw: (pull_calls.append(kw), _cf_pull_result())[1]):
-        _run_pull(
-            CURSEFORGE,
-            project=_cf_project(tmp_path),
-            config={'curseforge': {'id': 99, 'slug': 'mypack'}},
-            auth=_AUTH,
-            site='curseforge',
-            images=True,
-            verbosity=0,
-        )
-    assert pull_calls[0]['images'] is True
+    calls = []
+    _cf_pull(tmp_path, images=True, capture=calls)
+    assert calls[0]['images'] is True
 
 
-def test_run_cf_pull_auth_expired_raises_system_exit(tmp_path):
-    with patch('puppy.puller.CURSEFORGE.pull', side_effect=AuthExpiredError(401, 'expired')):
+def test_cf_pull_auth_expired_raises_system_exit(tmp_path):
+    (tmp_path / 'puppy.yaml').write_text('name: T\ntype: pack\ncurseforge:\n  id: 99\n  slug: mypack\n')
+    with patch('puppy.puller._run_pull', _REAL_RUN_PULL), \
+         patch('puppy.sites.CURSEFORGE.pull', side_effect=AuthExpiredError(401, 'expired')):
         with pytest.raises(SystemExit, match='CurseForge auth expired'):
-            _run_pull(
-            CURSEFORGE,
+            run_pull(
                 project=_cf_project(tmp_path),
-                config={'curseforge': {'id': 99, 'slug': 'mypack'}},
-                auth=_AUTH,
-                site='curseforge',
-                images=False,
-                verbosity=0,
+                config={'type': 'pack', 'curseforge': {'id': 99, 'slug': 'mypack'}},
+                auth=_AUTH, site='curseforge', images=False, verbosity=0,
             )
 
 
