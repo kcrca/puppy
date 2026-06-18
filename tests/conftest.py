@@ -4,18 +4,15 @@ import yaml
 from PIL import Image
 
 
-@pytest.fixture(autouse=True, scope='session')
-def _clean_preview_tmp():
-    """Wipe the shared dry-run preview dir so a stale run can't mask a real failure.
+@pytest.fixture(autouse=True)
+def _isolate_preview_tmp(tmp_path, monkeypatch):
+    """Redirect the dry-run preview dir to a per-test tmp.
 
-    Serial-only: the dry-run stages to tempfile.gettempdir()/puppy, which is shared
-    across xdist workers. Revisit (per-test isolation) when enabling parallel runs.
+    The dry-run stages to tempfile.gettempdir()/puppy and the tests read it back the
+    same way; pointing gettempdir() at this test's tmp_path makes both agree, isolated
+    per test (so stale output can't mask a failure) and safe under xdist.
     """
-    import shutil
-    import tempfile
-    from pathlib import Path
-    shutil.rmtree(Path(tempfile.gettempdir()) / 'puppy', ignore_errors=True)
-    yield
+    monkeypatch.setattr('tempfile.gettempdir', lambda: str(tmp_path))
 
 
 @pytest.fixture(autouse=True)
