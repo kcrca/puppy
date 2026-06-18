@@ -617,6 +617,8 @@ Combine them as `-c fid` or `--content file,images`, or use `-c all`.
       Other categories still upload on this run if their hash changed.
       When `use_hashes: false`, hashing is off and `-c` is the *only* thing that uploads (default `data`).
     * `-V`, `--version VERSION`: Use this version, overriding other information.
+    * `--rehash`: Record the current content as already-uploaded — write `hashes.yaml` for the in-scope categories (`-c`, else all) without uploading anything.
+      Handy after a fresh checkout where the sites are already current, or after editing content directly on a site, so the next push does not re-upload everything.
     * `-n`, `--dry-run`: Create a pre-check HTML page, printing the URL and opening it.
     * `--no-open`: With `-n`, suppresses opening the file.
 

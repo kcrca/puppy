@@ -85,6 +85,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        '--rehash',
+        action='store_true',
+        dest='rehash',
+        help='Record current content as already-uploaded: write hashes.yaml for the '
+             'in-scope categories (-c, else all) without uploading anything.',
+    )
+
+    parser.add_argument(
         '-f',
         '--force',
         action='store_true',
@@ -109,6 +117,11 @@ def main(argv: list[str] = None) -> None:
 
     directory = args.directory or Path.cwd()
 
+    if args.rehash and args.action != 'push':
+        parser.error('--rehash is only valid with push')
+    if args.rehash and args.dry_run:
+        parser.error('--rehash cannot be combined with --dry-run')
+
     if args.action == 'auth':
         from puppy.auth import run_auth
         run_auth(site=args.site, directory=directory)
@@ -122,6 +135,7 @@ def main(argv: list[str] = None) -> None:
         site=args.site,
         version=args.version,
         content=parse_content(args.content) if args.content else None,
+        rehash=args.rehash,
         handle_filter=args.handle_name or None,
         force=args.force,
         open_browser=args.open_browser,

@@ -63,6 +63,7 @@ def run(
     site: str | None,
     version: str | None,
     content: set[str] | None = None,
+    rehash: bool = False,
     handle_filter: list[str] | None = None,
     force: bool = False,
     open_browser: bool = True,
@@ -124,7 +125,8 @@ def run(
             )
 
         if verbosity >= 1:
-            label = action + (' -c file' if action == 'push' and 'file' in content else '')
+            label = 'rehash' if (action == 'push' and rehash) else \
+                action + (' -c file' if action == 'push' and 'file' in content else '')
             print(
                 f'[{project.name}] {label}'
                 + (f' v{resolved_version}' if resolved_version else '')
@@ -158,6 +160,7 @@ def run(
                 content,
                 force,
                 verbosity,
+                rehash=rehash,
                 all_labels=all_labels,
             )
             after_push_messages += _collect_after_push(config, site)
@@ -308,7 +311,7 @@ def _collect_after_push(config: dict, site: str | None) -> list:
 
 def _dispatch(
     action, project, config, version, auth, puppy_home, site, content, force, verbosity,
-    all_labels=None,
+    rehash=False, all_labels=None,
 ):
     if action == 'create':
         run_create(
@@ -336,6 +339,7 @@ def _dispatch(
             site=site,
             version=version,
             content=content,
+            rehash=rehash,
             verbosity=verbosity,
             auth=auth,
             all_labels=all_labels,

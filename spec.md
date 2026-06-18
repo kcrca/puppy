@@ -92,6 +92,7 @@ Puppy has the following actions:
   By default (`use_hashes: true` in `puppy.yaml`) only categories whose content changed since the last push are uploaded; the content hashes are stored in `puppy/hashes.yaml`.
   Use `-c/--content` to force specific categories regardless of the hash check.
   Uploading the zip requires `version` in `puppy.yaml` or `-V/--version`.
+  `--rehash` records the current content as already-uploaded — see "Upload selection & change detection" below.
   See "Upload selection & change detection" below for the full model.
 * **`pull`:** Pulls live site data.
   Update yaml in puppy home and the project home (if different).
@@ -159,6 +160,12 @@ The `use_hashes` config key (default `true`) controls change detection:
 * **`use_hashes: false`** — no hashes are read or written; `push` uploads exactly the categories named by `-c/--content`, defaulting to `data`.
 
 `-c/--content` force-uploads the named categories regardless of the hash check; categories not named still upload if their hash changed (when hashing is on).
+
+**`--rehash`** (push only) records the current local content as already-uploaded: it writes `hashes.yaml` for the in-scope categories without uploading anything.
+Scope follows `-c/--content` (all categories when `-c` is omitted).
+Use it after a fresh checkout where the sites are already current, or after editing content directly on a site, so the next `push` does not re-upload everything.
+It computes hashes from local files; the only network access is a read-only fetch of existing gallery image URLs, needed to render a description that references them (so credentials are still required when the `data` category is in scope and the project has images).
+`--rehash` cannot be combined with `--dry-run`.
 
 **`file` change detection** uses the same hash system. For Modrinth the local zip's SHA-512 is compared against Modrinth's server-reported hash directly (correct even on a fresh checkout); if that server hash differs from the value in `hashes.yaml`, the site copy changed out of band, so puppy updates `hashes.yaml` and prints a notice. CurseForge and PMC compare the local SHA-512 against `hashes.yaml` alone.
 

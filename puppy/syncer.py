@@ -57,6 +57,20 @@ def _data_fingerprint(description: str, sc: dict, config: dict) -> str:
 _ICON_KEY = '@icon'
 
 
+def _local_image_hashes(image_list: list, images_dir: Path, icon) -> dict[str, str]:
+    """Per-asset image hashes (icon + each gallery image) computed from local files."""
+    result: dict[str, str] = {}
+    if icon and icon.exists():
+        result[_ICON_KEY] = hashes.compute(icon.read_bytes())
+    for entry in image_list:
+        try:
+            src = find_image(entry['file'], images_dir)
+        except SystemExit:
+            continue
+        result[src.stem] = _image_hash(src, entry)
+    return result
+
+
 def _push_images(s, site_id, auth, image_list, images_dir, icon,
                  content, use_hashes, site_store, project_type, verbosity):
     """Sync one site's icon + gallery per asset.
@@ -123,6 +137,7 @@ def run_push(
     site: str | None,
     version: str | None,
     content: set[str] | None = None,
+    rehash: bool = False,
     verbosity: int,
     auth: dict = None,
     all_labels: list[str] | None = None,
@@ -148,9 +163,12 @@ def run_push(
             if s not in visitor:
                 print(f'  [{s.label}] skipping — type "{project_type}" not supported')
 
-    missing = [s for s in SITES if s in visitor and s.ref(config) and not s.has_credentials(auth)]
-    if missing:
-        raise SystemExit(f'Credentials missing for: {", ".join(s.label for s in missing)} — run: puppy auth')
+    # rehash needs credentials only when it must fetch gallery URLs to render a description
+    rehash_needs_net = rehash and (not content or 'data' in content) and bool(config.get('images'))
+    if not rehash or rehash_needs_net:
+        missing = [s for s in SITES if s in visitor and s.ref(config) and not s.has_credentials(auth)]
+        if missing:
+            raise SystemExit(f'Credentials missing for: {", ".join(s.label for s in missing)} — run: puppy auth')
 
     images_source = config.get('images_source')
     images_dir = Path(images_source) if images_source else puppy_dir / 'images'
@@ -158,7 +176,10 @@ def run_push(
 
     projects_ctx = config['projects']
     discovery = ContentDiscovery(puppy_home, project.root)
-    zip_path, local_sha = _resolve_file(config, puppy_dir, version, project, content, use_hashes)
+    file_in_scope = rehash and (not content or 'file' in content)
+    zip_path, local_sha = _resolve_file(
+        config, puppy_dir, version, project, content, use_hashes, file_in_scope,
+    )
 
     def _file_should(s, site_id, site_store) -> bool:
         if not zip_path:
@@ -169,6 +190,25 @@ def run_push(
         if forced:
             return True
         return s.file_changed(site_id, auth, local_sha, site_store, hashes.HASH_FILE)
+
+    def _render_desc(s, image_urls):
+        """Resolve this site's config and render its description; returns (config, desc)."""
+        site_config = ConfigSynthesizer(puppy_home, project.root, site=s).get_running_config()
+        site_config['projects'] = projects_ctx
+        local_config = _deep_merge(config, {s.name: site_config[s.name]}) if s.name in site_config else dict(config)
+        local_config['description'] = []
+        body, source = discovery.find_description(site=s)
+        desc = ''
+        if body:
+            desc = render(body, site_config, source=str(source), site=s, image_urls=image_urls)
+            if source and source.suffix == '.md':
+                desc = s.convert_md(desc)
+        return local_config, desc
+
+    def _data_fp(s, local_config, desc):
+        sc = {'name': local_config.get('name', ''), 'summary': local_config.get('summary', ''),
+              **local_config.get(s.name, {})}
+        return _data_fingerprint(desc, sc, local_config)
 
     # Each site runs its full pipeline (images → render → data → file) as one
     # parallel task: images upload concurrently, and a per-site failure is isolated.
@@ -187,21 +227,10 @@ def run_push(
             image_urls = add_image_name_aliases(urls, image_list) if urls else None
 
             # 2. render this site's description against its own resolved config
-            site_config = ConfigSynthesizer(puppy_home, project.root, site=s).get_running_config()
-            site_config['projects'] = projects_ctx
-            local_config = _deep_merge(config, {s.name: site_config[s.name]}) if s.name in site_config else dict(config)
-            local_config['description'] = []
-            body, source = discovery.find_description(site=s)
-            desc = ''
-            if body:
-                desc = render(body, site_config, source=str(source), site=s, image_urls=image_urls)
-                if source and source.suffix == '.md':
-                    desc = s.convert_md(desc)
+            local_config, desc = _render_desc(s, image_urls)
 
             # 3. data (description + metadata), hash-gated
-            sc = {'name': local_config.get('name', ''), 'summary': local_config.get('summary', ''),
-                  **local_config.get(s.name, {})}
-            fp = _data_fingerprint(desc, sc, local_config)
+            fp = _data_fp(s, local_config, desc)
             if hashes.decide('data', fp, upload_set=content, use_hashes=use_hashes, prior=site_store):
                 _run_site(s, site_id, local_config, avatar, desc, auth, verbosity)
                 if use_hashes:
@@ -216,8 +245,35 @@ def run_push(
                     site_store['file'] = local_sha
         return task
 
+    def _make_rehash_task(s, site_id):
+        """Record current content hashes for the in-scope categories without uploading."""
+        cats = content or set(hashes.CATEGORIES)
+
+        def task():
+            site_store = store.setdefault(s.name, {})
+
+            if 'images' in cats:
+                site_store['images'] = _local_image_hashes(image_list, images_dir, icon)
+
+            if 'data' in cats:
+                try:
+                    urls = s.gallery_urls(site_id, auth, project_type) if image_list else {}
+                except (AuthExpiredError, SiteError) as e:
+                    raise _site_error(s, e)
+                image_urls = add_image_name_aliases(urls, image_list) if urls else None
+                local_config, desc = _render_desc(s, image_urls)
+                site_store['data'] = _data_fp(s, local_config, desc)
+
+            if 'file' in cats and zip_path:
+                site_store['file'] = local_sha
+
+            if verbosity >= 1:
+                print(f'  [{s.label}] rehashed {", ".join(sorted(cats))}')
+        return task
+
+    make = _make_rehash_task if rehash else _make_task
     tasks = [
-        (s.label, _make_task(s, s.ref(config)))
+        (s.label, make(s, s.ref(config)))
         for s in SITES
         if s in visitor and s.ref(config)
     ]
@@ -225,17 +281,17 @@ def run_push(
     try:
         run_sites_parallel(tasks, all_labels=all_labels, verbosity=verbosity)
     finally:
-        if use_hashes:
+        if use_hashes or rehash:
             hashes.save(puppy_dir, store)
 
     if verbosity >= 1:
-        print(f'[{project.name}] push complete')
+        print(f'[{project.name}] {"rehash" if rehash else "push"} complete')
 
 
-def _resolve_file(config, puppy_dir, version, project, content, use_hashes):
+def _resolve_file(config, puppy_dir, version, project, content, use_hashes, file_in_scope=False):
     """Resolve the zip and its SHA-512 if file upload is in scope, else (None, None)."""
     file_explicit = 'file' in content
-    if not (file_explicit or use_hashes):
+    if not (file_explicit or use_hashes or file_in_scope):
         return None, None
     has_spec = bool(config.get('minecraft') or config.get('versions')) and bool(version)
     if not has_spec:

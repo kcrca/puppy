@@ -99,6 +99,52 @@ def test_force_data_reuploads_even_when_unchanged(tmp_path, monkeypatch):
     assert calls == [1, 1]
 
 
+def test_rehash_records_without_uploading_then_push_skips(tmp_path, monkeypatch):
+    home, project_dir = _env(tmp_path)
+    calls = []
+    monkeypatch.setattr('puppy.syncer._run_site', lambda *a, **k: calls.append(1))
+    _run(home, project_dir, rehash=True)
+    assert calls == []                          # rehash uploads nothing
+    assert (project_dir / 'hashes.yaml').exists()
+    _run(home, project_dir, content=set())      # push sees data already recorded
+    assert calls == []
+
+
+def test_rehash_scope_images_only(tmp_path, monkeypatch):
+    home, project_dir = _env(tmp_path)
+    calls = []
+    monkeypatch.setattr('puppy.syncer._run_site', lambda *a, **k: calls.append(1))
+    _run(home, project_dir, rehash=True, content={'images'})
+    store = yaml.safe_load((project_dir / 'hashes.yaml').read_text())
+    assert 'images' in store['curseforge']
+    assert 'data' not in store['curseforge']
+    _run(home, project_dir, content=set())      # data was not recorded → still uploads
+    assert calls == [1]
+
+
+def test_rehash_records_file_then_push_skips(tmp_path, monkeypatch):
+    import zipfile
+    home, project_dir = _env(tmp_path, extra={'minecraft': '1.21', 'file': 'pack.zip'})
+    with zipfile.ZipFile(project_dir / 'pack.zip', 'w') as z:
+        z.writestr('pack.mcmeta', '{}')
+    uploads = []
+    monkeypatch.setattr('puppy.syncer._run_site', lambda *a, **k: None)
+    monkeypatch.setattr('puppy.syncer._upload_site', lambda *a, **k: uploads.append(1))
+
+    config = ConfigSynthesizer(home, project_dir).get_running_config()
+    project = Project.from_config(project_dir, config, dry_run=True)
+    auth = {'curseforge': {'token': 'cf', 'cookie': 'CobaltSession=x'}}
+    run_push(project=project, config=config, puppy_home=home, site='curseforge',
+             version='1.0.0', verbosity=0, auth=auth, rehash=True)
+    assert uploads == []                        # rehash uploads no file
+    store = yaml.safe_load((project_dir / 'hashes.yaml').read_text())
+    assert 'file' in store['curseforge']
+
+    run_push(project=project, config=config, puppy_home=home, site='curseforge',
+             version='1.0.0', verbosity=0, auth=auth, content=set())
+    assert uploads == []                        # zip unchanged → still skipped
+
+
 def test_use_hashes_false_only_uploads_named(tmp_path, monkeypatch):
     home, project_dir = _env(tmp_path, extra={'use_hashes': False})
     calls = []
