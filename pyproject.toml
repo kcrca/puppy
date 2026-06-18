@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-xdist", "pyyaml>=6.0"]
+test = ["pytest", "pytest-xdist", "pyyaml>=6.0", "ruff==0.15.11"]
 
 [project.scripts]
 puppy = "puppy.cli:main"
