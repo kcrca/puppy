@@ -8,9 +8,9 @@ def test_multi_pack_batch_staging(project_env, run_puppy):
     """In batch mode (projects: [A, B]), Puppy must iterate through each project."""
     alpha_root = project_env['home'] / 'Alpha'
     alpha_root.mkdir(parents=True)
-    (alpha_root / 'puppy.yaml').write_text(yaml.dump({'name': 'Alpha'}))
+    (alpha_root / 'puppy.yaml').write_text(yaml.dump({'name': 'Alpha', 'type': 'pack'}))
 
-    (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Alpha']}))
+    (project_env['home'] / 'puppy.yaml').write_text(yaml.dump({'projects': ['NeonGlow', 'Alpha'], 'type': 'pack'}))
 
     os.chdir(project_env['root'])
     run_puppy('push', '-n')

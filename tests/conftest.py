@@ -4,6 +4,20 @@ import yaml
 from PIL import Image
 
 
+@pytest.fixture(autouse=True, scope='session')
+def _clean_preview_tmp():
+    """Wipe the shared dry-run preview dir so a stale run can't mask a real failure.
+
+    Serial-only: the dry-run stages to tempfile.gettempdir()/puppy, which is shared
+    across xdist workers. Revisit (per-test isolation) when enabling parallel runs.
+    """
+    import shutil
+    import tempfile
+    from pathlib import Path
+    shutil.rmtree(Path(tempfile.gettempdir()) / 'puppy', ignore_errors=True)
+    yield
+
+
 @pytest.fixture(autouse=True)
 def _no_images(monkeypatch):
     """Stub phase-1 image work (icon, gallery, URL fetch) so push tests stay offline."""
