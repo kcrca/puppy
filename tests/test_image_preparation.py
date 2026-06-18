@@ -3,7 +3,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from puppy.images import prepare_gallery_image, prepare_icon, prepare_logo
+from puppy.images import prepare_gallery_image, prepare_icon
 
 
 def _make_image(tmp_path: Path, size=(800, 600), mode='RGB', fmt='PNG') -> Path:
@@ -45,19 +45,3 @@ def test_prepare_gallery_image_no_upscale(tmp_path):
     data = prepare_gallery_image(src)
     with Image.open(BytesIO(data)) as img:
         assert img.size == (320, 240)
-
-
-def test_prepare_logo_fits(tmp_path):
-    src = _make_image(tmp_path, size=(3000, 500))
-    data = prepare_logo(src)
-    with Image.open(BytesIO(data)) as img:
-        assert img.format == 'PNG'
-        assert img.size[0] <= 1280
-        assert img.size[1] <= 256
-
-
-def test_prepare_logo_no_upscale(tmp_path):
-    src = _make_image(tmp_path, size=(100, 50))
-    data = prepare_logo(src)
-    with Image.open(BytesIO(data)) as img:
-        assert img.size == (100, 50)

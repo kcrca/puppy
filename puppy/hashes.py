@@ -53,21 +53,6 @@ def data_hash(description: str, *parts) -> str:
     return compute(blob)
 
 
-def images_hash(icon_bytes: bytes, images: list[dict]) -> str:
-    h = hashlib.sha512()
-    if icon_bytes:
-        h.update(icon_bytes)
-    for img in images:
-        h.update(b'\x00')
-        h.update(img.get('filename', '').encode('utf-8'))
-        h.update(img.get('data', b''))
-        h.update(json.dumps(
-            {k: img.get(k) for k in ('name', 'description', 'featured')},
-            sort_keys=True, default=str,
-        ).encode('utf-8'))
-    return h.hexdigest()
-
-
 def decide(category: str, content_hash: str, *, upload_set: set, use_hashes: bool, prior: dict) -> bool:
     """Whether `category` should upload this run.
 

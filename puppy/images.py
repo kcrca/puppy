@@ -6,7 +6,6 @@ from PIL import Image
 
 _ICON_SIZE = (512, 512)
 _GALLERY_SIZE = (1920, 1080)
-_LOGO_SIZE = (1280, 256)
 
 _IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.tiff', '.tif']
 
@@ -85,21 +84,6 @@ def prepare_gallery_image(src: Path, verbosity: int = 0) -> bytes:
         out.thumbnail(_GALLERY_SIZE, Image.LANCZOS)
     buf = BytesIO()
     out.save(buf, format='JPEG', quality=95)
-    return buf.getvalue()
-
-
-def prepare_logo(src: Path, verbosity: int = 0) -> bytes:
-    if verbosity >= 1:
-        print(f'  {src.name} → {_LOGO_SIZE[0]}×{_LOGO_SIZE[1]} PNG')
-    try:
-        img_obj = Image.open(src)
-    except Exception as e:
-        raise SystemExit(f'Failed to read image {src}: {e}')
-    with img_obj as img:
-        out = img.convert('RGBA')
-        out.thumbnail(_LOGO_SIZE, Image.LANCZOS)
-    buf = BytesIO()
-    out.save(buf, format='PNG')
     return buf.getvalue()
 
 
