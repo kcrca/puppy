@@ -148,8 +148,7 @@ def _cf_post_multipart(
 
 def _cf_download(url: str, dest: Path) -> None:
     req = urllib.request.Request(url, headers=_cf_headers({}))
-    with urllib.request.urlopen(req, timeout=30) as r:
-        dest.write_bytes(r.read())
+    dest.write_bytes(urlopen_retrying(req, timeout=30))
 
 
 def _cf_send(req: urllib.request.Request) -> Any:
@@ -456,8 +455,7 @@ class CurseForgeSite(Site):
                 url = f'https://www.curseforge.com/minecraft/{segment}/{slug}'
                 try:
                     req = urllib.request.Request(url, headers=page_headers)
-                    with urllib.request.urlopen(req, timeout=30) as r:
-                        page = r.read().decode('utf-8', errors='replace')
+                    page = urlopen_retrying(req, timeout=30).decode('utf-8', errors='replace')
                     project_id = _cf_extract_id_from_page(page)
                     if project_id:
                         config = dict(config)
@@ -874,8 +872,7 @@ class CurseForgeSite(Site):
                     f'https://api.curseforge.com/v1/mods/{project_id}/description',
                     headers={'X-Api-Token': token},
                 )
-                with urllib.request.urlopen(desc_req, timeout=30) as resp:
-                    desc_data = json.loads(resp.read())
+                desc_data = json.loads(urlopen_retrying(desc_req, timeout=30))
                 site_dir = puppy_dir / 'curseforge'
                 site_dir.mkdir(parents=True, exist_ok=True)
                 (site_dir / 'description.html').write_text(desc_data['data'])

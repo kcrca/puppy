@@ -111,8 +111,7 @@ def _mr_post_multipart(url: str, auth: dict, fields: dict, files: list) -> Any:
 
 def _mr_download(url: str, dest: Path) -> None:
     req = urllib.request.Request(url, headers={'User-Agent': _MR_UA})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        dest.write_bytes(r.read())
+    dest.write_bytes(urlopen_retrying(req, timeout=30))
 
 
 def _mr_resolve_game_versions(spec: dict, auth: dict) -> list[str]:
@@ -323,8 +322,7 @@ class ModrinthSite(Site):
                 f'https://api.modrinth.com/v2/project/{slug}',
                 headers=headers,
             )
-            with urllib.request.urlopen(req, timeout=30) as r:
-                data = json.loads(r.read())
+            data = json.loads(urlopen_retrying(req, timeout=30))
             config = dict(config)
             config['modrinth'] = dict(mr, id=data['id'], slug=data['slug'])
             if verbosity >= 1:

@@ -167,8 +167,7 @@ def _pmc_download(url: str, dest: Path, cookie: str) -> None:
     if not url.startswith('http'):
         url = f'{_PMC_BASE}{url}'
     req = urllib.request.Request(url, headers=_pmc_headers(cookie))
-    with urllib.request.urlopen(req, timeout=30) as r:
-        dest.write_bytes(r.read())
+    dest.write_bytes(urlopen_retrying(req, timeout=30))
 
 
 def _pmc_multipart(fields: list[tuple], files: list[tuple] = None) -> tuple[bytes, bytes]:
@@ -436,8 +435,7 @@ class PlanetMinecraftSite(Site):
             if cookie:
                 headers['Cookie'] = cookie
             req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=30) as r:
-                html = r.read().decode('utf-8', errors='replace')
+            html = urlopen_retrying(req, timeout=30).decode('utf-8', errors='replace')
             soup = BeautifulSoup(html, 'html.parser')
             manage_path = _pmc_manage_path(project_type)
             for tag in soup.find_all(href=True):
@@ -484,8 +482,7 @@ class PlanetMinecraftSite(Site):
         url = f'{_PMC_BASE}{manage}item/new'
         req = urllib.request.Request(url, headers=_pmc_headers(cookie))
         try:
-            with urllib.request.urlopen(req, timeout=30) as r:
-                html = r.read().decode('utf-8', errors='replace')
+            html = urlopen_retrying(req, timeout=30).decode('utf-8', errors='replace')
         except urllib.error.HTTPError as e:
             if e.code in (401, 403):
                 raise AuthExpiredError(e.code, e.read().decode(errors='replace'))
