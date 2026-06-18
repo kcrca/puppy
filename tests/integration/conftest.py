@@ -12,10 +12,10 @@ import yaml
 
 import puppy.__main__
 from puppy.errors import AuthExpiredError
-from cleanup import (
+from cleanup import (  # noqa: F401  (several are re-exported to test modules)
     _load_auth,
     _mr_request, _cf_fetch, run_cleanup,
-    _CF_DASH, _CF_UA,
+    _CF_DASH, _CF_UA, _MR_API, _MR_UA, _PMC_BASE,
 )
 
 
