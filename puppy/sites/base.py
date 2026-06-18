@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import json
+import urllib.error
+import urllib.request
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
+
+from puppy.errors import AuthExpiredError, SiteError
+from puppy.http import urlopen_retrying
 
 if TYPE_CHECKING:
     from playwright.sync_api import BrowserContext
@@ -21,6 +27,30 @@ class Site:
 
     def supports(self, project_type: str) -> bool:
         return project_type in self.project_types
+
+    def classify_http_error(self, e: urllib.error.HTTPError) -> Exception:
+        """Map an HTTPError to AuthExpiredError or SiteError.
+
+        Default: 401/403 are auth failures, everything else is a generic error.
+        Sites whose API overloads these codes override this.
+        """
+        body = e.read().decode(errors='replace')
+        if e.code in (401, 403):
+            return AuthExpiredError(e.code, body)
+        return SiteError(e.code, body)
+
+    def _send(self, req: urllib.request.Request, *, timeout: int = 30) -> Any:
+        """Shared transport: retry on 429/503, classify failures, decode JSON (else raw text)."""
+        try:
+            body = urlopen_retrying(req, timeout=timeout)
+        except urllib.error.HTTPError as e:
+            raise self.classify_http_error(e)
+        if not body:
+            return None
+        try:
+            return json.loads(body)
+        except (json.JSONDecodeError, ValueError):
+            return body.decode()
 
     def assigned_id(self, config: dict):
         """The site-assigned project id (present only once the project exists)."""
