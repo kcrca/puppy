@@ -19,9 +19,12 @@ def test_unknown_site_in_visitor_raises():
         assert 'Unknown' in str(e)
 
 
-def test_unsupported_project_type_filters_all_sites():
-    visitor = SiteVisitor(project_type='plugin')
-    assert list(visitor) == []
+def test_unknown_project_type_raises():
+    try:
+        SiteVisitor(project_type='plugin')
+        assert False, 'expected SystemExit'
+    except SystemExit as e:
+        assert 'Unknown type' in str(e)
 
 
 def test_unsupported_project_type_with_explicit_site_raises():

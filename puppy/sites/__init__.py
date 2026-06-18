@@ -22,6 +22,8 @@ class SiteVisitor:
     def __init__(self, filter: str = None, project_type: str = 'pack'):
         from puppy.project_type import PROJECT_TYPES
         pt = PROJECT_TYPES.get(project_type)
+        if pt is None:
+            raise SystemExit(f'Unknown type: "{project_type}"')
         if filter:
             requested = [_ALIASES.get(s.strip(), s.strip()) for s in filter.split(',')]
             unknown = [s for s in requested if s not in SITE_MAP]
@@ -30,15 +32,13 @@ class SiteVisitor:
                     f'Unknown site(s): {", ".join(unknown)}. Valid: {", ".join(SITE_MAP)}'
                 )
             self.sites = [s for s in SITES if s.name in requested]
-            if pt is None:
-                raise SystemExit(f'Unknown type: "{project_type}"')
             unsupported = [s for s in self.sites if not s.supports(project_type)]
             if unsupported:
                 raise SystemExit(
                     f'Site(s) {", ".join(s.label for s in unsupported)} do not support type "{project_type}"'
                 )
         else:
-            self.sites = [] if pt is None else [s for s in SITES if s.supports(project_type)]
+            self.sites = [s for s in SITES if s.supports(project_type)]
 
     def __iter__(self):
         return iter(self.sites)
