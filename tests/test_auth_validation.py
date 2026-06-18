@@ -73,3 +73,14 @@ def test_placeholder_curseforge_rejected(auth_home):
     })
     with pytest.raises(SystemExit, match='unchanged'):
         check_auth(auth_home)
+
+
+def test_placeholder_for_untargeted_site_is_ignored(auth_home):
+    # A leftover placeholder for a site the run doesn't target must not block.
+    from puppy.sites import CURSEFORGE, MODRINTH
+    _write_auth(auth_home, {
+        'curseforge': {'token': 'abc', 'cookie': 'CobaltSession=xyz'},
+        'modrinth': 'token123',
+        'planetminecraft': 'YOUR_AUTOLOGIN_COOKIE',
+    })
+    check_auth(auth_home, sites=[CURSEFORGE, MODRINTH])  # no raise

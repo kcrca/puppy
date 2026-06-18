@@ -3,7 +3,7 @@ from pathlib import Path
 
 import yaml
 
-from puppy.sites import SiteVisitor
+from puppy.sites import SITES
 
 
 REQUIRED_TOOLS = ['git']
@@ -18,7 +18,9 @@ def check_preflight() -> None:
         )
 
 
-def check_auth(puppy_home: Path, site: str = None) -> dict:
+def check_auth(puppy_home: Path, sites=None) -> dict:
+    """Validate auth.yaml. `sites` limits credential checks to the given Site objects
+    (those the run actually targets); None validates every registered site."""
     gitignore = puppy_home / '.gitignore'
     auth_file = puppy_home / 'auth.yaml'
 
@@ -34,13 +36,13 @@ def check_auth(puppy_home: Path, site: str = None) -> dict:
         raise SystemExit(f'{auth_file}: {e}')
     if not auth:
         raise SystemExit('auth.yaml is empty — add your site credentials')
-    visitor = SiteVisitor(site)
-    unchanged = [s.name for s in visitor if _has_placeholders(auth.get(s.name))]
+    relevant = SITES if sites is None else list(sites)
+    unchanged = [s.name for s in relevant if _has_placeholders(auth.get(s.name))]
     if unchanged:
         raise SystemExit(
             f'auth.yaml credentials unchanged for: {", ".join(unchanged)}'
         )
-    for s in visitor:
+    for s in relevant:
         required_keys = s.required_auth_keys
         if required_keys:
             entry = auth.get(s.name) or {}

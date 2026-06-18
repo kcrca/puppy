@@ -85,8 +85,6 @@ def run(
         declared = home_config.get('sites')
         if declared:
             site = ','.join(_ALIASES.get(str(s).strip(), str(s).strip()) for s in declared)
-    auth = check_auth(puppy_home, site)
-
     project_entries = []
     for project_root in projects:
         config = ConfigSynthesizer(puppy_home, project_root, site=site).get_running_config()
@@ -94,6 +92,14 @@ def run(
         if handle_filter and project.handle not in handle_filter:
             continue
         project_entries.append((project_root, config, project))
+
+    # Only validate credentials for sites the selected projects actually target,
+    # so a leftover/placeholder entry for an unused site never blocks the run.
+    relevant_sites = set()
+    for _, cfg, _ in project_entries:
+        visitor = SiteVisitor(site, project_type=cfg.get('type', 'pack'))
+        relevant_sites.update(s for s in SITES if s in visitor and s.ref(cfg))
+    auth = check_auth(puppy_home, relevant_sites)
 
     all_labels = None
     if action == 'push' and len(project_entries) > 1:
