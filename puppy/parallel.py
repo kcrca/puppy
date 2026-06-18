@@ -1,7 +1,8 @@
 import sys
 import threading
+import time
 import traceback
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 from puppy.errors import prefix_site_error
 
@@ -131,8 +132,11 @@ def _run_tty(tasks: list, captures: dict, run_one, all_labels: list[str] | None 
             panels.append(Panel('\n'.join(cap.lines) if cap else '', title=label))
         return Columns(panels, equal=True, expand=True)
 
-    with Live(make_display(), console=console, refresh_per_second=4, redirect_stdout=False, redirect_stderr=False) as live:
+    with Live(make_display(), console=console, refresh_per_second=8, redirect_stdout=False, redirect_stderr=False) as live:
         with ThreadPoolExecutor(max_workers=len(tasks)) as ex:
             futures = [ex.submit(run_one, label, fn) for label, fn in tasks]
-            for _ in as_completed(futures):
+            # Re-render from the live captures as lines arrive, not only when a task finishes.
+            while not all(f.done() for f in futures):
                 live.update(make_display())
+                time.sleep(0.1)
+            live.update(make_display())
