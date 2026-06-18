@@ -7,6 +7,7 @@ from puppy import syncer
 from puppy.config import ConfigSynthesizer
 from puppy.core import Project
 from puppy.syncer import run_push
+from puppy.syncer import _push_images as _REAL_PUSH_IMAGES  # captured before conftest stubs it
 
 
 # ── image hash folds in the encoding recipe ───────────────────────────────────
@@ -26,6 +27,23 @@ def test_icon_hash_changes_with_encoding(tmp_path, monkeypatch):
     h1 = syncer._icon_hash(icon)
     monkeypatch.setattr('puppy.syncer.ICON_ENCODING', 'png:1x1')
     assert syncer._icon_hash(icon) != h1
+
+
+def test_push_images_warns_when_icon_removed(capsys):
+    class _Stub:
+        label = 'TestSite'
+
+        def gallery_urls(self, *a, **k):
+            return {}
+
+    store = {'images': {'@icon': 'oldhash'}}
+    urls, avatar = _REAL_PUSH_IMAGES(
+        _Stub(), 'pid', {}, [], None, None,
+        set(), True, store, 'pack', 0,
+    )
+    assert 'icon removed' in capsys.readouterr().out
+    assert avatar is None
+    assert '@icon' not in store['images']   # tracked hash dropped, no upload
 
 
 # ── parse_content ──────────────────────────────────────────────────────────────

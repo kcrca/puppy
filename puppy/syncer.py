@@ -108,6 +108,10 @@ def _push_images(s, site_id, auth, image_list, images_dir, icon,
         new_hashes[_ICON_KEY] = icon_hash
         if _changed(_ICON_KEY, icon_hash):
             avatar = s.upload_icon(site_id, auth, prepare_icon(icon, verbosity=verbosity))
+    elif _ICON_KEY in prior:
+        # The icon went away locally. Sites have no delete-icon op, so the last-pushed
+        # icon stays; warn rather than silently drop the tracked hash.
+        print(f'  [{s.label}] icon removed locally — {s.label} keeps the last-pushed icon; set an icon to replace it')
 
     # gallery (per-image)
     changed: set[str] = set()
