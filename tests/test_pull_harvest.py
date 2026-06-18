@@ -1,5 +1,4 @@
 import yaml
-import pytest
 
 from puppy.core import Project
 from puppy.puller import _harvest_yaml, _merge_results

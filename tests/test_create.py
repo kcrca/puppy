@@ -74,7 +74,7 @@ def test_mr_create_posts_to_project_endpoint():
         _make_response({'id': 'abc123', 'slug': 'mypack'}),  # POST create
     ]
     with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
-        result = MODRINTH.create(config=config, auth=_MR_AUTH)
+        MODRINTH.create(config=config, auth=_MR_AUTH)
 
     post_req = mock_open.call_args_list[1][0][0]
     assert post_req.full_url == f'{_MR_API}/project'
@@ -106,10 +106,6 @@ def test_mr_create_tries_next_slug_on_collision():
         result = MODRINTH.create(config=config, auth=_MR_AUTH)
 
     assert result['slug'] == 'mypack-1'
-
-    post_data = json.loads(responses[2].read.return_value)  # verify sent slug
-    # check via the actual POST call: body contains mypack-1
-    # (checked in the POST response above)
 
 
 def test_mr_create_sends_categories_from_resolution():

@@ -629,7 +629,7 @@ class CurseForgeSite(Site):
         elif isinstance(cf_versions, str):
             version_strings = [cf_versions]
         loaders = config.get('loaders') or []
-        loader_names = [_CF_LOADER_NAMES[l] for l in loaders if l in _CF_LOADER_NAMES]
+        loader_names = [_CF_LOADER_NAMES[ldr] for ldr in loaders if ldr in _CF_LOADER_NAMES]
         game_version_ids = _cf_resolve_game_version_ids(version_strings + loader_names, auth)
         if config.get('client_side') in ('required', 'optional'):
             game_version_ids.append(_CF_ENV_CLIENT)
@@ -836,14 +836,14 @@ class CurseForgeSite(Site):
                 sc['category'] = remote['primaryCategoryId']
 
         if verbosity >= 1:
-            print(f'  [CurseForge] updating description')
+            print('  [CurseForge] updating description')
         self.update_description(project_id, auth, description)
 
         if avatar_url is None:
             avatar_url = self.fetch_project(project_id, auth).get('avatarUrl', '')
 
         if verbosity >= 1:
-            print(f'  [CurseForge] updating details')
+            print('  [CurseForge] updating details')
         self.update_details(project_id, auth, sc, avatar_url=avatar_url)
 
     def pull(

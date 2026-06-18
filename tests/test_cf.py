@@ -1,15 +1,14 @@
 import io
 import json
 import zipfile
-from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
 from PIL import Image
 
 import puppy.syncer as _syncer
-from puppy.errors import AuthExpiredError, SiteError
+from puppy.errors import AuthExpiredError
 from puppy.sites import CURSEFORGE
 from puppy.sites.curseforge import _CF_DASH, _CF_API
 from puppy.syncer import run_push

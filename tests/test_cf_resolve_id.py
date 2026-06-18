@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from puppy.sites import CURSEFORGE
-from puppy.sites.curseforge import _cf_extract_id_from_page, _CF_DASH
+from puppy.sites.curseforge import _cf_extract_id_from_page
 
 
 _AUTH = {'curseforge': {'token': 'test-token', 'cookie': 'CobaltSession=x'}}

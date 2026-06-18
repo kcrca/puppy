@@ -1,5 +1,4 @@
 """Tests for {{ images.name }} and {{ img('name') }} in descriptions."""
-import pytest
 
 from puppy.renderer import render
 from puppy.sites import CURSEFORGE, MODRINTH, PMC

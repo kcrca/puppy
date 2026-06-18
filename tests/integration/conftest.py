@@ -15,7 +15,7 @@ from puppy.errors import AuthExpiredError
 from cleanup import (
     _load_auth,
     _mr_request, _cf_fetch, run_cleanup,
-    _MR_API, _MR_UA, _CF_DASH, _CF_UA, _PMC_BASE,
+    _CF_DASH, _CF_UA,
 )
 
 

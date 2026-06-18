@@ -1,7 +1,6 @@
 from io import BytesIO
 from pathlib import Path
 
-import pytest
 from PIL import Image
 
 from puppy.images import prepare_gallery_image, prepare_icon, prepare_logo
