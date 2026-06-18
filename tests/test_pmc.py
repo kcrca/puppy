@@ -30,7 +30,7 @@ _VERSION = '1.0.0'
 
 @pytest.fixture(autouse=True)
 def _no_pmc_description(monkeypatch):
-    monkeypatch.setattr('puppy.sites.planetminecraft._pmc_fetch_description', lambda *a, **k: None)
+    monkeypatch.setattr(PMC, '_fetch_description', lambda *a, **k: None)
 
 
 @pytest.fixture
@@ -90,29 +90,26 @@ def _soup(html: str) -> BeautifulSoup:
 # ── 1. _pmc_get_page ─────────────────────────────────────────────────────────
 
 def test_pmc_get_page_extracts_csrf():
-    from puppy.sites.planetminecraft import _pmc_get_page
     with patch('urllib.request.urlopen') as mock_open:
         mock_open.return_value = _make_response(_EDIT_HTML)
-        soup, csrf = _pmc_get_page(_PROJECT_ID, 'pmc_autologin=x')
+        soup, csrf = PMC._get_page(_PROJECT_ID, 'pmc_autologin=x')
     assert csrf == _CSRF
     assert soup.find('input', {'name': 'member_id'}) is not None
 
 
 def test_pmc_get_page_raises_auth_expired_when_no_csrf():
-    from puppy.sites.planetminecraft import _pmc_get_page
     with patch('urllib.request.urlopen') as mock_open:
         mock_open.return_value = _make_response('<html>no token here</html>')
         with pytest.raises(AuthExpiredError):
-            _pmc_get_page(_PROJECT_ID, 'pmc_autologin=x')
+            PMC._get_page(_PROJECT_ID, 'pmc_autologin=x')
 
 
 # ── 2. _pmc_post ─────────────────────────────────────────────────────────────
 
 def test_pmc_post_sends_multipart_to_ajax():
-    from puppy.sites.planetminecraft import _pmc_post
     with patch('urllib.request.urlopen') as mock_open:
         mock_open.return_value = _make_response({'status': 'success'})
-        result = _pmc_post(_PROJECT_ID, 'pmc_autologin=x', _CSRF, [('foo', 'bar')])
+        result = PMC._post(_PROJECT_ID, 'pmc_autologin=x', _CSRF, [('foo', 'bar')])
 
     req = mock_open.call_args[0][0]
     assert 'ajax.php' in req.full_url
@@ -125,15 +122,13 @@ def test_pmc_post_sends_multipart_to_ajax():
 
 
 def test_pmc_post_401_raises_auth_expired():
-    from puppy.sites.planetminecraft import _pmc_post
     with patch('urllib.request.urlopen', side_effect=_make_http_error(401, 'Unauthorized')):
         with pytest.raises(AuthExpiredError) as exc_info:
-            _pmc_post(_PROJECT_ID, 'pmc_autologin=x', _CSRF, [('x', 'y')])
+            PMC._post(_PROJECT_ID, 'pmc_autologin=x', _CSRF, [('x', 'y')])
     assert exc_info.value.code == 401
 
 
 def test_pmc_post_retries_503_then_raises_site_error(monkeypatch):
-    from puppy.sites.planetminecraft import _pmc_post
     calls = []
 
     def fake_urlopen(req, timeout=60):
@@ -143,12 +138,11 @@ def test_pmc_post_retries_503_then_raises_site_error(monkeypatch):
     monkeypatch.setattr('time.sleep', lambda *a, **k: None)
     monkeypatch.setattr('urllib.request.urlopen', fake_urlopen)
     with pytest.raises(SiteError, match='503'):
-        _pmc_post(_PROJECT_ID, 'pmc_autologin=x', _CSRF, [('x', 'y')])
+        PMC._post(_PROJECT_ID, 'pmc_autologin=x', _CSRF, [('x', 'y')])
     assert len(calls) == 4   # retried, not raised raw
 
 
 def test_pmc_post_retries_503_then_succeeds(monkeypatch):
-    from puppy.sites.planetminecraft import _pmc_post
     seq = [_make_http_error(503, 'unavailable'), _make_response({'status': 'success'})]
     calls = []
 
@@ -161,14 +155,13 @@ def test_pmc_post_retries_503_then_succeeds(monkeypatch):
 
     monkeypatch.setattr('time.sleep', lambda *a, **k: None)
     monkeypatch.setattr('urllib.request.urlopen', fake_urlopen)
-    assert _pmc_post(_PROJECT_ID, 'pmc_autologin=x', _CSRF, [('x', 'y')]) == {'status': 'success'}
+    assert PMC._post(_PROJECT_ID, 'pmc_autologin=x', _CSRF, [('x', 'y')]) == {'status': 'success'}
     assert len(calls) == 2
 
 
 # ── 3. _pmc_sync_gallery ─────────────────────────────────────────────────────
 
 def test_pmc_sync_gallery_uploads_new_images(tmp_path):
-    from puppy.sites.planetminecraft import _pmc_sync_gallery
     img_path = tmp_path / 'banner.png'
     Image.new('RGB', (200, 100), color='green').save(img_path)
 
@@ -181,28 +174,26 @@ def test_pmc_sync_gallery_uploads_new_images(tmp_path):
     with patch('urllib.request.urlopen', side_effect=responses):
         with patch('puppy.sites.planetminecraft.find_image', return_value=img_path):
             with patch('puppy.sites.planetminecraft.prepare_gallery_image', return_value=b'IMGDATA'):
-                _pmc_sync_gallery(_PROJECT_ID, 'pmc_autologin=x', _CSRF, _EDIT_SOUP, image_list, tmp_path, 0)
+                PMC._sync_gallery(_PROJECT_ID, 'pmc_autologin=x', _CSRF, _EDIT_SOUP, image_list, tmp_path, 0)
 
 
 def test_pmc_sync_gallery_skips_existing(tmp_path):
-    from puppy.sites.planetminecraft import _pmc_sync_gallery
     soup = _soup(_EDIT_HTML + '<div data-media-item-id="55" data-caption="banner - Cool">')
     image_list = [{'file': 'banner', 'description': 'Cool'}]
 
     with patch('urllib.request.urlopen') as mock_open:
-        _pmc_sync_gallery(_PROJECT_ID, 'pmc_autologin=x', _CSRF, soup, image_list, tmp_path, 0, changed=set())
+        PMC._sync_gallery(_PROJECT_ID, 'pmc_autologin=x', _CSRF, soup, image_list, tmp_path, 0, changed=set())
 
     assert mock_open.call_count == 0
 
 
 def test_pmc_sync_gallery_deletes_removed(tmp_path):
-    from puppy.sites.planetminecraft import _pmc_sync_gallery
     soup = _soup(_EDIT_HTML + '<div data-media-item-id="88" data-caption="old-image">')
     image_list = []
 
     with patch('urllib.request.urlopen') as mock_open:
         mock_open.return_value = _make_response({'status': 'success'})
-        _pmc_sync_gallery(_PROJECT_ID, 'pmc_autologin=x', _CSRF, soup, image_list, tmp_path, 0)
+        PMC._sync_gallery(_PROJECT_ID, 'pmc_autologin=x', _CSRF, soup, image_list, tmp_path, 0)
 
     assert mock_open.call_count == 1
     req = mock_open.call_args[0][0]
@@ -553,7 +544,7 @@ def test_pmc_push_auth_expired_surfaces_as_system_exit(tmp_path, monkeypatch):
     def boom(*a, **k):
         raise AuthExpiredError(401, 'Expired')
 
-    monkeypatch.setattr('puppy.sites.planetminecraft._pmc_get_page', boom)
+    monkeypatch.setattr(PMC, '_get_page', boom)
     with pytest.raises(SystemExit, match='PlanetMinecraft auth expired'):
         _pmc_run_push(project_dir)
 
@@ -731,7 +722,7 @@ def test_pull_includes_project_id(tmp_path):
 
 def test_pull_writes_description_bbcode(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        'puppy.sites.planetminecraft._pmc_fetch_description',
+        PMC, '_fetch_description',
         lambda *a, **k: '[b]Hello[/b]',
     )
     with patch('urllib.request.urlopen') as mock_open:
@@ -820,7 +811,7 @@ def test_pmc_pull_forces_images_even_when_info_exists(tmp_path):
 def test_pmc_pull_auth_expired_raises_system_exit(tmp_path):
     project = _pmc_pull_env(tmp_path)
     with patch('puppy.puller._run_pull', _REAL_RUN_PULL), \
-         patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
+         patch.object(PMC, '_get_page', side_effect=AuthExpiredError(401, 'Expired')):
         with pytest.raises(SystemExit, match='PlanetMinecraft auth expired'):
             run_pull(project=project, config={'type': 'pack', 'planetminecraft': {'id': _PROJECT_ID}},
                      auth=_AUTH, site='pmc', images=False, verbosity=0)
@@ -866,7 +857,7 @@ def test_submit_log_raises_rate_limit_message():
 
 
 def test_submit_log_auth_expired_raises_system_exit():
-    with patch('puppy.sites.planetminecraft._pmc_get_page', side_effect=AuthExpiredError(401, 'Expired')):
+    with patch.object(PMC, '_get_page', side_effect=AuthExpiredError(401, 'Expired')):
         with pytest.raises(AuthExpiredError):
             PMC.__class__.submit_log(PMC, _PROJECT_ID, _AUTH, '1.2.3', {})
 
