@@ -69,8 +69,8 @@ def test_sync_gallery_deletes_removed_and_uploads_new():
         {'title': 'keep.jpg', 'url': 'https://cdn.modrinth.com/keep.jpg'},
     ]
     new_images = [
-        {'filename': 'keep.jpg', 'data': b'IMGDATA', 'mime_type': 'image/jpeg'},
-        {'filename': 'new-image.jpg', 'data': b'NEWDATA', 'mime_type': 'image/jpeg'},
+        {'filename': 'keep.jpg', 'stem': 'keep', 'data': None, 'mime_type': 'image/jpeg'},
+        {'filename': 'new-image.jpg', 'stem': 'new-image', 'data': b'NEWDATA', 'mime_type': 'image/jpeg'},
     ]
     responses = [
         _make_response({'gallery': existing}),  # GET project (gallery embedded)
@@ -78,8 +78,9 @@ def test_sync_gallery_deletes_removed_and_uploads_new():
         _make_response(None),                   # POST new-image
     ]
 
+    # only new-image changed; keep is unchanged and must be left untouched
     with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
-        MODRINTH.sync_gallery(_PROJECT_ID, _AUTH, new_images)
+        MODRINTH.sync_gallery(_PROJECT_ID, _AUTH, new_images, {'new-image'})
 
     calls = mock_open.call_args_list
     assert len(calls) == 3
@@ -102,9 +103,9 @@ def test_sync_gallery_deletes_removed_and_uploads_new():
 
 def test_sync_gallery_no_changes_when_images_match():
     existing = [{'title': 'keep.jpg', 'url': 'https://cdn.modrinth.com/keep.jpg'}]
-    images = [{'filename': 'keep.jpg', 'data': b'DATA', 'mime_type': 'image/jpeg'}]
+    images = [{'filename': 'keep.jpg', 'stem': 'keep', 'data': None, 'mime_type': 'image/jpeg'}]
     with patch('urllib.request.urlopen', side_effect=[_make_response({'gallery': existing})]) as mock_open:
-        MODRINTH.sync_gallery(_PROJECT_ID, _AUTH, images)
+        MODRINTH.sync_gallery(_PROJECT_ID, _AUTH, images, set())
     assert mock_open.call_count == 1
 
 

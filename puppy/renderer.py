@@ -157,10 +157,8 @@ def render(text: str, config: dict, source: str = '<description>', *, site=None,
     image_map = _ImageMap(image_urls or {})
     ctx['images'] = image_map
     if site:
-        _site = site
-        _is_md = source.endswith('.md')
-        _img_fn = _site.img_tag_md if _is_md else _site.img_tag
-        ctx['img'] = lambda name: _img_fn(image_map.get(name), name) if image_map.get(name) else ''
+        img_fn = site.img_tag_md if source.endswith('.md') else site.img_tag
+        ctx['img'] = lambda name: img_fn(image_map.get(name), name) if image_map.get(name) else ''
     else:
         ctx['img'] = lambda name: image_map.get(name)
     try:

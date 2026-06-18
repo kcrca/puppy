@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from puppy.errors import AuthExpiredError, SiteError
+from puppy.http import urlopen_retrying
 from puppy.images import find_image, prepare_gallery_image
 from puppy.renderer import md_to_html
 from puppy.sites.base import Site
@@ -151,47 +152,32 @@ def _cf_download(url: str, dest: Path) -> None:
         dest.write_bytes(r.read())
 
 
-_CF_RETRY_CODES = (429, 503)
-_CF_MAX_ATTEMPTS = 4
-
-
 def _cf_send(req: urllib.request.Request) -> Any:
-    for attempt in range(_CF_MAX_ATTEMPTS):
-        try:
-            with urllib.request.urlopen(req, timeout=30) as r:
-                body = r.read()
-                if not body:
-                    return None
-                try:
-                    return json.loads(body)
-                except (json.JSONDecodeError, ValueError):
-                    return body.decode()
-        except urllib.error.HTTPError as e:
-            # CurseForge's authors API throttles aggressively (429); back off and retry.
-            if e.code in _CF_RETRY_CODES and attempt < _CF_MAX_ATTEMPTS - 1:
-                retry_after = e.headers.get('Retry-After') if e.headers else None
-                try:
-                    delay = float(retry_after)
-                except (TypeError, ValueError):
-                    delay = 2 ** attempt
-                time.sleep(delay)
-                continue
-            body = e.read().decode(errors='replace')
-            if e.code in (401, 403):
-                try:
-                    msg = (json.loads(body).get('message') or '').lower()
-                    if msg and 'unauthorized' not in msg and 'forbidden' not in msg:
-                        raise SiteError(e.code, body)
-                except (json.JSONDecodeError, AttributeError):
-                    pass
-                raise AuthExpiredError(e.code, body)
-            if e.code == 400:
-                try:
-                    if 'forbidden' in (json.loads(body).get('message') or '').lower():
-                        raise AuthExpiredError(e.code, body)
-                except (json.JSONDecodeError, AttributeError):
-                    pass
-            raise SiteError(e.code, body)
+    try:
+        body = urlopen_retrying(req, timeout=30)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors='replace')
+        if e.code in (401, 403):
+            try:
+                msg = (json.loads(body).get('message') or '').lower()
+                if msg and 'unauthorized' not in msg and 'forbidden' not in msg:
+                    raise SiteError(e.code, body)
+            except (json.JSONDecodeError, AttributeError):
+                pass
+            raise AuthExpiredError(e.code, body)
+        if e.code == 400:
+            try:
+                if 'forbidden' in (json.loads(body).get('message') or '').lower():
+                    raise AuthExpiredError(e.code, body)
+            except (json.JSONDecodeError, AttributeError):
+                pass
+        raise SiteError(e.code, body)
+    if not body:
+        return None
+    try:
+        return json.loads(body)
+    except (json.JSONDecodeError, ValueError):
+        return body.decode()
 
 
 _CF_LICENSE_IDS = {
@@ -517,7 +503,7 @@ class CurseForgeSite(Site):
             files=[('file', 'pack.png', icon_bytes, 'image/png')],
         )
 
-    def sync_gallery(self, project_id, auth: dict, images: list[dict], verbosity: int = 0) -> None:
+    def sync_gallery(self, project_id, auth: dict, images: list[dict], changed: set, verbosity: int = 0) -> None:
         h = self._cookie_headers(auth)
         params = urllib.parse.urlencode({
             'filter': '{}',
@@ -527,23 +513,27 @@ class CurseForgeSite(Site):
         existing = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []
         desired_filenames = {img['filename'] for img in images}
         existing_by_filename = {item['title']: item for item in existing if item.get('type') == 1}
+        to_upload = [img for img in images if img['stem'] in changed]
+        upload_filenames = {img['filename'] for img in to_upload}
 
+        # delete images that were removed, or changed (deleted now, re-added below)
         for title, item in existing_by_filename.items():
-            if title not in desired_filenames:
+            if title not in desired_filenames or title in upload_filenames:
                 _cf_delete(f'{_CF_DASH}/image-attachments/{project_id}/{item["id"]}/1', h)
 
-        for img in images:
-            if img['filename'] not in existing_by_filename:
-                _cf_post_multipart(
-                    f'{_CF_DASH}/image-attachments/image/{project_id}',
-                    h,
-                    fields={'id': str(project_id)},
-                    files=[('files', img['filename'], img['data'], img['mime_type'])],
-                )
+        for img in to_upload:
+            _cf_post_multipart(
+                f'{_CF_DASH}/image-attachments/image/{project_id}',
+                h,
+                fields={'id': str(project_id)},
+                files=[('files', img['filename'], img['data'], img['mime_type'])],
+            )
 
+        if not to_upload:
+            return
         uploaded = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []
         uploaded_by_filename = {item['title']: item for item in uploaded}
-        for img in images:
+        for img in to_upload:
             item = uploaded_by_filename.get(img['filename'])
             if item and item.get('id'):
                 _cf_put_json(
@@ -792,24 +782,26 @@ class CurseForgeSite(Site):
         self.post_upload(puppy_dir, version)
 
     def upload_images(self, project_id, auth: dict, image_list: list, images_dir: Path,
-                      verbosity: int, project_type: str = 'pack') -> dict[str, str]:
+                      verbosity: int, project_type: str = 'pack', changed: set = None) -> dict[str, str]:
         if not image_list:
             return {}
         images = []
         for img_entry in image_list:
             src = find_image(img_entry['file'], images_dir)
-            data = prepare_gallery_image(src, verbosity=verbosity)
+            do = changed is None or src.stem in changed
             images.append({
                 'filename': src.stem + '.jpg',
-                'data': data,
+                'stem': src.stem,
+                'data': prepare_gallery_image(src, verbosity=verbosity) if do else None,
                 'mime_type': 'image/jpeg',
                 'name': img_entry.get('name', ''),
                 'description': img_entry.get('description', ''),
                 'featured': img_entry.get('featured', False),
             })
+        upload_set = {img['stem'] for img in images} if changed is None else changed
         if verbosity >= 1:
-            print(f'  [CurseForge] syncing gallery ({len(images)} images)')
-        self.sync_gallery(project_id, auth, images, verbosity=verbosity)
+            print(f'  [CurseForge] syncing gallery ({len(upload_set)} changed)')
+        self.sync_gallery(project_id, auth, images, upload_set, verbosity=verbosity)
         h = self._cookie_headers(auth)
         params = urllib.parse.urlencode({'filter': '{}', 'range': '[0,24]', 'sort': '["id","DESC"]'})
         gallery = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []

@@ -9,7 +9,8 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 
-from puppy.errors import AuthExpiredError
+from puppy.errors import AuthExpiredError, SiteError
+from puppy.http import urlopen_retrying
 from puppy.images import find_image, prepare_gallery_image
 from puppy.renderer import md_to_bbcode
 from puppy.sites.base import Site
@@ -86,8 +87,12 @@ def _pmc_get_page(project_id, cookie: str, project_type: str = 'pack') -> tuple[
     manage = _pmc_manage_path(project_type)
     url = f'{_PMC_BASE}{manage}{project_id}/'
     req = urllib.request.Request(url, headers=_pmc_headers(cookie))
-    with urllib.request.urlopen(req, timeout=30) as r:
-        html = r.read().decode('utf-8', errors='replace')
+    try:
+        html = urlopen_retrying(req, timeout=30).decode('utf-8', errors='replace')
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            raise AuthExpiredError(e.code, e.read().decode(errors='replace'))
+        raise SiteError(e.code, e.read().decode(errors='replace'))
     soup = BeautifulSoup(html, 'html.parser')
     tag = soup.find(id='core-csrf-token')
     if not tag or not tag.get('content'):
@@ -196,13 +201,12 @@ def _pmc_post(project_id, cookie: str, csrf: str, fields: list[tuple], files: li
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            data = r.read()
-            return json.loads(data) if data else {}
+        data = urlopen_retrying(req, timeout=60)
+        return json.loads(data) if data else {}
     except urllib.error.HTTPError as e:
         if e.code in (401, 403):
             raise AuthExpiredError(e.code, e.read().decode(errors='replace'))
-        raise
+        raise SiteError(e.code, e.read().decode(errors='replace'))
 
 
 def _pmc_resolve_tag(resource_id: int, cookie: str, csrf: str, tag: str, project_type: str = 'pack') -> str | None:
@@ -228,7 +232,7 @@ def _pmc_resolve_tag(resource_id: int, cookie: str, csrf: str, tag: str, project
 def _pmc_sync_gallery(
     project_id, cookie: str, csrf: str, soup: BeautifulSoup,
     image_list: list, images_dir: Path, verbosity: int,
-    project_type: str = 'pack',
+    project_type: str = 'pack', changed: set = None,
 ) -> None:
     existing = _pmc_existing_images(soup)
     special = {'Project Thumbnail', 'Project Logo'}
@@ -238,9 +242,11 @@ def _pmc_sync_gallery(
         if item['caption'].split(' - ')[0] not in special
     }
     desired_titles = {img['file'] for img in image_list}
+    upload_stems = {Path(img['file']).stem for img in image_list} if changed is None else changed
 
+    # Delete images that are no longer desired, plus changed ones (re-uploaded below).
     for title, media_id in existing_by_title.items():
-        if title not in desired_titles:
+        if title not in desired_titles or Path(title).stem in upload_stems:
             _pmc_post(project_id, cookie, csrf, [
                 ('module', 'tools/media'), ('myaction', 'delete'), ('modern', 'true'),
                 ('media_id', media_id), ('media_key', 'image_key'),
@@ -251,7 +257,7 @@ def _pmc_sync_gallery(
 
     for img in image_list:
         title = img.get('file', '')
-        if title in existing_by_title:
+        if title in existing_by_title and Path(title).stem not in upload_stems:
             continue
         src = find_image(img['file'], images_dir)
         data = prepare_gallery_image(src, verbosity=verbosity)
@@ -612,6 +618,7 @@ class PlanetMinecraftSite(Site):
         images_dir: Path,
         verbosity: int,
         project_type: str = 'pack',
+        changed: set = None,
     ) -> dict[str, str]:
         if not image_list:
             return {}
@@ -619,7 +626,7 @@ class PlanetMinecraftSite(Site):
         soup, csrf = _pmc_get_page(project_id, cookie, project_type)
         if verbosity >= 1:
             print(f'  [PlanetMinecraft] syncing gallery ({len(image_list)} images)')
-        _pmc_sync_gallery(project_id, cookie, csrf, soup, image_list, images_dir, verbosity, project_type)
+        _pmc_sync_gallery(project_id, cookie, csrf, soup, image_list, images_dir, verbosity, project_type, changed)
         soup2, _ = _pmc_get_page(project_id, cookie, project_type)
         desired = {img.get('file', '') for img in image_list}
         result = {}

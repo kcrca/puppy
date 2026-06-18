@@ -39,22 +39,12 @@ def apply_env_sides(config: dict) -> dict:
     return pt.warn_inapplicable(config)
 
 
-def _images_fingerprint(icon: Path, image_list: list, images_dir: Path) -> str:
-    h = hashlib.sha512()
-    if icon and icon.exists():
-        h.update(icon.read_bytes())
-    for entry in image_list:
-        try:
-            src = find_image(entry['file'], images_dir)
-        except SystemExit:
-            continue
-        h.update(b'\x00')
-        h.update(src.read_bytes())
-        h.update(json.dumps(
-            {k: entry.get(k) for k in ('name', 'description', 'featured')},
-            sort_keys=True, default=str,
-        ).encode('utf-8'))
-    return h.hexdigest()
+def _image_hash(src: Path, entry: dict) -> str:
+    meta = json.dumps(
+        {k: entry.get(k) for k in ('name', 'description', 'featured')},
+        sort_keys=True, default=str,
+    )
+    return hashes.compute(src.read_bytes() + b'\x00' + meta.encode('utf-8'))
 
 
 def _data_fingerprint(description: str, sc: dict, config: dict) -> str:
@@ -64,24 +54,64 @@ def _data_fingerprint(description: str, sc: dict, config: dict) -> str:
     return hashes.data_hash(description, sc, subset)
 
 
-def _push_images(s, site_id, auth, image_list, images_dir, icon, img_fp,
-                 content, use_hashes, site_store, project_type, verbosity):
-    """Sync one site's icon + gallery (or fetch existing URLs when unchanged).
+_ICON_KEY = '@icon'
 
-    Returns (image_urls, avatar_url). avatar_url is set only for CurseForge
-    when the icon was uploaded this run, else None.
+
+def _push_images(s, site_id, auth, image_list, images_dir, icon,
+                 content, use_hashes, site_store, project_type, verbosity):
+    """Sync one site's icon + gallery per asset.
+
+    The icon and each gallery image are hashed individually (stored under
+    site_store['images'] as {'@icon': h, '<stem>': h, ...}); only assets whose
+    hash changed are re-uploaded. Returns (image_urls, avatar_url); avatar_url is
+    set only when CurseForge re-uploaded the icon this run.
     """
-    do_images = hashes.decide('images', img_fp, upload_set=content, use_hashes=use_hashes, prior=site_store)
-    avatar = None
-    if do_images:
-        avatar = s.upload_icon(site_id, auth, prepare_icon(icon, verbosity=verbosity))
-        urls = s.upload_images(site_id, auth, image_list, images_dir, verbosity, project_type) if image_list else {}
-        if use_hashes:
-            site_store['images'] = img_fp
-    else:
-        if verbosity >= 1 and image_list:
-            print(f'  [{s.label}] gallery unchanged, skipping')
+    forced = 'images' in content
+    if not use_hashes and not forced:
+        # images category not selected → leave the gallery untouched, just fetch URLs
         urls = s.gallery_urls(site_id, auth, project_type) if image_list else {}
+        return urls, None
+
+    prior = site_store.get('images') if isinstance(site_store.get('images'), dict) else {}
+
+    def _changed(key, h):
+        return forced or prior.get(key) != h
+
+    new_hashes: dict[str, str] = {}
+    avatar = None
+
+    # icon (independent asset)
+    icon_hash = hashes.compute(icon.read_bytes()) if (icon and icon.exists()) else None
+    if icon_hash is not None:
+        new_hashes[_ICON_KEY] = icon_hash
+        if _changed(_ICON_KEY, icon_hash):
+            avatar = s.upload_icon(site_id, auth, prepare_icon(icon, verbosity=verbosity))
+
+    # gallery (per-image)
+    changed: set[str] = set()
+    for entry in image_list:
+        try:
+            src = find_image(entry['file'], images_dir)
+        except SystemExit:
+            continue
+        h = _image_hash(src, entry)
+        new_hashes[src.stem] = h
+        if _changed(src.stem, h):
+            changed.add(src.stem)
+
+    removed = bool({k for k in prior if k != _ICON_KEY} - set(new_hashes))
+
+    if image_list and (changed or removed):
+        urls = s.upload_images(site_id, auth, image_list, images_dir, verbosity, project_type, changed)
+    elif image_list:
+        if verbosity >= 1:
+            print(f'  [{s.label}] gallery unchanged, skipping')
+        urls = s.gallery_urls(site_id, auth, project_type)
+    else:
+        urls = {}
+
+    if use_hashes:
+        site_store['images'] = new_hashes
     return urls, avatar
 
 
@@ -125,7 +155,6 @@ def run_push(
     images_source = config.get('images_source')
     images_dir = Path(images_source) if images_source else puppy_dir / 'images'
     image_list = config.get('images', [])
-    img_fp = _images_fingerprint(icon, image_list, images_dir)
 
     projects_ctx = config['projects']
     discovery = ContentDiscovery(puppy_home, project.root)
@@ -150,7 +179,7 @@ def run_push(
             # 1. images (icon + gallery) — before render so the description can use CDN URLs
             try:
                 urls, avatar = _push_images(
-                    s, site_id, auth, image_list, images_dir, icon, img_fp,
+                    s, site_id, auth, image_list, images_dir, icon,
                     content, use_hashes, site_store, project_type, verbosity,
                 )
             except (AuthExpiredError, SiteError) as e:

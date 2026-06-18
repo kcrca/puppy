@@ -115,6 +115,7 @@ class Site:
         images_dir: Path,
         verbosity: int,
         project_type: str = 'pack',
+        changed: set = None,
     ) -> dict[str, str]:
         return {}
 

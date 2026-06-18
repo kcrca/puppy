@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from puppy.errors import AuthExpiredError, SiteError
+from puppy.http import urlopen_retrying
 from puppy.images import find_image, prepare_gallery_image
 from puppy.sites.base import Site
 
@@ -36,19 +37,18 @@ def _mr_headers(auth: dict, extra: dict = None) -> dict:
 
 def _mr_send(req: urllib.request.Request) -> Any:
     try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            body = r.read()
-            if not body:
-                return None
-            try:
-                return json.loads(body)
-            except (json.JSONDecodeError, ValueError):
-                return body.decode()
+        body = urlopen_retrying(req, timeout=30)
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors='replace')
         if e.code == 401:
             raise AuthExpiredError(e.code, body)
         raise SiteError(e.code, body)
+    if not body:
+        return None
+    try:
+        return json.loads(body)
+    except (json.JSONDecodeError, ValueError):
+        return body.decode()
 
 
 def _mr_get(url: str, auth: dict) -> Any:
@@ -408,19 +408,21 @@ class ModrinthSite(Site):
     def upload_icon(self, project_id: str, auth: dict, icon_bytes: bytes) -> None:
         _mr_patch_raw(f'{_MR_API}/project/{project_id}/icon?ext=png', auth, icon_bytes, 'image/png')
 
-    def sync_gallery(self, project_id: str, auth: dict, images: list[dict]) -> None:
+    def sync_gallery(self, project_id: str, auth: dict, images: list[dict], changed: set) -> None:
         project = _mr_get(f'{_MR_API}/project/{project_id}', auth) or {}
         existing = project.get('gallery') or []
         desired_filenames = {img['filename'] for img in images}
         existing_by_filename = {item['title']: item for item in existing}
+        upload_filenames = {img['filename'] for img in images if img['stem'] in changed}
 
+        # delete images that were removed, or changed (deleted now, re-added below)
         for title, item in existing_by_filename.items():
-            if title not in desired_filenames:
+            if title not in desired_filenames or title in upload_filenames:
                 params = urllib.parse.urlencode({'url': item['url']})
                 _mr_delete(f'{_MR_API}/project/{project_id}/gallery?{params}', auth)
 
         for i, img in enumerate(images):
-            if img['filename'] not in existing_by_filename:
+            if img['stem'] in changed:
                 ext = 'jpg' if img['mime_type'] == 'image/jpeg' else 'png'
                 params = urllib.parse.urlencode({
                     'ext': ext,
@@ -472,23 +474,25 @@ class ModrinthSite(Site):
         return f'<img src="{url}" width="600" alt="{name}"><br><br>'
 
     def upload_images(self, project_id: str, auth: dict, image_list: list, images_dir: Path,
-                      verbosity: int, project_type: str = 'pack') -> dict[str, str]:
+                      verbosity: int, project_type: str = 'pack', changed: set = None) -> dict[str, str]:
         if not image_list:
             return {}
         images = []
         for img_entry in image_list:
             src = find_image(img_entry['file'], images_dir)
-            data = prepare_gallery_image(src, verbosity=verbosity)
+            do = changed is None or src.stem in changed
             images.append({
                 'filename': src.stem + '.jpg',
-                'data': data,
+                'stem': src.stem,
+                'data': prepare_gallery_image(src, verbosity=verbosity) if do else None,
                 'mime_type': 'image/jpeg',
                 'featured': img_entry.get('featured', False),
                 'description': img_entry.get('description', ''),
             })
+        upload_set = {img['stem'] for img in images} if changed is None else changed
         if verbosity >= 1:
-            print(f'  [Modrinth] syncing gallery ({len(images)} images)')
-        self.sync_gallery(project_id, auth, images)
+            print(f'  [Modrinth] syncing gallery ({len(upload_set)} changed)')
+        self.sync_gallery(project_id, auth, images, upload_set)
         project = _mr_get(f'{_MR_API}/project/{project_id}', auth) or {}
         gallery = project.get('gallery') or []
         return {

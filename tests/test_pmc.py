@@ -11,7 +11,7 @@ from PIL import Image
 
 import puppy.syncer as _syncer
 from puppy.core import Project
-from puppy.errors import AuthExpiredError
+from puppy.errors import AuthExpiredError, SiteError
 from puppy.sites import PMC
 import puppy.puller as _puller
 from puppy.puller import run_pull
@@ -132,6 +132,39 @@ def test_pmc_post_401_raises_auth_expired():
     assert exc_info.value.code == 401
 
 
+def test_pmc_post_retries_503_then_raises_site_error(monkeypatch):
+    from puppy.sites.planetminecraft import _pmc_post
+    calls = []
+
+    def fake_urlopen(req, timeout=60):
+        calls.append(1)
+        raise _make_http_error(503, 'unavailable')
+
+    monkeypatch.setattr('time.sleep', lambda *a, **k: None)
+    monkeypatch.setattr('urllib.request.urlopen', fake_urlopen)
+    with pytest.raises(SiteError, match='503'):
+        _pmc_post(_PROJECT_ID, 'pmc_autologin=x', _CSRF, [('x', 'y')])
+    assert len(calls) == 4   # retried, not raised raw
+
+
+def test_pmc_post_retries_503_then_succeeds(monkeypatch):
+    from puppy.sites.planetminecraft import _pmc_post
+    seq = [_make_http_error(503, 'unavailable'), _make_response({'status': 'success'})]
+    calls = []
+
+    def fake_urlopen(req, timeout=60):
+        calls.append(1)
+        r = seq[len(calls) - 1]
+        if isinstance(r, Exception):
+            raise r
+        return r
+
+    monkeypatch.setattr('time.sleep', lambda *a, **k: None)
+    monkeypatch.setattr('urllib.request.urlopen', fake_urlopen)
+    assert _pmc_post(_PROJECT_ID, 'pmc_autologin=x', _CSRF, [('x', 'y')]) == {'status': 'success'}
+    assert len(calls) == 2
+
+
 # ── 3. _pmc_sync_gallery ─────────────────────────────────────────────────────
 
 def test_pmc_sync_gallery_uploads_new_images(tmp_path):
@@ -157,7 +190,7 @@ def test_pmc_sync_gallery_skips_existing(tmp_path):
     image_list = [{'file': 'banner', 'description': 'Cool'}]
 
     with patch('urllib.request.urlopen') as mock_open:
-        _pmc_sync_gallery(_PROJECT_ID, 'pmc_autologin=x', _CSRF, soup, image_list, tmp_path, 0)
+        _pmc_sync_gallery(_PROJECT_ID, 'pmc_autologin=x', _CSRF, soup, image_list, tmp_path, 0, changed=set())
 
     assert mock_open.call_count == 0
 

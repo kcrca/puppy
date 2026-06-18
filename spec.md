@@ -152,6 +152,7 @@ The `use_hashes` config key (default `true`) controls change detection:
 
 * **`use_hashes: true`** — every category is considered each run and uploaded only if its content changed since the last push.
   After each successful upload, a content hash of what was sent is written to `puppy/hashes.yaml`, keyed by site then category.
+  The `images` category is hashed per asset rather than as a whole: its entry is itself a map of the icon (`@icon`) and each gallery image (by file stem) to that asset's hash, so editing or removing one image re-syncs only that image, not the entire gallery.
   A hash is written only after that artifact's own upload succeeds, independently per artifact; a failed upload withholds only its own hash, so the next run retries exactly the missing/stale ones.
   Hashing is over the final rendered/staged bytes (post-Jinja, post-Markdown-conversion, post-image-encoding), so a `puppy.yaml` edit that changes a rendered description is caught and one that doesn't is not.
   `hashes.yaml` is a local cache assuming puppy is the only updater — an edit made directly on a site is not detected (except the Modrinth zip, below); force with `-u` to overwrite.

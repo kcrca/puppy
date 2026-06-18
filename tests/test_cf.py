@@ -136,8 +136,8 @@ def test_sync_gallery_deletes_removed_and_uploads_new():
         {'id': 2, 'title': 'keep.jpg', 'type': 1},
     ]
     new_images = [
-        {'filename': 'keep.jpg', 'data': b'IMGDATA', 'mime_type': 'image/jpeg'},
-        {'filename': 'new-image.jpg', 'data': b'NEWDATA', 'mime_type': 'image/jpeg'},
+        {'filename': 'keep.jpg', 'stem': 'keep', 'data': None, 'mime_type': 'image/jpeg'},
+        {'filename': 'new-image.jpg', 'stem': 'new-image', 'data': b'NEWDATA', 'mime_type': 'image/jpeg'},
     ]
     uploaded = [
         {'id': 2, 'title': 'keep.jpg', 'type': 1},
@@ -148,15 +148,15 @@ def test_sync_gallery_deletes_removed_and_uploads_new():
         _make_response(None),       # DELETE old-image
         _make_response({'id': 50}), # POST upload new-image
         _make_response(uploaded),   # GET uploaded for metadata
-        _make_response(None),       # PUT metadata keep.jpg
         _make_response(None),       # PUT metadata new-image.jpg
     ]
 
+    # only new-image changed; keep is unchanged and must be left untouched
     with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
-        CURSEFORGE.sync_gallery(_PROJECT_ID, _AUTH, new_images)
+        CURSEFORGE.sync_gallery(_PROJECT_ID, _AUTH, new_images, {'new-image'})
 
     calls = mock_open.call_args_list
-    assert len(calls) == 6
+    assert len(calls) == 5
 
     get_req = calls[0][0][0]
     assert f'image-attachments/{_PROJECT_ID}' in get_req.full_url
@@ -182,17 +182,15 @@ def test_sync_gallery_deletes_removed_and_uploads_new():
 
 def test_sync_gallery_no_changes_when_images_match():
     existing = [{'id': 1, 'title': 'keep.jpg', 'type': 1}]
-    images = [{'filename': 'keep.jpg', 'data': b'DATA', 'mime_type': 'image/jpeg'}]
+    images = [{'filename': 'keep.jpg', 'stem': 'keep', 'data': None, 'mime_type': 'image/jpeg'}]
     responses = [
-        _make_response(existing),   # GET existing gallery
-        _make_response(existing),   # GET uploaded for metadata
-        _make_response(None),       # PUT metadata
+        _make_response(existing),   # GET existing gallery — nothing changed
     ]
 
     with patch('urllib.request.urlopen', side_effect=responses) as mock_open:
-        CURSEFORGE.sync_gallery(_PROJECT_ID, _AUTH, images)
+        CURSEFORGE.sync_gallery(_PROJECT_ID, _AUTH, images, set())
 
-    assert mock_open.call_count == 3
+    assert mock_open.call_count == 1
 
 
 # ── 4. upload_file ───────────────────────────────────────────────────────────
