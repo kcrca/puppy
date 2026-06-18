@@ -62,7 +62,6 @@ def run(
     content: set[str] | None = None,
     rehash: bool = False,
     handle_filter: list[str] | None = None,
-    force: bool = False,
     open_browser: bool = True,
 ) -> None:
     content = content or set()
@@ -161,7 +160,6 @@ def run(
                 puppy_home,
                 site,
                 content,
-                force,
                 verbosity,
                 rehash=rehash,
                 all_labels=all_labels,
@@ -307,7 +305,7 @@ def _collect_after_push(config: dict, site: str | None) -> list:
 
 
 def _dispatch(
-    action, project, config, version, auth, puppy_home, site, content, force, verbosity,
+    action, project, config, version, auth, puppy_home, site, content, verbosity,
     rehash=False, all_labels=None,
 ):
     if action == 'create':

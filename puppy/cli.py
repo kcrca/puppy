@@ -84,14 +84,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        '-f',
-        '--force',
-        action='store_true',
-        dest='force',
-        help='With create, skip the confirmation prompt.',
-    )
-
-    parser.add_argument(
         '--no-open',
         action='store_false',
         dest='open_browser',
@@ -127,6 +119,5 @@ def main(argv: list[str] = None) -> None:
         content=parse_content(args.content) if args.content else None,
         rehash=args.rehash,
         handle_filter=args.handle_name or None,
-        force=args.force,
         open_browser=args.open_browser,
     )
