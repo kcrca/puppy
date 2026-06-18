@@ -119,8 +119,14 @@ def test_donation_github_sponsors_maps_to_mr_github():
     assert config['modrinth']['donation'] == {'github': 'https://github.com/sponsors/me'}
 
 
-def test_donation_cf_takes_first_key():
+def test_donation_cf_takes_first_listed():
+    # CF keeps one donation link; the one listed first in puppy.yaml wins.
     config = _apply_neutral_metadata({'links': {'kofi': 'https://ko-fi.com/me', 'patreon': 'https://patreon.com/me'}})
+    assert config['curseforge']['donation']['type'] == 'kofi'
+
+
+def test_donation_cf_order_is_user_controlled():
+    config = _apply_neutral_metadata({'links': {'patreon': 'https://patreon.com/me', 'kofi': 'https://ko-fi.com/me'}})
     assert config['curseforge']['donation']['type'] == 'patreon'
 
 

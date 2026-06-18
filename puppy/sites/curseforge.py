@@ -320,11 +320,14 @@ class CurseForgeSite(Site):
             config.setdefault('curseforge', {}).setdefault('links', {}).setdefault('source', links['source'])
 
         if isinstance(links, dict):
-            for key in self._DONATION_LINK_KEYS:
-                if links.get(key):
+            # CurseForge holds only one donation link; the user picks which by
+            # listing it first among the donation links in puppy.yaml.
+            donation_keys = set(self._DONATION_LINK_KEYS)
+            for key, value in links.items():
+                if key in donation_keys and value:
                     dtype = 'github' if key == 'github_sponsors' else key
                     config.setdefault('curseforge', {}).setdefault(
-                        'donation', {'type': dtype, 'value': links[key]}
+                        'donation', {'type': dtype, 'value': value}
                     )
                     break
 
