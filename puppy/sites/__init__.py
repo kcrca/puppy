@@ -3,20 +3,7 @@ from __future__ import annotations
 import urllib.request
 
 from puppy.sites.base import Site
-from puppy.sites.curseforge import (
-    _CF_API,
-    _CF_DASH,
-    _cf_game_versions_cache,
-    _cf_fetch_game_versions,
-    _cf_resolve_game_version_ids,
-    _cf_get,
-    _cf_post_json,
-    _cf_delete,
-    _cf_post_multipart,
-    _cf_send,
-    _SPDX_TO_PU_CF,
-    CurseForgeSite,
-)
+from puppy.sites.curseforge import CurseForgeSite
 from puppy.sites.modrinth import ModrinthSite
 from puppy.sites.planetminecraft import PlanetMinecraftSite
 

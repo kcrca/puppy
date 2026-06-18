@@ -10,7 +10,7 @@ from PIL import Image
 import puppy.syncer as _syncer
 from puppy.errors import AuthExpiredError, SiteError
 from puppy.sites import CURSEFORGE
-from puppy.sites.curseforge import _CF_DASH, _CF_API
+from puppy.sites.curseforge import _DASH, _API
 import puppy.puller as _puller
 from puppy.syncer import run_push
 from puppy.puller import run_pull
@@ -50,45 +50,21 @@ def _make_http_error(code: int, body: str = '', hdrs=None):
     return err
 
 
-# ── 0. _cf_send 429 retry ────────────────────────────────────────────────────
+# ── 0. classify_http_error (CurseForge's overloaded codes) ───────────────────
 
-def test_cf_send_retries_on_429_then_succeeds(monkeypatch):
-    from puppy.sites.curseforge import _cf_send
-    import urllib.request
-    seq = [
-        _make_http_error(429, 'throttled', hdrs={'Retry-After': '0'}),
-        _make_http_error(429, 'throttled'),
-        _make_response({'ok': True}),
-    ]
-    calls = []
-
-    def fake_urlopen(req, timeout=30):
-        calls.append(1)
-        r = seq[len(calls) - 1]
-        if isinstance(r, Exception):
-            raise r
-        return r
-
-    monkeypatch.setattr('time.sleep', lambda *a, **k: None)
-    monkeypatch.setattr('urllib.request.urlopen', fake_urlopen)
-    assert _cf_send(urllib.request.Request('https://x')) == {'ok': True}
-    assert len(calls) == 3   # two 429s retried, third succeeded
+def test_cf_classify_401_is_auth_expired():
+    assert isinstance(CURSEFORGE.classify_http_error(_make_http_error(401, '')), AuthExpiredError)
 
 
-def test_cf_send_raises_site_error_after_max_429(monkeypatch):
-    from puppy.sites.curseforge import _cf_send
-    import urllib.request
-    calls = []
+def test_cf_classify_403_with_generic_message_is_site_error():
+    # CF returns 403 for non-auth failures; the message disambiguates.
+    err = _make_http_error(403, json.dumps({'message': 'Project name already taken'}))
+    assert isinstance(CURSEFORGE.classify_http_error(err), SiteError)
 
-    def fake_urlopen(req, timeout=30):
-        calls.append(1)
-        raise _make_http_error(429, 'throttled')
 
-    monkeypatch.setattr('time.sleep', lambda *a, **k: None)
-    monkeypatch.setattr('urllib.request.urlopen', fake_urlopen)
-    with pytest.raises(SiteError, match='429'):
-        _cf_send(urllib.request.Request('https://x'))
-    assert len(calls) == 4   # _CF_MAX_ATTEMPTS
+def test_cf_classify_400_forbidden_message_is_auth_expired():
+    err = _make_http_error(400, json.dumps({'message': 'Forbidden'}))
+    assert isinstance(CURSEFORGE.classify_http_error(err), AuthExpiredError)
 
 
 # ── 1. update_description ────────────────────────────────────────────────────
@@ -100,7 +76,7 @@ def test_update_description_sends_correct_html():
         CURSEFORGE.update_description(_PROJECT_ID, _AUTH, html)
 
     req = mock_open.call_args[0][0]
-    assert req.full_url == f'{_CF_DASH}/projects/description/{_PROJECT_ID}'
+    assert req.full_url == f'{_DASH}/projects/description/{_PROJECT_ID}'
     assert req.method == 'PUT'
     assert req.get_header('Content-type') == 'application/json'
     assert req.get_header('Cookie') == 'CobaltSession=test-cookie'
@@ -117,7 +93,7 @@ def test_upload_icon_sends_multipart_to_correct_endpoint():
         CURSEFORGE.upload_icon(_PROJECT_ID, _AUTH, icon_bytes)
 
     req = mock_open.call_args[0][0]
-    assert req.full_url == f'{_CF_DASH}/projects/{_PROJECT_ID}/upload-avatar'
+    assert req.full_url == f'{_DASH}/projects/{_PROJECT_ID}/upload-avatar'
     assert req.method == 'POST'
     content_type = req.get_header('Content-type')
     assert content_type.startswith('multipart/form-data; boundary=')
@@ -225,7 +201,7 @@ def test_upload_file_sends_correct_multipart_with_metadata(tmp_path):
     assert ver_req.get_header('X-api-token') == 'test-token'
 
     req = calls[1][0][0]
-    assert req.full_url == f'{_CF_API}/projects/{_PROJECT_ID}/upload-file'
+    assert req.full_url == f'{_API}/projects/{_PROJECT_ID}/upload-file'
     assert req.method == 'POST'
     assert req.get_header('X-api-token') == 'test-token'
 

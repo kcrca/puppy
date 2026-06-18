@@ -23,10 +23,10 @@ def _no_images(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _clear_cf_cache():
-    import puppy.sites as sites_mod
-    sites_mod._cf_game_versions_cache.clear()
+    from puppy.sites import CURSEFORGE
+    CURSEFORGE._game_versions.clear()
     yield
-    sites_mod._cf_game_versions_cache.clear()
+    CURSEFORGE._game_versions.clear()
 
 
 @pytest.fixture(autouse=True)

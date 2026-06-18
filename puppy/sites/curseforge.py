@@ -16,170 +16,11 @@ from puppy.renderer import md_to_html
 from puppy.sites.base import Site
 
 
-_CF_API = 'https://minecraft.curseforge.com/api'
-_CF_DASH = 'https://authors.curseforge.com/_api'
-_CF_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+_API = 'https://minecraft.curseforge.com/api'
+_DASH = 'https://authors.curseforge.com/_api'
+_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
 
-_cf_game_versions_cache: dict[str, list[dict]] = {}
-
-
-def _cf_fetch_game_versions(auth: dict) -> list[dict]:
-    token = auth.get('curseforge', {}).get('token', '')
-    if token not in _cf_game_versions_cache:
-        result = _cf_get(f'{_CF_API}/game/versions', {'X-Api-Token': token})
-        _cf_game_versions_cache[token] = result or []
-    return _cf_game_versions_cache[token]
-
-
-def _cf_resolve_game_version_ids(version_strings: list[str], auth: dict) -> list[int]:
-    versions = _cf_fetch_game_versions(auth)
-    name_to_id: dict[str, int] = {}
-    for v in versions:
-        if v['name'] not in name_to_id:
-            name_to_id[v['name']] = v['id']
-    ids = []
-    for vs in version_strings:
-        vid = name_to_id.get(vs)
-        if vid:
-            ids.append(vid)
-    return ids
-
-
-def _cf_resolve_category_ids(names: list) -> tuple[int | None, list[int]]:
-    ids = []
-    for name in names:
-        s = str(name)
-        cid = _CF_CATEGORIES_LOWER.get(s.lower()) or (int(s) if s.isdigit() else None)
-        if cid is not None:
-            ids.append(cid)
-        else:
-            raise SystemExit(f'Unknown curseforge category: {name!r}')
-    return (ids[0] if ids else None, ids[1:])
-
-
-def _cf_headers(extra: dict) -> dict:
-    return {
-        'User-Agent': _CF_UA,
-        'Origin': 'https://authors.curseforge.com',
-        'Referer': 'https://authors.curseforge.com/',
-        **extra,
-    }
-
-
-def _cf_extract_id_from_page(html: str) -> int | None:
-    m = re.search(r'<script[^>]+id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
-    if m:
-        try:
-            data = json.loads(m.group(1))
-            page_props = data.get('props', {}).get('pageProps', {})
-            for key in ('project', 'mod', 'addon'):
-                obj = page_props.get(key)
-                if isinstance(obj, dict) and obj.get('id'):
-                    return int(obj['id'])
-            for val in page_props.values():
-                if isinstance(val, dict) and val.get('id') and isinstance(val.get('id'), int):
-                    return int(val['id'])
-        except (json.JSONDecodeError, ValueError, TypeError):
-            pass
-    for pattern in (r'"projectId"\s*:\s*(\d+)', r'"modId"\s*:\s*(\d+)', r'data-project-id="(\d+)"'):
-        m = re.search(pattern, html)
-        if m:
-            return int(m.group(1))
-    return None
-
-
-def _cf_get(url: str, headers: dict) -> Any:
-    req = urllib.request.Request(url, headers=_cf_headers(headers))
-    return _cf_send(req)
-
-
-def _cf_json(url: str, headers: dict, body: dict, method: str = 'POST') -> Any:
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(
-        url, data=data,
-        headers=_cf_headers({**headers, 'Content-Type': 'application/json'}),
-        method=method,
-    )
-    return _cf_send(req)
-
-
-def _cf_post_json(url: str, headers: dict, body: dict) -> Any:
-    return _cf_json(url, headers, body, method='POST')
-
-
-def _cf_put_json(url: str, headers: dict, body: dict) -> Any:
-    return _cf_json(url, headers, body, method='PUT')
-
-
-def _cf_delete(url: str, headers: dict) -> None:
-    req = urllib.request.Request(url, headers=_cf_headers(headers), method='DELETE')
-    _cf_send(req)
-
-
-def _cf_post_multipart(
-    url: str,
-    headers: dict,
-    fields: dict,
-    files: list[tuple[str, str, bytes, str]],
-) -> Any:
-    boundary = b'----PuppyBoundary'
-    parts = []
-    for name, value in fields.items():
-        parts.append(
-            f'--{boundary.decode()}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode()
-        )
-    for field_name, filename, data, mime_type in files:
-        parts.append(
-            f'--{boundary.decode()}\r\nContent-Disposition: form-data; name="{field_name}"; filename="{filename}"\r\nContent-Type: {mime_type}\r\n\r\n'.encode()
-            + data + b'\r\n'
-        )
-    parts.append(f'--{boundary.decode()}--\r\n'.encode())
-    body = b''.join(parts)
-    req = urllib.request.Request(
-        url, data=body,
-        headers=_cf_headers({
-            **headers,
-            'Content-Type': f'multipart/form-data; boundary={boundary.decode()}',
-        }),
-        method='POST',
-    )
-    return _cf_send(req)
-
-
-def _cf_download(url: str, dest: Path) -> None:
-    req = urllib.request.Request(url, headers=_cf_headers({}))
-    dest.write_bytes(urlopen_retrying(req, timeout=30))
-
-
-def _cf_send(req: urllib.request.Request) -> Any:
-    try:
-        body = urlopen_retrying(req, timeout=30)
-    except urllib.error.HTTPError as e:
-        body = e.read().decode(errors='replace')
-        if e.code in (401, 403):
-            try:
-                msg = (json.loads(body).get('message') or '').lower()
-                if msg and 'unauthorized' not in msg and 'forbidden' not in msg:
-                    raise SiteError(e.code, body)
-            except (json.JSONDecodeError, AttributeError):
-                pass
-            raise AuthExpiredError(e.code, body)
-        if e.code == 400:
-            try:
-                if 'forbidden' in (json.loads(body).get('message') or '').lower():
-                    raise AuthExpiredError(e.code, body)
-            except (json.JSONDecodeError, AttributeError):
-                pass
-        raise SiteError(e.code, body)
-    if not body:
-        return None
-    try:
-        return json.loads(body)
-    except (json.JSONDecodeError, ValueError):
-        return body.decode()
-
-
-_CF_LICENSE_IDS = {
+_LICENSE_IDS = {
     'Academic Free License v3.0': 3,
     'All Rights Reserved': 1,
     'Apache License version 2.0': 14,
@@ -198,18 +39,18 @@ _CF_LICENSE_IDS = {
     'zlib/libpng License': 12,
 }
 
-_CF_DONATION_TYPES = {
+_DONATION_TYPES = {
     'none': -1, 'paypal': 1, 'paypalHosted': 2, 'patreon': 6,
     'github': 7, 'kofi': 8, 'buyMeACoffee': 9,
 }
 
-_CF_SOCIAL_TYPES = {
+_SOCIAL_TYPES = {
     'mastodon': 1, 'discord': 2, 'website': 3, 'facebook': 4, 'twitter': 5,
     'instagram': 6, 'patreon': 7, 'twitch': 8, 'reddit': 9, 'youtube': 10,
     'tiktok': 11, 'pinterest': 12, 'github': 13, 'bluesky': 14,
 }
 
-_CF_CATEGORIES = {
+_CATEGORIES = {
     # Pack subcategories (classId=12)
     '16x': 393, '32x': 394, '64x': 395, '128x': 396, '256x': 397,
     '512x and Higher': 398, 'Data Packs': 5193, 'Font Packs': 5244,
@@ -229,42 +70,42 @@ _CF_CATEGORIES = {
     'Skyblock': 6145, 'Storage': 420, 'Structures': 409,
     'Technology': 412, 'Utility & QoL': 5191, 'World Gen': 406,
 }
-_CF_CATEGORIES_LOWER = {k.lower(): v for k, v in _CF_CATEGORIES.items()}
+_CATEGORIES_LOWER = {k.lower(): v for k, v in _CATEGORIES.items()}
 
-_CF_ENV_CLIENT = 9638
-_CF_ENV_SERVER = 9639
+_ENV_CLIENT = 9638
+_ENV_SERVER = 9639
 
-_CF_CLASS_IDS = {
+_CLASS_IDS = {
     'pack': 12,
     'mod': 6,
     'world': 17,
 }
 
-_CF_DEFAULT_CATEGORIES = {
+_DEFAULT_CATEGORIES = {
     'pack': 393,   # 16x resolution
     'mod': 425,    # Miscellaneous
     'world': 253,  # Survival
 }
 
-_CF_URL_SEGMENTS = {
+_URL_SEGMENTS = {
     'pack': 'texture-packs',
     'mod': 'mc-mods',
     'world': 'worlds',
 }
 
-_CF_BEDROCK_CLASS_ID = 4559
+_BEDROCK_CLASS_ID = 4559
 
-_CF_BEDROCK_DEFAULT_CATEGORIES = {
+_BEDROCK_DEFAULT_CATEGORIES = {
     'pack': 4561,  # Resource Packs under Addons
     'world': 4560, # Worlds under Addons
 }
 
-_CF_BEDROCK_URL_SEGMENTS = {
+_BEDROCK_URL_SEGMENTS = {
     'pack': 'mc-addons/resource-packs',
     'world': 'mc-addons/worlds',
 }
 
-_CF_LOADER_NAMES = {
+_LOADER_NAMES = {
     'fabric': 'Fabric',
     'forge': 'Forge',
     'neoforge': 'NeoForge',
@@ -272,7 +113,7 @@ _CF_LOADER_NAMES = {
 }
 
 # Maps SPDX license IDs to the keys PU's curseforge.js license map uses
-_SPDX_TO_PU_CF = {
+_SPDX_TO_PU = {
     'CC0-1.0': 'Public Domain',
     'CC-BY-4.0': 'Creative Commons 4.0',
     'CC-BY-SA-4.0': 'Creative Commons 4.0',
@@ -292,10 +133,10 @@ _SPDX_TO_PU_CF = {
     'Zlib': 'zlib/libpng License',
 }
 
-_CF_NAME_TO_SPDX = {
-    cf: spdx
-    for spdx, cf in _SPDX_TO_PU_CF.items()
-    if sum(1 for v in _SPDX_TO_PU_CF.values() if v == cf) == 1
+_NAME_TO_SPDX = {
+    name: spdx
+    for spdx, name in _SPDX_TO_PU.items()
+    if sum(1 for v in _SPDX_TO_PU.values() if v == name) == 1
 }
 
 
@@ -312,9 +153,135 @@ class CurseForgeSite(Site):
     _AUTH_URL = 'https://authors.curseforge.com'
     _REQUIRED_COOKIES = ('AuthorsUser', 'CobaltSession')
 
+    def __init__(self):
+        self._game_versions: dict[str, list[dict]] = {}
+
+    # ── HTTP transport ─────────────────────────────────────────────────────────
+    @staticmethod
+    def _msg(body: str) -> str:
+        try:
+            return (json.loads(body).get('message') or '').lower()
+        except (json.JSONDecodeError, AttributeError):
+            return ''
+
+    def classify_http_error(self, e: urllib.error.HTTPError) -> Exception:
+        # CurseForge overloads 401/403/400: the JSON message decides auth vs generic.
+        body = e.read().decode(errors='replace')
+        if e.code in (401, 403):
+            msg = self._msg(body)
+            if msg and 'unauthorized' not in msg and 'forbidden' not in msg:
+                return SiteError(e.code, body)
+            return AuthExpiredError(e.code, body)
+        if e.code == 400 and 'forbidden' in self._msg(body):
+            return AuthExpiredError(e.code, body)
+        return SiteError(e.code, body)
+
+    @staticmethod
+    def _headers(extra: dict) -> dict:
+        return {
+            'User-Agent': _UA,
+            'Origin': 'https://authors.curseforge.com',
+            'Referer': 'https://authors.curseforge.com/',
+            **extra,
+        }
+
+    def _get(self, url: str, headers: dict) -> Any:
+        return self._send(urllib.request.Request(url, headers=self._headers(headers)))
+
+    def _json(self, url: str, headers: dict, body: dict, method: str = 'POST') -> Any:
+        req = urllib.request.Request(
+            url, data=json.dumps(body).encode(),
+            headers=self._headers({**headers, 'Content-Type': 'application/json'}),
+            method=method,
+        )
+        return self._send(req)
+
+    def _post_json(self, url: str, headers: dict, body: dict) -> Any:
+        return self._json(url, headers, body, method='POST')
+
+    def _put_json(self, url: str, headers: dict, body: dict) -> Any:
+        return self._json(url, headers, body, method='PUT')
+
+    def _delete(self, url: str, headers: dict) -> None:
+        self._send(urllib.request.Request(url, headers=self._headers(headers), method='DELETE'))
+
+    def _post_multipart(self, url: str, headers: dict, fields: dict,
+                        files: list[tuple[str, str, bytes, str]]) -> Any:
+        boundary = b'----PuppyBoundary'
+        parts = []
+        for name, value in fields.items():
+            parts.append(
+                f'--{boundary.decode()}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode()
+            )
+        for field_name, filename, data, mime_type in files:
+            parts.append(
+                f'--{boundary.decode()}\r\nContent-Disposition: form-data; name="{field_name}"; filename="{filename}"\r\nContent-Type: {mime_type}\r\n\r\n'.encode()
+                + data + b'\r\n'
+            )
+        parts.append(f'--{boundary.decode()}--\r\n'.encode())
+        req = urllib.request.Request(
+            url, data=b''.join(parts),
+            headers=self._headers({
+                **headers,
+                'Content-Type': f'multipart/form-data; boundary={boundary.decode()}',
+            }),
+            method='POST',
+        )
+        return self._send(req)
+
+    def _download(self, url: str, dest: Path) -> None:
+        req = urllib.request.Request(url, headers=self._headers({}))
+        dest.write_bytes(urlopen_retrying(req, timeout=30))
+
+    @staticmethod
+    def _resolve_category_ids(names: list) -> tuple[int | None, list[int]]:
+        ids = []
+        for name in names:
+            s = str(name)
+            cid = _CATEGORIES_LOWER.get(s.lower()) or (int(s) if s.isdigit() else None)
+            if cid is not None:
+                ids.append(cid)
+            else:
+                raise SystemExit(f'Unknown curseforge category: {name!r}')
+        return (ids[0] if ids else None, ids[1:])
+
+    @staticmethod
+    def _extract_id_from_page(html: str) -> int | None:
+        m = re.search(r'<script[^>]+id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
+        if m:
+            try:
+                data = json.loads(m.group(1))
+                page_props = data.get('props', {}).get('pageProps', {})
+                for key in ('project', 'mod', 'addon'):
+                    obj = page_props.get(key)
+                    if isinstance(obj, dict) and obj.get('id'):
+                        return int(obj['id'])
+                for val in page_props.values():
+                    if isinstance(val, dict) and val.get('id') and isinstance(val.get('id'), int):
+                        return int(val['id'])
+            except (json.JSONDecodeError, ValueError, TypeError):
+                pass
+        for pattern in (r'"projectId"\s*:\s*(\d+)', r'"modId"\s*:\s*(\d+)', r'data-project-id="(\d+)"'):
+            m = re.search(pattern, html)
+            if m:
+                return int(m.group(1))
+        return None
+
+    def _fetch_game_versions(self, auth: dict) -> list[dict]:
+        token = auth.get('curseforge', {}).get('token', '')
+        if token not in self._game_versions:
+            self._game_versions[token] = self._get(f'{_API}/game/versions', {'X-Api-Token': token}) or []
+        return self._game_versions[token]
+
+    def _resolve_game_version_ids(self, version_strings: list[str], auth: dict) -> list[int]:
+        name_to_id: dict[str, int] = {}
+        for v in self._fetch_game_versions(auth):
+            name_to_id.setdefault(v['name'], v['id'])
+        return [name_to_id[vs] for vs in version_strings if vs in name_to_id]
+
     def has_credentials(self, auth: dict) -> bool:
-        cf = auth.get('curseforge', {})
-        return bool(cf.get('token') and cf.get('cookie'))
+        creds = auth.get('curseforge', {})
+        return bool(creds.get('token') and creds.get('cookie'))
 
     def create_project(self, *, config, auth, icon_bytes, image_list, images_dir, verbosity):
         return self.create(config=config, auth=auth, icon_bytes=icon_bytes, verbosity=verbosity)
@@ -334,7 +301,7 @@ class CurseForgeSite(Site):
         return md_to_html(text)
 
     def spdx_license(self, value: str) -> str | None:
-        return _CF_NAME_TO_SPDX.get(value)
+        return _NAME_TO_SPDX.get(value)
 
     def apply_neutral(self, config: dict) -> None:
         resolution = config.get('resolution')
@@ -343,8 +310,8 @@ class CurseForgeSite(Site):
 
         license_ = config.get('license')
         if license_:
-            cf_license = _SPDX_TO_PU_CF.get(license_, license_)
-            config.setdefault('curseforge', {}).setdefault('license', cf_license)
+            mapped = _SPDX_TO_PU.get(license_, license_)
+            config.setdefault('curseforge', {}).setdefault('license', mapped)
 
         links = config.get('links') or {}
         if isinstance(links, dict) and links.get('home'):
@@ -355,16 +322,16 @@ class CurseForgeSite(Site):
         if isinstance(links, dict):
             for key in self._DONATION_LINK_KEYS:
                 if links.get(key):
-                    cf_key = 'github' if key == 'github_sponsors' else key
+                    dtype = 'github' if key == 'github_sponsors' else key
                     config.setdefault('curseforge', {}).setdefault(
-                        'donation', {'type': cf_key, 'value': links[key]}
+                        'donation', {'type': dtype, 'value': links[key]}
                     )
                     break
 
         socials = config.get('socials') or {}
         if isinstance(socials, dict):
             for key, value in socials.items():
-                if value and key in _CF_SOCIAL_TYPES:
+                if value and key in _SOCIAL_TYPES:
                     config.setdefault('curseforge', {}).setdefault('socials', {}).setdefault(key, value)
 
     def preview_rows(self, sc: dict) -> list[tuple[str, str]]:
@@ -385,11 +352,11 @@ class CurseForgeSite(Site):
     ]
 
     def apply_settings(self, settings: dict, sc: dict) -> None:
-        cf = settings.setdefault('curseforge', {})
+        entry = settings.setdefault('curseforge', {})
         donation = sc.get('donation') or {}
-        cf['donation'] = {'type': donation.get('type'), 'value': donation.get('value')}
+        entry['donation'] = {'type': donation.get('type'), 'value': donation.get('value')}
         configured_socials = sc.get('socials') or {}
-        cf['socials'] = {k: configured_socials.get(k) for k in self._SOCIAL_KEYS}
+        entry['socials'] = {k: configured_socials.get(k) for k in self._SOCIAL_KEYS}
 
     def auth_yaml_entry(self) -> str:
         return (
@@ -407,22 +374,22 @@ class CurseForgeSite(Site):
             return None
         project_type = site_config.get('type', 'pack')
         if site_config.get('bedrock'):
-            segment = _CF_BEDROCK_URL_SEGMENTS.get(project_type, 'mc-addons')
+            segment = _BEDROCK_URL_SEGMENTS.get(project_type, 'mc-addons')
         else:
-            segment = _CF_URL_SEGMENTS.get(project_type, 'texture-packs')
+            segment = _URL_SEGMENTS.get(project_type, 'texture-packs')
         return f'https://www.curseforge.com/minecraft/{segment}/{ref}'
 
     def resolve_id(self, config: dict, auth: dict, verbosity: int) -> dict:
-        cf = config.get('curseforge', {})
-        if cf.get('id') or not cf.get('slug'):
+        sc = config.get('curseforge', {})
+        if sc.get('id') or not sc.get('slug'):
             return config
-        slug = cf['slug']
+        slug = sc['slug']
         cookie = auth.get('curseforge', {}).get('cookie', '')
         if cookie:
             # Try authors portal API (works for user's own projects)
             try:
-                data = _cf_get(
-                    f'{_CF_DASH}/projects?search={urllib.parse.quote(slug)}',
+                data = self._get(
+                    f'{_DASH}/projects?search={urllib.parse.quote(slug)}',
                     self._cookie_headers(auth),
                 )
                 projects = data if isinstance(data, list) else (
@@ -431,7 +398,7 @@ class CurseForgeSite(Site):
                 match = next((p for p in projects if p.get('slug') == slug), None)
                 if match and match.get('id'):
                     config = dict(config)
-                    config['curseforge'] = dict(cf, id=int(match['id']))
+                    config['curseforge'] = dict(sc, id=int(match['id']))
                     if verbosity >= 1:
                         print(f"Resolved CurseForge ID for slug '{slug}': {match['id']}")
                     return config
@@ -445,21 +412,21 @@ class CurseForgeSite(Site):
                     print(f"  [CurseForge] authors API lookup failed (trying page scrape): {e}")
             # Try scraping the public project page
             project_type = config.get('type', 'pack')
-            segments_to_try = [_CF_URL_SEGMENTS.get(project_type, 'texture-packs')]
+            segments_to_try = [_URL_SEGMENTS.get(project_type, 'texture-packs')]
             if project_type == 'world':
                 segments_to_try.append('mc-addons/worlds')
             elif project_type == 'pack':
                 segments_to_try.append('mc-addons/resource-packs')
-            page_headers = {'User-Agent': _CF_UA, 'Cookie': cookie}
+            page_headers = {'User-Agent': _UA, 'Cookie': cookie}
             for segment in segments_to_try:
                 url = f'https://www.curseforge.com/minecraft/{segment}/{slug}'
                 try:
                     req = urllib.request.Request(url, headers=page_headers)
                     page = urlopen_retrying(req, timeout=30).decode('utf-8', errors='replace')
-                    project_id = _cf_extract_id_from_page(page)
+                    project_id = self._extract_id_from_page(page)
                     if project_id:
                         config = dict(config)
-                        config['curseforge'] = dict(cf, id=project_id)
+                        config['curseforge'] = dict(sc, id=project_id)
                         if verbosity >= 1:
                             print(f"Resolved CurseForge ID for slug '{slug}': {project_id}")
                         return config
@@ -484,18 +451,18 @@ class CurseForgeSite(Site):
         return {'X-Api-Token': auth.get('curseforge', {}).get('token', '')}
 
     def fetch_project(self, project_id, auth: dict) -> dict:
-        return _cf_get(f'{_CF_DASH}/projects/{project_id}', self._cookie_headers(auth)) or {}
+        return self._get(f'{_DASH}/projects/{project_id}', self._cookie_headers(auth)) or {}
 
     def update_description(self, project_id, auth: dict, description: str) -> None:
-        _cf_put_json(
-            f'{_CF_DASH}/projects/description/{project_id}',
+        self._put_json(
+            f'{_DASH}/projects/description/{project_id}',
             self._cookie_headers(auth),
             {'description': description, 'descriptionType': 1},
         )
 
     def upload_icon(self, project_id, auth: dict, icon_bytes: bytes) -> str:
-        return _cf_post_multipart(
-            f'{_CF_DASH}/projects/{project_id}/upload-avatar',
+        return self._post_multipart(
+            f'{_DASH}/projects/{project_id}/upload-avatar',
             self._cookie_headers(auth),
             fields={'id': str(project_id)},
             files=[('file', 'pack.png', icon_bytes, 'image/png')],
@@ -508,7 +475,7 @@ class CurseForgeSite(Site):
             'range': '[0,24]',
             'sort': '["id","DESC"]',
         })
-        existing = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []
+        existing = self._get(f'{_DASH}/image-attachments/{project_id}?{params}', h) or []
         desired_filenames = {img['filename'] for img in images}
         existing_by_filename = {item['title']: item for item in existing if item.get('type') == 1}
         to_upload = [img for img in images if img['stem'] in changed]
@@ -517,11 +484,11 @@ class CurseForgeSite(Site):
         # delete images that were removed, or changed (deleted now, re-added below)
         for title, item in existing_by_filename.items():
             if title not in desired_filenames or title in upload_filenames:
-                _cf_delete(f'{_CF_DASH}/image-attachments/{project_id}/{item["id"]}/1', h)
+                self._delete(f'{_DASH}/image-attachments/{project_id}/{item["id"]}/1', h)
 
         for img in to_upload:
-            _cf_post_multipart(
-                f'{_CF_DASH}/image-attachments/image/{project_id}',
+            self._post_multipart(
+                f'{_DASH}/image-attachments/image/{project_id}',
                 h,
                 fields={'id': str(project_id)},
                 files=[('files', img['filename'], img['data'], img['mime_type'])],
@@ -529,13 +496,13 @@ class CurseForgeSite(Site):
 
         if not to_upload:
             return
-        uploaded = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []
+        uploaded = self._get(f'{_DASH}/image-attachments/{project_id}?{params}', h) or []
         uploaded_by_filename = {item['title']: item for item in uploaded}
         for img in to_upload:
             item = uploaded_by_filename.get(img['filename'])
             if item and item.get('id'):
-                _cf_put_json(
-                    f'{_CF_DASH}/image-attachments/{project_id}',
+                self._put_json(
+                    f'{_DASH}/image-attachments/{project_id}',
                     h,
                     {
                         'id': item['id'],
@@ -554,7 +521,7 @@ class CurseForgeSite(Site):
         raw_cat = sc.get('category')
         if raw_cat is not None:
             cat_list = [raw_cat] if isinstance(raw_cat, (str, int)) else list(raw_cat)
-            primary_from_cat, sub_cat_ids = _cf_resolve_category_ids(cat_list)
+            primary_from_cat, sub_cat_ids = self._resolve_category_ids(cat_list)
         else:
             primary_from_cat, sub_cat_ids = None, []
         details = {
@@ -564,26 +531,26 @@ class CurseForgeSite(Site):
             'allowComments': True,
             'enableProjectPages': False,
             'avatarUrl': avatar_url or '',
-            'donationTypeId': _CF_DONATION_TYPES.get(dtype, -1),
+            'donationTypeId': _DONATION_TYPES.get(dtype, -1),
             'donationIdentifier': '' if dtype == 'none' else donation.get('value', ''),
             'subCategoryIds': sub_cat_ids,
             'links': [
-                {'type': _CF_SOCIAL_TYPES[k], 'url': v}
+                {'type': _SOCIAL_TYPES[k], 'url': v}
                 for k, v in socials.items()
-                if v and k in _CF_SOCIAL_TYPES
+                if v and k in _SOCIAL_TYPES
             ],
         }
         primary = primary_from_cat if primary_from_cat is not None else sc.get('mainCategory')
         if primary is not None:
             details['primaryCategoryId'] = primary
-        _cf_put_json(f'{_CF_DASH}/projects/{project_id}/update-details', h, details)
+        self._put_json(f'{_DASH}/projects/{project_id}/update-details', h, details)
 
         license_name = sc.get('license')
         if license_name:
-            license_id = _CF_LICENSE_IDS.get(license_name)
+            license_id = _LICENSE_IDS.get(license_name)
             if license_id:
-                _cf_put_json(
-                    f'{_CF_DASH}/project-license/{project_id}/update',
+                self._put_json(
+                    f'{_DASH}/project-license/{project_id}/update',
                     h,
                     {'licenseId': license_id},
                 )
@@ -592,8 +559,8 @@ class CurseForgeSite(Site):
         source_url = links.get('source')
         if source_url:
             try:
-                _cf_put_json(
-                    f'{_CF_DASH}/project-source/{project_id}/update',
+                self._put_json(
+                    f'{_DASH}/project-source/{project_id}/update',
                     h,
                     {
                         'sourceHostUrl': source_url,
@@ -620,23 +587,23 @@ class CurseForgeSite(Site):
                 if not isinstance(minecraft, dict)
                 else minecraft
             )
-            cf_versions = explicit_versions.get('curseforge', base)
+            spec = explicit_versions.get('curseforge', base)
         else:
-            cf_versions = explicit_versions.get('curseforge', {})
+            spec = explicit_versions.get('curseforge', {})
         version_strings = []
-        if isinstance(cf_versions, dict):
-            v = cf_versions.get('version') or cf_versions.get('exact')
+        if isinstance(spec, dict):
+            v = spec.get('version') or spec.get('exact')
             if v:
                 version_strings = [str(v)]
-        elif isinstance(cf_versions, str):
-            version_strings = [cf_versions]
+        elif isinstance(spec, str):
+            version_strings = [spec]
         loaders = config.get('loaders') or []
-        loader_names = [_CF_LOADER_NAMES[ldr] for ldr in loaders if ldr in _CF_LOADER_NAMES]
-        game_version_ids = _cf_resolve_game_version_ids(version_strings + loader_names, auth)
+        loader_names = [_LOADER_NAMES[ldr] for ldr in loaders if ldr in _LOADER_NAMES]
+        game_version_ids = self._resolve_game_version_ids(version_strings + loader_names, auth)
         if config.get('client_side') in ('required', 'optional'):
-            game_version_ids.append(_CF_ENV_CLIENT)
+            game_version_ids.append(_ENV_CLIENT)
         if config.get('server_side') in ('required', 'optional'):
-            game_version_ids.append(_CF_ENV_SERVER)
+            game_version_ids.append(_ENV_SERVER)
 
         slug = config.get('curseforge', {}).get('slug') or config.get('handle', '')
         metadata = {
@@ -649,8 +616,8 @@ class CurseForgeSite(Site):
         artifact_bytes = pack_path.read_bytes()
         for attempt in range(3):
             try:
-                _cf_post_multipart(
-                    f'{_CF_API}/projects/{project_id}/upload-file',
+                self._post_multipart(
+                    f'{_API}/projects/{project_id}/upload-file',
                     self._token_headers(auth),
                     fields={'metadata': json.dumps(metadata)},
                     files=[('file', pack_path.name, artifact_bytes, 'application/zip')],
@@ -666,8 +633,8 @@ class CurseForgeSite(Site):
         import time
         h = self._cookie_headers(auth)
 
-        avatar_url = _cf_post_multipart(
-            f'{_CF_DASH}/projects/game/432/upload-avatar',
+        avatar_url = self._post_multipart(
+            f'{_DASH}/projects/game/432/upload-avatar',
             h,
             fields={},
             files=[('file', 'pack.png', icon_bytes, 'image/png')],
@@ -680,16 +647,16 @@ class CurseForgeSite(Site):
         sc = config.get('curseforge', {})
         project_type = config.get('type', 'pack')
         bedrock = config.get('bedrock', False)
-        class_id = _CF_BEDROCK_CLASS_ID if bedrock else _CF_CLASS_IDS.get(project_type, 12)
+        class_id = _BEDROCK_CLASS_ID if bedrock else _CLASS_IDS.get(project_type, 12)
         default_cat = (
-            _CF_BEDROCK_DEFAULT_CATEGORIES.get(project_type, 4561)
+            _BEDROCK_DEFAULT_CATEGORIES.get(project_type, 4561)
             if bedrock else
-            _CF_DEFAULT_CATEGORIES.get(project_type, 393)
+            _DEFAULT_CATEGORIES.get(project_type, 393)
         )
         raw_cat = sc.get('category')
         if raw_cat is not None:
             cat_list = [raw_cat] if isinstance(raw_cat, str) else list(raw_cat)
-            primary_cat_id, sub_cat_ids = _cf_resolve_category_ids(cat_list)
+            primary_cat_id, sub_cat_ids = self._resolve_category_ids(cat_list)
             if primary_cat_id is None:
                 primary_cat_id = default_cat
         else:
@@ -697,8 +664,8 @@ class CurseForgeSite(Site):
             main_cat = sc.get('mainCategory')
             if main_cat is not None:
                 cat_str = str(main_cat)
-                if cat_str in _CF_CATEGORIES:
-                    primary_cat_id = _CF_CATEGORIES[cat_str]
+                if cat_str in _CATEGORIES:
+                    primary_cat_id = _CATEGORIES[cat_str]
                 elif cat_str.isdigit():
                     primary_cat_id = int(cat_str)
                 else:
@@ -706,10 +673,10 @@ class CurseForgeSite(Site):
             else:
                 primary_cat_id = default_cat
         license_name = sc.get('license') or config.get('license') or 'All Rights Reserved'
-        license_name = _SPDX_TO_PU_CF.get(license_name, license_name)
-        license_id = _CF_LICENSE_IDS.get(license_name, 1)
+        license_name = _SPDX_TO_PU.get(license_name, license_name)
+        license_id = _LICENSE_IDS.get(license_name, 1)
 
-        result = _cf_post_json(f'{_CF_DASH}/projects', h, {
+        result = self._post_json(f'{_DASH}/projects', h, {
             'name': config.get('name', ''),
             'avatarUrl': avatar_url,
             'summary': config.get('summary', ''),
@@ -732,7 +699,7 @@ class CurseForgeSite(Site):
         time.sleep(5)
 
         try:
-            project_data = _cf_get(f'{_CF_DASH}/projects/{project_id}', h) or {}
+            project_data = self._get(f'{_DASH}/projects/{project_id}', h) or {}
             if not isinstance(project_data, dict):
                 project_data = {}
             slug = project_data.get('slug', '')
@@ -742,12 +709,12 @@ class CurseForgeSite(Site):
                 result['bedrock'] = True
             if project_data.get('primaryCategoryId') is not None:
                 result['category'] = project_data['primaryCategoryId']
-            license_id_inv = {v: k for k, v in _CF_LICENSE_IDS.items()}
+            license_id_inv = {v: k for k, v in _LICENSE_IDS.items()}
             harvested_license = license_id_inv.get(project_data.get('licenseId'))
             if harvested_license:
                 result['license'] = harvested_license
 
-            social_inv = {v: k for k, v in _CF_SOCIAL_TYPES.items()}
+            social_inv = {v: k for k, v in _SOCIAL_TYPES.items()}
             socials = {
                 social_inv[link['type']]: link['url']
                 for link in (project_data.get('links') or [])
@@ -758,9 +725,9 @@ class CurseForgeSite(Site):
 
             if verbosity >= 1:
                 if bedrock:
-                    segment = _CF_BEDROCK_URL_SEGMENTS.get(project_type, 'mc-addons')
+                    segment = _BEDROCK_URL_SEGMENTS.get(project_type, 'mc-addons')
                 else:
-                    segment = _CF_URL_SEGMENTS.get(project_type, 'texture-packs')
+                    segment = _URL_SEGMENTS.get(project_type, 'texture-packs')
                 print(f'  [CurseForge] https://www.curseforge.com/minecraft/{segment}/{slug}')
         except Exception as e:
             raise SystemExit(
@@ -802,7 +769,7 @@ class CurseForgeSite(Site):
         self.sync_gallery(project_id, auth, images, upload_set, verbosity=verbosity)
         h = self._cookie_headers(auth)
         params = urllib.parse.urlencode({'filter': '{}', 'range': '[0,24]', 'sort': '["id","DESC"]'})
-        gallery = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []
+        gallery = self._get(f'{_DASH}/image-attachments/{project_id}?{params}', h) or []
         return {
             Path(item['title']).stem: item.get('imageUrl', '')
             for item in gallery
@@ -812,7 +779,7 @@ class CurseForgeSite(Site):
     def gallery_urls(self, project_id, auth: dict, project_type: str = 'pack') -> dict[str, str]:
         h = self._cookie_headers(auth)
         params = urllib.parse.urlencode({'filter': '{}', 'range': '[0,24]', 'sort': '["id","DESC"]'})
-        gallery = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []
+        gallery = self._get(f'{_DASH}/image-attachments/{project_id}?{params}', h) or []
         return {
             Path(item['title']).stem: item.get('imageUrl', '')
             for item in gallery
@@ -886,7 +853,7 @@ class CurseForgeSite(Site):
             'sort': '["id","DESC"]',
         })
         try:
-            gallery = _cf_get(f'{_CF_DASH}/image-attachments/{project_id}?{params}', h) or []
+            gallery = self._get(f'{_DASH}/image-attachments/{project_id}?{params}', h) or []
         except SiteError as e:
             if e.code == 404:
                 gallery = []
@@ -910,7 +877,7 @@ class CurseForgeSite(Site):
                 if not existing:
                     if verbosity >= 1:
                         print('  [CurseForge] downloading icon')
-                    _cf_download(avatar_url, puppy_dir / 'pack.png')
+                    self._download(avatar_url, puppy_dir / 'pack.png')
 
             if gallery:
                 images_dir = puppy_dir / 'images'
@@ -923,9 +890,9 @@ class CurseForgeSite(Site):
                     if url and title:
                         stem = Path(title).stem.strip('_')
                         suffix = Path(url.split('?')[0]).suffix or '.jpg'
-                        _cf_download(url, images_dir / (stem + suffix))
+                        self._download(url, images_dir / (stem + suffix))
 
-        social_inv = {v: k for k, v in _CF_SOCIAL_TYPES.items()}
+        social_inv = {v: k for k, v in _SOCIAL_TYPES.items()}
         socials = {}
         for link in (data.get('links') or []):
             key = social_inv.get(link.get('type'))
@@ -933,7 +900,7 @@ class CurseForgeSite(Site):
             if key and url:
                 socials[key] = url
 
-        donation_inv = {v: k for k, v in _CF_DONATION_TYPES.items()}
+        donation_inv = {v: k for k, v in _DONATION_TYPES.items()}
         dtype = donation_inv.get(data.get('donationTypeId'), 'none')
         donation = None
         if dtype and dtype != 'none':
@@ -941,29 +908,29 @@ class CurseForgeSite(Site):
             if dval:
                 donation = {'type': dtype, 'value': dval}
 
-        license_id_inv = {v: k for k, v in _CF_LICENSE_IDS.items()}
+        license_id_inv = {v: k for k, v in _LICENSE_IDS.items()}
         license_name = license_id_inv.get(data.get('licenseId'))
 
-        cf_result: dict = {
+        result: dict = {
             'id': data.get('id', project_id),
             'slug': data.get('slug'),
         }
-        if data.get('classId') == _CF_BEDROCK_CLASS_ID:
-            cf_result['bedrock'] = True
+        if data.get('classId') == _BEDROCK_CLASS_ID:
+            result['bedrock'] = True
         if donation:
-            cf_result['donation'] = donation
+            result['donation'] = donation
         if data.get('primaryCategoryId') is not None:
-            cf_result['category'] = data['primaryCategoryId']
+            result['category'] = data['primaryCategoryId']
         if socials:
-            cf_result['socials'] = socials
+            result['socials'] = socials
 
         if license_name:
-            cf_result['license'] = license_name
+            result['license'] = license_name
         return {
             'config': {
                 'name': data.get('name', ''),
                 'summary': data.get('summary', ''),
                 'images': image_entries,
             },
-            'curseforge': cf_result,
+            'curseforge': result,
         }

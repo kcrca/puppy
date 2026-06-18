@@ -11,7 +11,7 @@ from PIL import Image
 import puppy.sites.modrinth as _mr_mod
 from puppy.errors import AuthExpiredError
 from puppy.sites import CURSEFORGE, MODRINTH, PMC
-from puppy.sites.curseforge import _CF_DASH
+from puppy.sites.curseforge import _DASH
 from puppy.sites.modrinth import _MR_API
 
 
@@ -177,7 +177,7 @@ def test_cf_create_posts_project_with_name_and_summary():
             CURSEFORGE.create(config={'name': 'My Pack', 'summary': 'Cool'}, auth=_CF_AUTH, icon_bytes=b'PNG')
 
     create_req = mock_open.call_args_list[1][0][0]
-    assert create_req.full_url == f'{_CF_DASH}/projects'
+    assert create_req.full_url == f'{_DASH}/projects'
     assert create_req.method == 'POST'
     body = json.loads(create_req.data)
     assert body['name'] == 'My Pack'
