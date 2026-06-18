@@ -54,12 +54,17 @@ class _SiteCapture:
                     _orig_stdout.flush()
 
 
-def run_sites_parallel(tasks: list[tuple[str, callable]], all_labels: list[str] | None = None, verbosity: int = 0) -> None:
+def run_sites_parallel(tasks: list[tuple[str, callable]], all_labels: list[str] | None = None, verbosity: int = 0) -> dict:
+    """Run each (label, fn) in parallel with per-label output capture and error
+    aggregation. Returns {label: fn() result} for every task whose result is not None."""
     if not tasks:
-        return
+        return {}
+    results: dict = {}
     if len(tasks) == 1 and not all_labels:
-        tasks[0][1]()
-        return
+        r = tasks[0][1]()
+        if r is not None:
+            results[tasks[0][0]] = r
+        return results
 
     is_tty = _orig_stdout.isatty()
     captures = {label: _SiteCapture(is_tty) for label, _ in tasks}
@@ -68,7 +73,9 @@ def run_sites_parallel(tasks: list[tuple[str, callable]], all_labels: list[str] 
     def _run_one(label: str, fn) -> None:
         _tls.cap = captures[label]
         try:
-            fn()
+            r = fn()
+            if r is not None:
+                results[label] = r
         except SystemExit as e:
             errors.append(prefix_site_error(label, e))
         except KeyboardInterrupt:
@@ -95,6 +102,7 @@ def run_sites_parallel(tasks: list[tuple[str, callable]], all_labels: list[str] 
         raise errors[0]
     if errors:
         raise SystemExit('\n'.join(str(e) for e in errors))
+    return results
 
 
 def _run_plain(tasks: list, run_one) -> None:

@@ -127,59 +127,13 @@ def run_push(
     image_list = config.get('images', [])
     img_fp = _images_fingerprint(icon, image_list, images_dir)
 
-    avatars: dict[str, str | None] = {}
-    image_urls_by_site: dict[str, dict[str, str]] = {}
-
-    # Phase 1: images (icon + gallery) must happen before descriptions render,
-    # because descriptions reference image CDN URLs.
-    for s in SITES:
-        site_id = s.ref(config)
-        if s not in visitor or not site_id:
-            continue
-        site_store = store.setdefault(s.name, {})
-        try:
-            urls, avatar = _push_images(
-                s, site_id, auth, image_list, images_dir, icon, img_fp,
-                content, use_hashes, site_store, project_type, verbosity,
-            )
-        except AuthExpiredError as e:
-            if use_hashes:
-                hashes.save(puppy_dir, store)
-            raise SystemExit(f'{s.label} auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth')
-        except SiteError as e:
-            if use_hashes:
-                hashes.save(puppy_dir, store)
-            raise SystemExit(f'{s.label} error: {e}')
-        avatars[s.name] = avatar
-        if urls:
-            image_urls_by_site[s.name] = add_image_name_aliases(urls, image_list)
-
-    # Phase 2: render descriptions (central, all sites).
+    projects_ctx = config['projects']
     discovery = ContentDiscovery(puppy_home, project.root)
-    descriptions: dict[str, str] = {}
-    for s in SiteVisitor(site, project_type=project_type):
-        site_config = ConfigSynthesizer(puppy_home, project.root, site=s).get_running_config()
-        site_config['projects'] = config['projects']
-        if s.name in site_config:
-            config = _deep_merge(config, {s.name: site_config[s.name]})
-        body, source = discovery.find_description(site=s)
-        if body:
-            rendered = render(body, site_config, source=str(source), site=s,
-                              image_urls=image_urls_by_site.get(s.name))
-            if source and source.suffix == '.md':
-                rendered = s.convert_md(rendered)
-            descriptions[s.name] = rendered
-
-    config = dict(config)
-    config['description'] = []
-
-    # Phase 3: file change detection (per site).
     zip_path, local_sha = _resolve_file(config, puppy_dir, version, project, content, use_hashes)
 
-    def _site_file_should(s, site_id) -> bool:
+    def _file_should(s, site_id, site_store) -> bool:
         if not zip_path:
             return False
-        site_store = store.setdefault(s.name, {})
         forced = 'file' in content
         if not use_hashes:
             return forced
@@ -187,20 +141,48 @@ def run_push(
             return True
         return s.file_changed(site_id, auth, local_sha, site_store, hashes.HASH_FILE)
 
+    # Each site runs its full pipeline (images → render → data → file) as one
+    # parallel task: images upload concurrently, and a per-site failure is isolated.
     def _make_task(s, site_id):
         def task():
             site_store = store.setdefault(s.name, {})
-            desc = descriptions.get(s.name, '')
-            sc = {'name': config.get('name', ''), 'summary': config.get('summary', ''), **config.get(s.name, {})}
-            fp = _data_fingerprint(desc, sc, config)
+
+            # 1. images (icon + gallery) — before render so the description can use CDN URLs
+            try:
+                urls, avatar = _push_images(
+                    s, site_id, auth, image_list, images_dir, icon, img_fp,
+                    content, use_hashes, site_store, project_type, verbosity,
+                )
+            except (AuthExpiredError, SiteError) as e:
+                raise _site_error(s, e)
+            image_urls = add_image_name_aliases(urls, image_list) if urls else None
+
+            # 2. render this site's description against its own resolved config
+            site_config = ConfigSynthesizer(puppy_home, project.root, site=s).get_running_config()
+            site_config['projects'] = projects_ctx
+            local_config = _deep_merge(config, {s.name: site_config[s.name]}) if s.name in site_config else dict(config)
+            local_config['description'] = []
+            body, source = discovery.find_description(site=s)
+            desc = ''
+            if body:
+                desc = render(body, site_config, source=str(source), site=s, image_urls=image_urls)
+                if source and source.suffix == '.md':
+                    desc = s.convert_md(desc)
+
+            # 3. data (description + metadata), hash-gated
+            sc = {'name': local_config.get('name', ''), 'summary': local_config.get('summary', ''),
+                  **local_config.get(s.name, {})}
+            fp = _data_fingerprint(desc, sc, local_config)
             if hashes.decide('data', fp, upload_set=content, use_hashes=use_hashes, prior=site_store):
-                _run_site(s, site_id, config, avatars.get(s.name), desc, auth, verbosity)
+                _run_site(s, site_id, local_config, avatar, desc, auth, verbosity)
                 if use_hashes:
                     site_store['data'] = fp
             elif verbosity >= 1:
                 print(f'  [{s.label}] data unchanged, skipping')
-            if _site_file_should(s, site_id):
-                _upload_site(s, site_id, auth, zip_path, version, config, puppy_dir, verbosity)
+
+            # 4. file, hash-gated
+            if _file_should(s, site_id, site_store):
+                _upload_site(s, site_id, auth, zip_path, version, local_config, puppy_dir, verbosity)
                 if use_hashes:
                     site_store['file'] = local_sha
         return task
