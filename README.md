@@ -81,7 +81,7 @@ It knows how to pull them from Firefox's saved state.
 
 Run Firefox and log in to Curseforge and PlanetMinecraft, then quit the browser.
 Then run `puppy auth` and it will copy the relevant cookies into `auth.yaml`.
-This will fill in `cookies:` fields in `auth.yaml`.
+This will fill in the `cookie:` fields in `auth.yaml`.
 
 Curseforge and Modrinth require access tokens.
 You have to create these and put them in auth.yaml
@@ -175,6 +175,7 @@ Now we need to set up details for the various sites.
 If you want puppy to create a new project at a site, here is a simple `puppy.yaml` to start with:
 
 ```yaml
+type: pack
 handle: neon
 version: 1.0
 minecraft: 1.21.4
@@ -278,18 +279,10 @@ modrinth:
 ## Project Description
 
 Typically you will want the description to be the same (or very similar) across all the sites.
-For this, you can write your description in `description.md` in Markup.
-It will be expanded for each site into that site's description language (HTML for CurseForge, Markdown for Modrinth, and BBCode for Planet Minecraft)..
+For this, you can write your description in `description.md` in Markdown.
+It will be expanded for each site into that site's description language (HTML for CurseForge, Markdown for Modrinth, and BBCode for Planet Minecraft).
 
-It can be this simple.
-There are things you may want to do that will actually vary from site to site.
-Each site has different URLs, but puppy helps you not worry about it.
-
-```yaml
-This image shows you how cool my crafting table is: {{ img('crafting-table') }}!
-```
-
-This will look in the site's `images.yaml` file for a file with the name `crafting-table` or the file `crafting-table.png`, and insert a references to it however the current site does that.
+It can be this simple, but you may want parts of it to vary from site to site — see "Expansion" below.
 
 ## Expansion
 
@@ -332,11 +325,11 @@ version: "{{minecraft}}"
 Your description may well inline one of your gallery images.
 Each site has different URLs, but puppy helps you not worry about it.
 
-```yaml
+```md
 This image shows you how cool my crafting table is: {{ img('crafting-table') }}!
 ```
 
-This will look in the site's `images.yaml` file for a file with the name `crafting-table` or the file `crafting-table.png`.
+This will look in your `images.yaml` for an image named `crafting-table` (or the file `crafting-table.png`).
 
 ## Simple Path Names
 
