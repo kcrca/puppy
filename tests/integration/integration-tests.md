@@ -5,8 +5,11 @@
 Integration tests are excluded from the default `pytest` run.
 Run them in parallel (recommended):
 
+The following commands assume you are in the directory `tests/inteegration/`.
+
+
 ```bash
-pytest tests/integration/ --dist=class -n auto
+pytest --dist=loadscope -n auto
 ```
 
 Or serially:
@@ -15,31 +18,31 @@ Or serially:
 pytest tests/integration/
 ```
 
-Credentials must be present in `tests/integration/puppy/auth.yaml` (same format as a real `auth.yaml`).
+Credentials must be present in `puppy/auth.yaml` (same format as a real `auth.yaml`).
 Tests for sites with missing credentials are automatically skipped.
 To run only one site:
 
 ```bash
-pytest tests/integration/ -k pmc --dist=class -n auto
-pytest tests/integration/ -k cf  --dist=class -n auto
-pytest tests/integration/ -k mr  --dist=class -n auto
+pytest -k pmc --dist=loadscope -n auto
+pytest -k cf  --dist=loadscope -n auto
+pytest -k mr  --dist=loadscope -n auto
 ```
 
 Cleanup runs automatically at the start of each session (deletes all projects on the test accounts).
 To clean up outside a test run:
 
 ```bash
-python tests/integration/cleanup.py            # all sites
-python tests/integration/cleanup.py --site mr
-python tests/integration/cleanup.py --site cf
-python tests/integration/cleanup.py --site pmc
+python cleanup.py            # all sites
+python cleanup.py --site mr
+python cleanup.py --site cf
+python cleanup.py --site pmc
 ```
 
 ---
 
 ## Parallel execution
 
-`--dist=class` (pytest-xdist) assigns every test in a class to one worker.
+`--dist=loadscope` (pytest-xdist) assigns every test in a class to one worker.
 This is required: the five lifecycle tests in each class are ordered and share state — they must run sequentially on one worker.
 Different classes run on separate workers concurrently.
 
@@ -58,7 +61,7 @@ All remaining tests in the same class also skip automatically.
 - `AuthExpiredError` raised by any site (for example HTTP 401, 403, or CF's 400 `"Forbidden"`)
 - `SystemExit` whose message contains `"auth expired"`
 
-Skip message names the site and HTTP status and points to `tests/integration/puppy/auth.yaml`.
+Skip message names the site and HTTP status and points to `puppy/auth.yaml`.
 
 **Usage limit failures** — triggered by:
 - `SystemExit` whose message contains `"daily update limit"` (PMC limits version submissions per day)
@@ -74,7 +77,7 @@ This prevents cascading failures when credentials are stale or a limit is hit mi
 Tests use a class-per-site-type layout.
 Each class inherits from `LifecycleBase` (defined in `conftest.py`), which provides five ordered test methods.
 Site-specific assertions are overridden in each class.
-Different classes are independent and run in parallel under `--dist=class`.
+Different classes are independent and run in parallel under `--dist=loadscope`.
 
 | File | Standalone tests | Classes |
 |---|---|---|
@@ -82,7 +85,7 @@ Different classes are independent and run in parallel under `--dist=class`.
 | `test_cf.py` | `test_cf_account_empty` | `TestCFPackLifecycle`, `TestCFWorldLifecycle`, `TestCFBedrockPackLifecycle`, `TestCFBedrockWorldLifecycle` |
 | `test_pmc.py` | `test_pmc_account_empty` | `TestPMCPackLifecycle`, `TestPMCWorldLifecycle`, `TestPMCBedrockPackLifecycle`, `TestPMCBedrockWorldLifecycle` |
 
-All are marked `pytest.mark.integration` and require credentials in `tests/integration/puppy/auth.yaml`.
+All are marked `pytest.mark.integration` and require credentials in `puppy/auth.yaml`.
 
 Each lifecycle class runs five tests in order:
 
@@ -151,7 +154,7 @@ Fails as a test (not a fixture error) so other tests still run on partial cleanu
 ## Fixture data
 
 ```
-tests/integration/puppy/
+puppy/
 ├── puppy.yaml          # home config: shared neutral fields (license, links, socials, changelog)
 ├── puppypack/
 │   ├── puppy.yaml      # pack-specific neutral fields; no modrinth.discord (uses neutral)
@@ -171,9 +174,9 @@ tests/integration/puppy/
     ├── icon.png
     ├── images.yaml
     └── images/
-tests/integration/puppypack/puppypack-1.0.0.zip   # artifact for pack push -c file
-tests/integration/puppymod/puppymod-1.0.0.jar     # artifact for mod push -c file
-tests/integration/puppyworld/puppyworld-1.0.0.zip # artifact for world push -c file
+puppypack/puppypack-1.0.0.zip   # artifact for pack push -c file
+puppymod/puppymod-1.0.0.jar     # artifact for mod push -c file
+puppyworld/puppyworld-1.0.0.zip # artifact for world push -c file
 ```
 
 Artifacts are made unique per test session by appending `puppy-run-id.txt` to each zip/jar.
