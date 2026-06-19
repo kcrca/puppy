@@ -56,6 +56,10 @@ def _no_cf_upload():
 def _no_pmc_upload():
     pass
 
+@pytest.fixture(autouse=True)
+def _no_images():
+    pass
+
 _INTEGRATION_DIR = Path(__file__).parent
 _PUPPY_HOME = _INTEGRATION_DIR / 'puppy'
 _AUTH_FILE = _PUPPY_HOME / 'auth.yaml'
