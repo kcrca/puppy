@@ -547,7 +547,7 @@ class ModrinthSite(Site):
         for item in gallery:
             if not item.get('title'):
                 continue
-            entry = {'file': item['title'], 'description': item.get('description', '')}
+            entry = {'file': Path(item['title']).stem, 'description': item.get('description', '')}
             if item.get('featured'):
                 entry['featured'] = True
             image_entries.append(entry)
@@ -574,7 +574,7 @@ class ModrinthSite(Site):
                     url = item.get('url', '')
                     title = item.get('title', '')
                     if url and title:
-                        stem = Path(title).stem.strip('_')
+                        stem = Path(title).stem
                         suffix = Path(url.split('?')[0]).suffix or '.jpg'
                         self._download(url, images_dir / (stem + suffix))
 

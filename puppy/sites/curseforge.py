@@ -876,7 +876,7 @@ class CurseForgeSite(Site):
         for item in gallery:
             title = item.get('title', '')
             if title:
-                image_entries.append({'file': title, 'description': item.get('description', '')})
+                image_entries.append({'file': Path(title).stem, 'description': item.get('description', '')})
 
         if images:
             avatar_url = data.get('avatarUrl')
@@ -900,7 +900,7 @@ class CurseForgeSite(Site):
                     url = item.get('imageUrl') or item.get('url', '')
                     title = item.get('title', '')
                     if url and title:
-                        stem = Path(title).stem.strip('_')
+                        stem = Path(title).stem
                         suffix = Path(url.split('?')[0]).suffix or '.jpg'
                         self._download(url, images_dir / (stem + suffix))
 

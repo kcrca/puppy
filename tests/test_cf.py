@@ -694,9 +694,10 @@ def test_cf_pull_downloads_gallery_images(tmp_path):
 
     assert (tmp_path / 'images' / 'img1.jpg').exists()
     assert (tmp_path / 'images' / 'img2.jpg').exists()
+    # entry 'file' is the bare stem so find_image resolves whatever extension was saved
     assert result['config']['images'] == [
-        {'file': 'img1.jpg', 'description': ''},
-        {'file': 'img2.jpg', 'description': ''},
+        {'file': 'img1', 'description': ''},
+        {'file': 'img2', 'description': ''},
     ]
 
 
