@@ -11,6 +11,27 @@ def test_resolution_cf_category():
     assert config['curseforge']['category'] == '16x'
 
 
+def test_resolution_cf_category_prepends_to_explicit():
+    # resolution is the primary; an explicit category becomes a subcategory after it
+    config = _apply_neutral_metadata({'resolution': 16, 'curseforge': {'category': 'Data Packs'}})
+    assert config['curseforge']['category'] == ['16x', 'Data Packs']
+
+
+def test_resolution_cf_category_prepends_to_list():
+    config = _apply_neutral_metadata({'resolution': 16, 'curseforge': {'category': ['Data Packs', 'Font Packs']}})
+    assert config['curseforge']['category'] == ['16x', 'Data Packs', 'Font Packs']
+
+
+def test_resolution_cf_category_dedups_resolution():
+    config = _apply_neutral_metadata({'resolution': 16, 'curseforge': {'category': ['16x', 'Data Packs']}})
+    assert config['curseforge']['category'] == ['16x', 'Data Packs']
+
+
+def test_cf_category_without_resolution_unchanged():
+    config = _apply_neutral_metadata({'type': 'mod', 'curseforge': {'category': 'Adventure and RPG'}})
+    assert config['curseforge']['category'] == 'Adventure and RPG'
+
+
 def test_resolution_modrinth_resolution_field():
     config = _apply_neutral_metadata({'resolution': 16})
     assert config['modrinth']['resolution'] == '16x'

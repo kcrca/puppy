@@ -107,7 +107,6 @@ Puppy has the following actions:
   * *Planet Minecraft:* Full BBCode description pulled via Playwright (headless Firefox with stored cookie), saved to `planetminecraft/description.bbcode`.
 * **`create`:** Creates the pack project on each site and writes the site-assigned ID and slug back to `puppy.yaml`.
   Does not push description body, icon, or gallery — those are uploaded by `push`.
-  Prompts for confirmation unless `-f/--force` is given.
   Per-site errors do not abort the other sites.
 
 ### Options & Flags
@@ -136,7 +135,6 @@ Puppy has the following actions:
     Icon is copied as `pack.png` only if no icon PNG is already present.
     CurseForge and Modrinth provide the icon; PMC does not.
     `-c file` is not valid for `pull` (there is no file to download).
-* **`-f/--force`:** Valid for `create` — skips the confirmation prompt.
 
 ### Arguments
 * **`project ...`** (positional): Limits action to one or more projects, matched by handle.
@@ -352,14 +350,14 @@ Strict boundary check ensures `1.2` does not match `1.2.4`.
 Certain properties are intrinsic to the project and should not need to be repeated under each site's config block.
 Puppy translates top-level neutral keys to each site's native representation when staging.
 A neutral key sets the *entire group* of related per-site fields:
-For example, `resolution: 16` sets `modrinth.resolution: '16x'`, sets CF `category: 16x`, sets PMC `resolution: 16`, and adds `16x` and `16x16` to PMC tags.
+For example, `resolution: 16` sets `modrinth.resolution: '16x'`, sets the CurseForge primary category to `16x`, sets PMC `resolution: 16`, and adds `16x` and `16x16` to PMC tags.
 There is no need to specify these in the site blocks unless overriding.
 Per-site overrides in `curseforge`, `modrinth`, `planetminecraft` blocks overwrite values set from neutral keys — explicit per-site values are never overwritten.
 `modrinth.resolution` accepts a single tier string (for example `'16x'`) or a list.
 Valid tiers: `8x-`, `16x`, `32x`, `48x`, `64x`, `128x`, `256x`, `512x+`.
 A bare integer is also accepted and is normalized to `{n}x`.
 If both neutral `resolution` and `modrinth.resolution` are set, the neutral tier is appended to the explicit list if not already present, with a warning.
-Site-specific fields with no neutral equivalent (for example CF `category`, PMC `category`, PMC `modifies`, PMC `tags`) should list all options explicitly so intent is clear.
+Site-specific fields with no neutral equivalent (for example PMC `category`, PMC `modifies`, PMC `tags`) should list all options explicitly so intent is clear.
 `planetminecraft.download`: if set, puppy skips uploading the file to PMC and uses this external URL as the PMC download link instead.
 The values `curseforge` and `modrinth` are accepted as shorthands and expand to the project's CF or MR URL.
 If not set, `push -c file` uploads the file to PMC and the uploaded file is the primary download.
@@ -374,6 +372,7 @@ If the upload fails due to size or any other error, puppy reports the error clea
 An unknown PMC category raises an error and lists the valid options for that project type.
 Category matching is case-insensitive.
 `curseforge.category` accepts a single name or a list; the first becomes `primaryCategoryId`, the rest become `subCategoryIds`.
+When neutral `resolution` is set (packs), the resolution tier is forced as the primary category and any `curseforge.category` entries are appended as subcategories (deduplicated); for mods/worlds (no resolution) the first listed `category` is the primary.
 Named pack categories: `16x`, `32x`, `64x`, `128x`, `256x`, `512x and Higher`, `Data Packs`, `Font Packs`.
 Named world categories: `Adventure`, `Creation`, `Game Map`, `Parkour`, `Puzzle`, `Survival`, `Modded World`.
 Named mod categories: `Adventure and RPG`, `API and Library`, `Armor, Tools, and Weapons`, `Automation`, `Biomes`, `Bug Fixes`, `Cosmetic`, `Dimensions`, `Education`, `Energy`, `Energy, Fluid, and Item Transport`, `Farming`, `Food`, `Genetics`, `Magic`, `Map and Information`, `Miscellaneous`, `Mobs`, `Ores and Resources`, `Performance`, `Player Transport`, `Processing`, `Redstone`, `Server Utility`, `Skyblock`, `Storage`, `Structures`, `Technology`, `Utility & QoL`, `World Gen`.
@@ -389,12 +388,12 @@ Examples:
 | `loaders: [fabric, forge, neoforge, quilt]` | resolved as game version IDs via CF API; added to version file upload | `loaders` on version upload | ignored |
 | `title: <string>` | ignored | ignored | overrides `name` as displayed project title |
 | `license: CC-BY-4.0` ([SPDX](https://spdx.org/licenses/)) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |
-| `resolution: 16` | `category: 16x` | `resolution: '16x'` | `resolution: 16`, tags `16x` and `16x16` |
+| `resolution: 16` | primary category `16x` (explicit `category` entries become subcategories) | `resolution: '16x'` | `resolution: 16`, tags `16x` and `16x16` |
 | `progress: 100` | ignored | ignored | `progress: 100` |
 | `bedrock: true` | pack: `classId=4559`, `primaryCategoryId=4561` (Resource Packs under Addons); world: `classId=4559`, `primaryCategoryId=4560` (Worlds under Addons); URL under `mc-addons/`; `curseforge.bedrock: true` written back on create/pull | ignored (no Bedrock loader on MR) | pack: selects "Minecraft Bedrock" in version dropdown; world: checks "Bedrock Edition Map" |
 | `links.home: <url>` | `socials.website` | ignored | `website.link` |
 | `links.source: <url>` | source repo link | `source_url` | ignored |
-| `links.patreon/kofi/… (donation keys)` | first key as `{type: platform, value: url}` | all donation keys passed as `donation.*` (`github_sponsors` → `github`) | ignored |
+| `links.patreon/kofi/… (donation keys)` | first donation link listed in `puppy.yaml` as `{type: platform, value: url}` | all donation keys passed as `donation.*` (`github_sponsors` → `github`) | ignored |
 | `socials.discord: <url>` | `socials.discord` | `discord_url` | ignored |
 | `socials.twitter/mastodon/… (other social keys)` | `socials.*` (CF social link types only) | ignored | ignored |
 | `client_side: required/optional/unsupported` | adds game version ID 9638 (client env) if `required` or `optional` | `client_side` on project (create and update) | ignored |

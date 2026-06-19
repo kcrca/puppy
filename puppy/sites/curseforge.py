@@ -306,7 +306,16 @@ class CurseForgeSite(Site):
     def apply_neutral(self, config: dict) -> None:
         resolution = config.get('resolution')
         if resolution is not None:
-            config.setdefault('curseforge', {}).setdefault('category', f'{resolution}x')
+            # The resolution tier is the CurseForge primary category for packs;
+            # any explicit `category` entries become additional (sub)categories.
+            sc = config.setdefault('curseforge', {})
+            res_cat = f'{resolution}x'
+            existing = sc.get('category')
+            if existing is None:
+                sc['category'] = res_cat
+            else:
+                rest = [existing] if isinstance(existing, str) else list(existing)
+                sc['category'] = [res_cat] + [c for c in rest if c != res_cat]
 
         license_ = config.get('license')
         if license_:
