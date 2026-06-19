@@ -437,6 +437,28 @@ def test_pull_downloads_gallery_images(tmp_path):
     assert (tmp_path / 'images' / 'img2.jpg').exists()
 
 
+def test_pull_image_entry_resolves_when_url_extension_differs(tmp_path):
+    # the CDN url ext differs from the title ext; the pulled entry must still
+    # resolve to the saved file on a later push (regression for the roundtrip bug)
+    from puppy.images import find_image
+    gallery = [{'url': 'https://cdn.modrinth.com/data/x/shot.png', 'title': 'shot.jpg', 'description': ''}]
+    project_data = {
+        'id': 'abc123', 'slug': 'mypack', 'title': 'My Pack', 'description': '',
+        'body': '', 'icon_url': None, 'gallery': gallery,
+    }
+    with patch('urllib.request.urlopen', side_effect=[
+        _make_response(project_data),
+        _make_response(b'PNGDATA'),
+    ]):
+        result = MODRINTH.pull('mypack', _AUTH, tmp_path, images=True)
+
+    images_dir = tmp_path / 'images'
+    assert (images_dir / 'shot.png').exists()
+    entry = result['config']['images'][0]
+    assert entry['file'] == 'shot'
+    assert find_image(entry['file'], images_dir).name == 'shot.png'
+
+
 def test_run_pull_when_mr_token_present(tmp_path, monkeypatch):
     root = tmp_path / 'neon'
     home = root / 'puppy'

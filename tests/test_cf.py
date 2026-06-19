@@ -701,6 +701,26 @@ def test_cf_pull_downloads_gallery_images(tmp_path):
     ]
 
 
+def test_cf_pull_image_entry_resolves_when_url_extension_differs(tmp_path):
+    # the CDN url ext differs from the title ext; the pulled entry must still
+    # resolve to the saved file on a later push (regression for the roundtrip bug)
+    from puppy.images import find_image
+    gallery = [{'title': 'shot.jpg', 'description': '', 'imageUrl': 'https://cdn.cf.com/x/shot.png'}]
+    with patch('urllib.request.urlopen', side_effect=[
+        _make_response(_PROJECT_DATA),
+        _make_response(_DESC_DATA),
+        _make_response(gallery),
+        _make_response(b'PNGDATA'),
+    ]):
+        result = CURSEFORGE.pull(_PROJECT_ID, _AUTH, tmp_path, images=True)
+
+    images_dir = tmp_path / 'images'
+    assert (images_dir / 'shot.png').exists()            # saved with the URL's extension
+    entry = result['config']['images'][0]
+    assert entry['file'] == 'shot'                       # bare stem, not 'shot.jpg'
+    assert find_image(entry['file'], images_dir).name == 'shot.png'
+
+
 def test_cf_pull_downloads_icon(tmp_path):
     project_with_icon = {**_PROJECT_DATA, 'avatarUrl': 'https://cdn.cf.com/icon.png'}
     with patch('urllib.request.urlopen', side_effect=[
