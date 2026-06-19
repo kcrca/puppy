@@ -11,9 +11,9 @@ It also simplifies some other things along the way.
 
 Puppy supports multiple project types; the `type` field in `puppy.yaml` declares what kind each project is (`pack`, `mod`, or `world`).
 Required — no default.
-Sites that do not support the current project type are silently skipped.
+Sites that do not support the current project type are skipped (with a notice unless `-q` is given).
 CurseForge and PMC support `pack` and `world`; CurseForge and Modrinth support `mod`; Modrinth supports `pack`.
-Modrinth does not yet have a world project type (as of mid-2026); world support is in `_MR_TYPE_MAP` for when it ships.
+Modrinth does not yet have a world project type (as of mid-2026); world support is in Modrinth's `_TYPE_MAP` for when it ships.
 Each project is published across multiple sites.
 Typically this doc uses the term "project" except where talking about a pack in relation to its uploading and management, but not strictly.
 Currently the sites supported are CurseForge (also called "cf"), Modrinth, and Planet Minecraft (also called "pmc").
@@ -50,10 +50,10 @@ Site-specific data is global if it is in the global home, or project specific if
 Each project and site is handled individually within a run of puppy.
 The information for a run has a priority order where it is found.
 
-1. The project's site home (such as `~/neon/puppy/neon/pmc/puppy.yaml)
-1. The project's home (such as `~/neon/puppy/neon/puppy.yaml)
-1. Puppy's site home (such as `~/neon/puppy/pmc/puppy.yaml)
-1. Puppy's home (such as `~/neon/puppy/puppy.yaml)
+1. The project's site home (such as `~/neon/puppy/neon/planetminecraft/puppy.yaml`)
+1. The project's home (such as `~/neon/puppy/neon/puppy.yaml`)
+1. Puppy's site home (such as `~/neon/puppy/planetminecraft/puppy.yaml`)
+1. Puppy's home (such as `~/neon/puppy/puppy.yaml`)
 
 So if a single run of puppy talks to three sites about two packs, there will be six sets of information, built independently for each site interaction.
 
@@ -152,7 +152,7 @@ The `use_hashes` config key (default `true`) controls change detection:
   A hash is written only after that artifact's own upload succeeds, independently per artifact; a failed upload withholds only its own hash, so the next run retries exactly the missing/stale ones.
   Descriptions are hashed over the final rendered text (post-Jinja, post-Markdown-conversion), so a `puppy.yaml` edit that changes a rendered description is caught and one that doesn't is not.
   Images are hashed over the source file bytes plus that image's metadata (name/description/featured) and the staging recipe (target size, quality, format); the recipe is folded in so that changing how puppy re-encodes an asset also invalidates its hash.
-  `hashes.yaml` is a local cache assuming puppy is the only updater — an edit made directly on a site is not detected (except the Modrinth zip, below); force with `-u` to overwrite.
+  `hashes.yaml` is a local cache assuming puppy is the only updater — an edit made directly on a site is not detected (except the Modrinth zip, below); force with `-c` to overwrite.
 * **`use_hashes: false`** — no hashes are read or written; `push` uploads exactly the categories named by `-c/--content`, defaulting to `data`.
 
 `-c/--content` force-uploads the named categories regardless of the hash check; categories not named still upload if their hash changed (when hashing is on).
@@ -205,7 +205,7 @@ Required when using `push -c file` unless `versions` is fully specified.
 
 Puppy resolves files by searching in the information priority order given above.
 Within that, for a given site during template expansion, a file in the site's preferred language takes precedence over a markdown file.
-In a site directory within a separate project directory (such as `~/neon/puppy/neon/pmc`) has both a language-specific variant (`foo.bbcode`) and a markdown variant (`foo.md`), a warning is given because the markdown will never be used.
+In a site directory within a separate project directory (such as `~/neon/puppy/neon/planetminecraft`) has both a language-specific variant (`foo.bbcode`) and a markdown variant (`foo.md`), a warning is given because the markdown will never be used.
 
 The description for a site is provided in a `description` file found in this way.
 Description files and YAML string values are rendered as [Jinja2](https://jinja.palletsprojects.com/) templates.
@@ -217,8 +217,7 @@ Full Jinja2 syntax is supported (`{% if %}`, `{% for %}`, filters, etc.).
 Unrecognised variables in `{{ }}` expressions raise an error; they are treated as falsy in `{% if %}` tests.
 This process is repeated until no more Jinja2 directives remain.
 
-Expansion uses a re-entrancy counter, incremented when any value expansion begins, decremented when it ends.
-If it exceeds 100, that is an error; this prevents infinite recursion.
+Config-string expansion repeats until the values stop changing, capped at 20 passes; exceeding the cap is an error that guards against a circular reference.
 
 Two path variables are automatically injected into every Jinja context:
 * `{{ top }}` — absolute path to the parent of puppy's home (`~/neon`)
@@ -250,7 +249,7 @@ Example: `sites: [cf, mr]`
   * `source: <url>` — source repository; maps to CF source link and Modrinth `source_url`
   * `issues: <url>` — issue tracker; maps to Modrinth `issues_url`. CurseForge has no separate issues URL field — it derives issues from the source URL automatically.
   * `patreon: <url>`, `kofi: <url>`, `paypal: <url>`, `buyMeACoffee: <url>`, `github_sponsors: <url>`, `other: <url>` — donation links;
-    CF receives the first one as `{type, value}`;
+    CF receives the first one listed in `puppy.yaml` as `{type, value}`;
     Modrinth receives all as `donation.*` (with `github_sponsors` mapped to `github`)
 * `socials:` — social media accounts for the project (all optional):
   * `discord: <url>` — Discord server invite; maps to CF social `discord` and Modrinth `discord_url`
@@ -283,8 +282,8 @@ Two helpers are injected into the template context:
   Returns `''` for unknown names (no error).
 
 * **`img(name)`** — emits site-appropriate markup for the named image:
-  * CurseForge / Modrinth: `<img src="…" width="600" alt="…"><br>`
-  * Planet Minecraft: `[img=name]…[/img]` (`.md` source); `[img]…[/img]` (`.bbcode` source)
+  * CurseForge: `<img src="…" width="600" alt="…"><br>`; Modrinth: same with a trailing `<br><br>`
+  * Planet Minecraft: `![name](…)` (`.md` source, converted to BBCode); `[img]…[/img]` (`.bbcode` source)
   Returns `''` if the name is not in the uploaded set.
 
 Example (description.md):
@@ -336,7 +335,6 @@ If there is a `projects` field in {{puppy}}/puppy.yaml, puppy iterates through t
 ### State Harvesting
 After `pull`, platform IDs, slugs, and full metadata are written back to the project's `puppy.yaml`.
 If pulled, images and their metadata are written to `{{project}}/images/` and `{{project}}/images/images.yaml` respectively.
-Leading and trailing underscores are stripped from image filenames on harvest.
 Values that differ between sites are written to their respective site-specific blocks.
 If all relevant sites agree on a value (for example `license`), it is promoted to the top-level neutral key.
 CF license names are normalized to SPDX for comparison; ambiguous CF names (for example `Creative Commons 4.0`) are kept site-specific.
@@ -412,7 +410,7 @@ For resource packs and worlds, MR defaults to `['minecraft']` for the version lo
 * **Cross-Linking:** Puppy pre-scans all sibling projects in `puppy_home`, injecting a `projects` dict into the Jinja context.
   Each entry is keyed by `handle` and contains per-site sub-objects (for example `{{ projects.other.modrinth.url }}`).
   URLs are built from `slug` if available, falling back to `id`.
-  The Modrinth URL path segment is derived from `type` (for example `pack` → `resourcepack`, `mod` → `mod`, `modpack` → `modpack`).
+  The Modrinth URL path segment is derived from `type` (for example `pack` → `resourcepack`, `mod` → `mod`).
 * **External Projects (`linked_projects`):** Projects outside the current Puppy Home can be added to the `projects` context via `linked_projects` in the global `puppy.yaml`.
   Each entry follows the same per-site structure as a normal project.
   A top-level `slug` key serves as the default slug for all sites, overridden by any per-site `slug`.
@@ -487,6 +485,7 @@ projects:
   - DarkNeon
 
 # Shared across all family members
+type: pack
 license: CC-BY-4.0
 resolution: 16
 
