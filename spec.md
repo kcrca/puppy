@@ -210,6 +210,10 @@ In a site directory within a separate project directory (such as `~/neon/puppy/n
 The description for a site is provided in a `description` file found in this way.
 Description files and YAML string values are rendered as [Jinja2](https://jinja.palletsprojects.com/) templates.
 All config keys from `puppy.yaml` are available as variables: `{{ version }}`, `{{ name }}`, `{{ modrinth.slug }}` etc.
+When rendering for a given site, that site's own config block shadows the neutral top-level keys, so `{{ foo }}` resolves to `<site>.foo` if the current site defines it, otherwise the top-level `foo`.
+This lets a single `description.md` carry per-site variants — for example a top-level `like: 'follow this pack'` with `planetminecraft: { like: 'give me a diamond' }` makes `{{ like }}` differ on PMC while staying the default elsewhere.
+A value set at the top level of a site directory's own `puppy.yaml` (such as `planetminecraft/puppy.yaml`) is more specific than the inline block, so it wins: the resolution order for `{{ foo }}` is the site-dir file's `foo`, then the inline `<site>.foo` block, then the neutral top-level `foo`.
+Dict values merge one level deep, so a partial per-site override (for example `links.source`) keeps the other keys.
 If `{{ foo }}` isn't a yaml property, then it is searched for as a file in the same way as `description.{ext}` is searched for, and if found, the file's contents are the value.
 This allows large reusable blocks (for example `{{ credits }}` → `credits.md`).
 

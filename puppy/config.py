@@ -51,16 +51,24 @@ class ConfigSynthesizer:
     def get_running_config(self) -> dict[str, Any]:
         project_puppy = project_source(self.project_root)
 
-        layers: list[Path] = [self.puppy_home / 'puppy.yaml']
+        # (path, site_scoped): a site-dir puppy.yaml merges flat like any layer,
+        # but we note the top-level keys it sets so render can let them outrank the
+        # site's inline block in the parent puppy.yaml (site-dir > nested > neutral).
+        layers: list[tuple[Path, bool]] = [(self.puppy_home / 'puppy.yaml', False)]
         if self.site:
-            layers.append(self.puppy_home / self.site / 'puppy.yaml')
-        layers.append(project_puppy / 'puppy.yaml')
+            layers.append((self.puppy_home / self.site / 'puppy.yaml', True))
+        layers.append((project_puppy / 'puppy.yaml', False))
         if self.site:
-            layers.append(project_puppy / self.site / 'puppy.yaml')
+            layers.append((project_puppy / self.site / 'puppy.yaml', True))
 
         config: dict = {}
-        for layer in layers:
-            config = _deep_merge(config, _resolve_layer_paths(_load_yaml(layer), layer.parent))
+        site_dir_keys: set[str] = set()
+        for layer, site_scoped in layers:
+            loaded = _resolve_layer_paths(_load_yaml(layer), layer.parent)
+            config = _deep_merge(config, loaded)
+            if site_scoped:
+                site_dir_keys.update(k for k in loaded if k != self.site)
+        config['_site_dir_keys'] = site_dir_keys
 
         config['puppy'] = str(self.puppy_home)
         config['top'] = str(self.puppy_home.parent)

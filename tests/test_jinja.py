@@ -4,7 +4,32 @@ import tempfile
 from pathlib import Path
 
 from puppy.renderer import render
-from puppy.sites import MODRINTH
+from puppy.sites import MODRINTH, CURSEFORGE
+
+
+def test_site_block_shadows_neutral_variable():
+    # the current site's block overrides a neutral top-level var during render
+    config = {'like': 'follow', 'curseforge': {'like': 'click follow'}, 'modrinth': {}}
+    assert 'please click follow' in render('please {{ like }}', config, site=CURSEFORGE)
+    # a site without its own value falls back to the neutral top-level one
+    assert 'please follow' in render('please {{ like }}', config, site=MODRINTH)
+
+
+def test_site_dir_key_outranks_block():
+    # a key set by a site-dir puppy.yaml (recorded in _site_dir_keys) is more
+    # specific than the inline block, so the block does not shadow it
+    config = {'val': 'sitedir', 'curseforge': {'val': 'block'}, '_site_dir_keys': {'val'}}
+    assert 'val=sitedir' in render('val={{ val }}', config, site=CURSEFORGE)
+
+
+def test_site_block_dict_merge_keeps_other_keys():
+    # dict values merge one level deep, so a partial override keeps the rest
+    config = {
+        'links': {'home': 'H', 'source': 'S'},
+        'curseforge': {'links': {'source': 'CF_S'}},
+    }
+    out = render('{{ links.home }}|{{ links.source }}', config, site=CURSEFORGE)
+    assert 'H|CF_S' in out
 
 
 def test_all_yaml_vars_available_to_jinja(project_env, run_puppy):

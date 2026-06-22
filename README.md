@@ -355,7 +355,7 @@ Your `description.md` would have something like this:
 And if you like this pack, please {{ like }}!
 
 ```
-Your `puppy.yaml` could have a segment that looks like this:
+Your `puppy.yaml` sets the default and a per-site override under that site's block:
 
 ```puppy.yaml
 like: 'follow this pack'
@@ -364,15 +364,12 @@ planetminecraft:
   like: 'give me a diamond, favorite this pack, and subscribe to my content'
 ```
 
-This says that the default value for the `like` parameter is simple, but a specific override exists for PMC.
-
-In the uploaded descriptions, the value of `like` will be replaced for each site with its particular brand of liking.
-And the text will be good for every site.
+When the description is rendered for a given site, that site's block shadows the neutral top-level value, so `{{ like }}` becomes the PMC value for Planet Minecraft and stays `'follow this pack'` everywhere else.
+The one `description.md` then reads correctly on every site.
+(The same works for any variable, and you can also put the override in a `<site>/puppy.yaml` file instead of a block.
+That file is more specific than the inline block, so if you set the same value in both places the `<site>/puppy.yaml` one wins.)
 
 You can use any yaml value in your expansion, including values inside other values.
-
-If you prefer, you can create (say) a `planetminecraft` directory inside the `puppy` directory and put these values in a `puppy.yaml` in that directory.
-Usually this is done when you also want a separate `images.yaml` file. or some other more complex setup.
 
 ## Including Files
 
@@ -618,6 +615,9 @@ When puppy is looking for information of any kind (besides the stuff in `auth.ya
 4. The global data
 
 So for each upload, the complete puppy.yaml that's used is a merge of all these specific puppy.yaml files (that exist) in a reverse of that order, so more specific values overwrite less-specific ones.
+
+Within a single `puppy.yaml`, a value under that site's block (`planetminecraft: { like: ... }`) beats the neutral top-level value when a description is rendered for that site (see [More on Expanding Values](#more-on-expanding-values)).
+A `<site>/puppy.yaml` file is more specific than such a block, so the overall order for a rendered `{{ value }}` follows the list above: the site-dir file, then the block, then the neutral top-level value.
 
 ## Advanced Configuration
 

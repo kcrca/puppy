@@ -140,6 +140,20 @@ def render(text: str, config: dict, source: str = '<description>', *, site=None,
     from puppy.searcher import ContentDiscovery
     tags = config.get('md_html_tags', DEFAULT_SHIELD_TAGS)
     ctx = dict(config)
+    site_dir_keys = ctx.pop('_site_dir_keys', None) or set()
+    if site and isinstance(config.get(site.name), dict):
+        # The current site's block shadows neutral top-level keys, so a template
+        # variable like {{ like }} can be overridden per site. Dicts merge one
+        # level deep so a partial override (e.g. links.source) keeps the rest.
+        # A site-dir puppy.yaml is more specific than the block, so keys it set at
+        # top level (site_dir_keys) win and the block does not shadow them.
+        for key, val in config[site.name].items():
+            if key in site_dir_keys:
+                continue
+            if isinstance(val, dict) and isinstance(ctx.get(key), dict):
+                ctx[key] = {**ctx[key], **val}
+            else:
+                ctx[key] = val
     if site and 'projects' in config:
         ctx['projects'] = {
             pack: _SiteProxy(proj, site.name)
