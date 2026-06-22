@@ -79,6 +79,9 @@ Puppy can help you get the cookies.
 It knows how to pull them from Firefox's saved state.
 (Firefox is not required for anything else, you can use your favorite browser otherwise.)
 
+**NOTE** that cookies expire, so you will need to get new cookies occassionally.
+If you start getting "authentication expired" messages, that's the time.
+
 Run Firefox and log in to Curseforge and PlanetMinecraft, then quit the browser.
 Then run `puppy auth` and it will copy the relevant cookies into `auth.yaml`.
 This will fill in the `cookie:` fields in `auth.yaml`.
