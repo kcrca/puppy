@@ -1,9 +1,5 @@
 # Puppy — Outstanding Work
 
-## Cleanup
-
-- **Remove "e.g." and "i.e." from spec and code comments**: Replace with plain English ("for example", "that is").
-
 ## Unimplemented Features
 
 - **Modpack support (maybe, maybe never)**: Modpacks involve distinct upload formats (`.mrpack`, CF modpack zip) that differ significantly from mods and resource packs.
