@@ -12,7 +12,7 @@ It also simplifies some other things along the way.
 Puppy supports multiple project types; the `type` field in `puppy.yaml` declares what kind each project is (`pack`, `mod`, or `world`).
 Required — no default.
 Sites that do not support the current project type are skipped (with a notice unless `-q` is given).
-CurseForge and PMC support `pack` and `world`; CurseForge and Modrinth support `mod`; Modrinth supports `pack`.
+CurseForge supports all three (`pack`, `mod`, `world`); Modrinth supports `pack` and `mod`; Planet Minecraft supports `pack`, `world`, and `mod`.
 Modrinth does not yet have a world project type (as of mid-2026); world support is in Modrinth's `_TYPE_MAP` for when it ships.
 Each project is published across multiple sites.
 Typically this doc uses the term "project" except where talking about a pack in relation to its uploading and management, but not strictly.
@@ -382,7 +382,7 @@ Examples:
 
 | Neutral key | CurseForge | Modrinth | PMC |
 |---|---|---|---|
-| `type: pack/mod/world` | `classId: 12/6/17`; URL segment `texture-packs/mc-mods/worlds`; default category per type (override with `curseforge.category`) | `type: resourcepack/mod/world` | `/texture-pack/` URL and pack form for `pack`; `/project/` URL and world form (no resolution or modifies) for `world` |
+| `type: pack/mod/world` | `classId: 12/6/17`; URL segment `texture-packs/mc-mods/worlds`; default category per type (override with `curseforge.category`) | `type: resourcepack/mod/world` | `/texture-pack/` URL and pack form for `pack`; `/project/` URL and world form (no resolution or modifies) for `world`; `/mod/` URL and mod form (category + version, no resolution/modifies/platform) for `mod` |
 | `loaders: [fabric, forge, neoforge, quilt]` | resolved as game version IDs via CF API; added to version file upload | `loaders` on version upload | ignored |
 | `title: <string>` | ignored | ignored | overrides `name` as displayed project title |
 | `license: CC-BY-4.0` ([SPDX](https://spdx.org/licenses/)) | `license: CC-BY 4.0` (last hyphen → space) | `license: CC-BY-4.0` (SPDX unchanged) | ignored |

@@ -69,6 +69,11 @@ class TestPMCPackLifecycle(LifecycleBase):
         assert 'Update v1.0.0' in html, 'PMC version log entry not found on manage page'
 
 
+class TestPMCModLifecycle(TestPMCPackLifecycle):
+    PROJECT_TYPE = 'mod'
+    PMC_MANAGE_PATH = '/account/manage/mods/'
+
+
 class TestPMCWorldLifecycle(TestPMCPackLifecycle):
     PROJECT_TYPE = 'world'
     PMC_MANAGE_PATH = '/account/manage/projects/'

@@ -28,12 +28,13 @@ def test_unknown_project_type_raises():
 
 
 def test_unsupported_project_type_with_explicit_site_raises():
+    # Modrinth has no world type
     try:
-        SiteVisitor('pmc', project_type='mod')
+        SiteVisitor('mr', project_type='world')
         assert False, 'expected SystemExit'
     except SystemExit as e:
         assert 'do not support' in str(e)
-        assert 'mod' in str(e)
+        assert 'world' in str(e)
 
 
 def test_pack_type_includes_all_sites():

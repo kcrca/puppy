@@ -5,7 +5,8 @@ import mistune
 from md2bbcode.renderers.bbcode import BBCodeRenderer
 
 # PMC wraps outbound links in a tracking path; strip it back to the raw URL.
-_PMC_LINK_RE = re.compile(r'/account/manage/texture-packs/\d+/([^\]]+)')
+# The section varies by project type (texture-packs, projects, mods, …).
+_PMC_LINK_RE = re.compile(r'/account/manage/[a-z-]+/\d+/([^\]]+)')
 
 
 class _MdToBBCode(BBCodeRenderer):

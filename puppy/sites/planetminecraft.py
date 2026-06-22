@@ -18,6 +18,7 @@ from puppy.sites.base import Site
 _BASE = 'https://www.planetminecraft.com'
 _MANAGE_PACK = '/account/manage/texture-packs/'
 _MANAGE_WORLD = '/account/manage/projects/'
+_MANAGE_MOD = '/account/manage/mods/'
 _AJAX = f'{_BASE}/ajax.php'
 
 _RESOLUTIONS = {
@@ -38,7 +39,7 @@ class PlanetMinecraftSite(Site):
     template_ext = '.bbcode'
     desc_exts = ['.bbcode', '.md']
     auth_arg = 'pmc'
-    project_types = {'pack', 'world'}
+    project_types = {'pack', 'world', 'mod'}
 
     _AUTH_URL = 'https://www.planetminecraft.com'
 
@@ -77,7 +78,12 @@ class PlanetMinecraftSite(Site):
         return cid
 
     def _manage_path(self, project_type: str) -> str:
-        return _MANAGE_WORLD if project_type == 'world' else _MANAGE_PACK
+        return {'world': _MANAGE_WORLD, 'mod': _MANAGE_MOD}.get(project_type, _MANAGE_PACK)
+
+    @staticmethod
+    def _segment(project_type: str) -> str:
+        # public-URL segment (singular of the manage path)
+        return {'world': 'project', 'mod': 'mod'}.get(project_type, 'texture-pack')
 
     def _headers(self, cookie: str, csrf: str = '', referrer: str = '') -> dict:
         h = {
@@ -383,7 +389,7 @@ class PlanetMinecraftSite(Site):
         if not ref:
             return None
         project_type = site_config.get('type', 'pack')
-        segment = 'project' if project_type == 'world' else 'texture-pack'
+        segment = self._segment(project_type)
         return f'https://www.planetminecraft.com/{segment}/{ref}/'
 
     def resolve_id(self, config: dict, auth: dict, verbosity: int) -> dict:
@@ -402,7 +408,7 @@ class PlanetMinecraftSite(Site):
             return config
         # Fetch public page to find numeric ID in manage links or og:url
         project_type = config.get('type', 'pack')
-        segment = 'project' if project_type == 'world' else 'texture-pack'
+        segment = self._segment(project_type)
         url = f'{_BASE}/{segment}/{slug}/'
         cookie = auth.get('planetminecraft', {}).get('cookie', '')
         try:
@@ -563,7 +569,7 @@ class PlanetMinecraftSite(Site):
             raise SystemExit(f'PMC project creation failed: {result}')
 
         forward = result.get('forward', '')
-        segment = 'project' if project_type == 'world' else 'texture-pack'
+        segment = self._segment(project_type)
         parts = [p for p in forward.split('/') if p and p != segment]
         slug = parts[0] if parts else ''
 

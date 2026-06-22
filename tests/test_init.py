@@ -150,12 +150,13 @@ def test_init_pack_includes_all_sites(tmp_path):
     assert 'planetminecraft:' in content
 
 
-def test_init_mod_excludes_pmc(tmp_path):
+def test_init_mod_includes_all_three(tmp_path):
+    # PMC now hosts mods too, so the mod skeleton includes all three sites
     run_init(tmp_path / 'mymod', 'mod')
     content = (tmp_path / 'mymod' / 'puppy' / 'puppy.yaml').read_text()
     assert 'curseforge:' in content
     assert 'modrinth:' in content
-    assert 'planetminecraft:' not in content
+    assert 'planetminecraft:' in content
 
 
 def test_init_world_excludes_modrinth(tmp_path):

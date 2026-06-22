@@ -9,3 +9,5 @@ modrinth:
     - utility
     - library
   discord: https://discord.gg/puppymod
+planetminecraft:
+  category: Functional

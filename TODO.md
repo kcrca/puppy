@@ -6,9 +6,6 @@
 
 ## Unimplemented Features
 
-- **PMC mod support**: PMC supports mods; unclear if it's a popular destination.
-  When implementing, check what URL segments and form fields PMC uses for mods vs packs.
-
 - **Modpack support (maybe, maybe never)**: Modpacks involve distinct upload formats (`.mrpack`, CF modpack zip) that differ significantly from mods and resource packs.
 
 - **Handle other VCS systems**: Currently assumes git for the auth.yaml gitignore check.

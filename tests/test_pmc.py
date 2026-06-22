@@ -87,6 +87,24 @@ def _soup(html: str) -> BeautifulSoup:
     return BeautifulSoup(html, 'html.parser')
 
 
+# ── 0. mod support wiring ────────────────────────────────────────────────────
+
+def test_pmc_supports_mod():
+    assert PMC.supports('mod')
+
+
+def test_pmc_mod_manage_path_and_segment():
+    assert PMC._manage_path('mod') == '/account/manage/mods/'
+    assert PMC._segment('mod') == 'mod'
+    # pack/world unchanged
+    assert PMC._manage_path('pack') == '/account/manage/texture-packs/'
+    assert PMC._segment('world') == 'project'
+
+
+def test_pmc_mod_url_for():
+    assert PMC.url_for({'slug': 'neon', 'type': 'mod'}) == 'https://www.planetminecraft.com/mod/neon/'
+
+
 # ── 1. _pmc_get_page ─────────────────────────────────────────────────────────
 
 def test_pmc_get_page_extracts_csrf():
