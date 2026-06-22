@@ -2,6 +2,8 @@
 tests/integration/puppy/auth.yaml
 publicize/
 
+*.bak
+
 # vi
 .*.sw[op]
 

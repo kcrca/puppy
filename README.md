@@ -42,6 +42,7 @@ Plain `pip install git+https://github.com/kcrca/puppy` works too, into whatever 
 Now let's get to your specific project.
 The examples below use a texture pack, but mods and world saves work the same way, just with a different type set in the configuration,
 as you'll see later.
+CurseForge and PlanetMinecraft take all three; Modrinth takes packs and mods.
 
 Suppose you have a pack called Neon, and you keep it in a git repository in your home directory.
 (We're going to be using Unix paths here, but this works on Windows, too.)
