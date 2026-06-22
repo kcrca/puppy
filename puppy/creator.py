@@ -64,7 +64,7 @@ def run_create(
     site: str | None,
     verbosity: int,
 ) -> None:
-    from puppy.errors import AuthExpiredError
+    from puppy.errors import AuthExpiredError, auth_expired_exit
 
     puppy_dir = project.puppy_dir
     icon = _resolve_asset(config.get('icon'), puppy_dir, _find_icon, config)
@@ -97,7 +97,7 @@ def run_create(
                 image_list=image_list, images_dir=images_dir, verbosity=verbosity,
             )
         except AuthExpiredError as e:
-            raise SystemExit(f'{s.label} auth expired (HTTP {e.code}) — run: puppy auth --site {s.auth_arg}')
+            raise auth_expired_exit(s.label, s.auth_arg, e.code)
         _update_config(puppy_yaml, s.name, result)
         config.setdefault(s.name, {}).update(result)
 

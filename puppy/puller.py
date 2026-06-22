@@ -3,7 +3,7 @@ from pathlib import Path
 import yaml
 
 from puppy.core import Project
-from puppy.errors import AuthExpiredError, SiteError, prefix_site_error
+from puppy.errors import AuthExpiredError, SiteError, auth_expired_exit, prefix_site_error
 from puppy.parallel import run_sites_parallel
 from puppy.sites import CURSEFORGE, MODRINTH, PMC, SiteVisitor
 from puppy.yaml_io import dump_puppy_yaml, load_puppy_yaml
@@ -75,7 +75,7 @@ def _run_pull(
             project_type=project_type,
         )
     except AuthExpiredError as e:
-        raise SystemExit(f'{s.label} auth expired (HTTP {e.code}) — run: puppy auth --site {s.auth_arg}')
+        raise auth_expired_exit(s.label, s.auth_arg, e.code)
     except SiteError as e:
         raise SystemExit(f'{s.label} error: {e}')
 

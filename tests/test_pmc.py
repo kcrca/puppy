@@ -905,4 +905,6 @@ def test_upload_file_pmc_auth_expired_raises_system_exit(push_pack_env, run_pupp
         lambda *a, **k: (_ for _ in ()).throw(AuthExpiredError(401, 'Expired')),
     )
     result = run_puppy('push', '-c', 'file', '--site', 'pmc')
-    assert result == 'PlanetMinecraft auth expired (HTTP 401: Expired) — run: puppy auth --site pmc'
+    assert 'PlanetMinecraft auth expired (HTTP 401)' in result
+    assert 'puppy auth --site pmc' in result
+    assert 'github.com/kcrca/puppy' in result

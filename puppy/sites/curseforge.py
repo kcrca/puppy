@@ -9,7 +9,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from puppy.errors import AuthExpiredError, SiteError
+from puppy.errors import AuthExpiredError, SiteError, auth_expired_exit
 from puppy.http import urlopen_retrying
 from puppy.images import find_image, prepare_gallery_image
 from puppy.renderer import md_to_html
@@ -414,11 +414,8 @@ class CurseForgeSite(Site):
                     if verbosity >= 1:
                         print(f"Resolved CurseForge ID for slug '{slug}': {match['id']}")
                     return config
-            except AuthExpiredError:
-                raise SystemExit(
-                    f"Could not resolve CurseForge ID for slug '{slug}': "
-                    f"auth expired — run: puppy auth --site cf"
-                )
+            except AuthExpiredError as e:
+                raise auth_expired_exit(self.label, self.auth_arg, e.code)
             except Exception as e:
                 if verbosity >= 1:
                     print(f"  [CurseForge] authors API lookup failed (trying page scrape): {e}")

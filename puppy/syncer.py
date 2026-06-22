@@ -12,7 +12,7 @@ from puppy.creator import (
     _resolve_asset,
     _validate_square,
 )
-from puppy.errors import AuthExpiredError, SiteError
+from puppy.errors import AuthExpiredError, SiteError, auth_expired_exit
 from puppy.images import find_image, prepare_icon, GALLERY_ENCODING, ICON_ENCODING
 from puppy.parallel import run_sites_parallel
 from puppy.publisher import _resolve_zip
@@ -344,7 +344,7 @@ def _load_auth(puppy_dir: Path) -> dict:
 
 def _site_error(s, e) -> SystemExit:
     if isinstance(e, AuthExpiredError):
-        return SystemExit(f'{s.label} auth expired (HTTP {e.code}: {e.body[:200]}) — run: puppy auth --site {s.auth_arg}')
+        return auth_expired_exit(s.label, s.auth_arg, e.code)
     return SystemExit(f'{s.label} error: {e}')
 
 
