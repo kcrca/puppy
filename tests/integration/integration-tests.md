@@ -2,31 +2,46 @@
 
 ## How to run
 
-Integration tests are excluded from the default `pytest` run.
+Integration tests are excluded from the default `pytest` run via `addopts = "--ignore=tests/integration"`
+in `pyproject.toml`. That ignore is resolved against the repo root, so it excludes this directory even
+when you target it directly — you must override it with `-o addopts=""` or nothing is collected (0 items).
+
+The commands below assume you are in `tests/integration/`.
+The reason for every skip is printed automatically (the integration `conftest.py` forces it on; see "Skips").
+
 Run them in parallel (recommended):
 
-The following commands assume you are in the directory `tests/inteegration/`.
-
-
 ```bash
-pytest --dist=loadscope -n auto
+pytest --dist=loadscope -n auto -o addopts=""
 ```
 
 Or serially:
 
 ```bash
-pytest tests/integration/
+pytest -o addopts=""
 ```
 
 Credentials must be present in `puppy/auth.yaml` (same format as a real `auth.yaml`).
-Tests for sites with missing credentials are automatically skipped.
 To run only one site:
 
 ```bash
-pytest -k pmc --dist=loadscope -n auto
-pytest -k cf  --dist=loadscope -n auto
-pytest -k mr  --dist=loadscope -n auto
+pytest -k pmc --dist=loadscope -n auto -o addopts=""
+pytest -k cf  --dist=loadscope -n auto -o addopts=""
+pytest -k mr  --dist=loadscope -n auto -o addopts=""
 ```
+
+### Skips
+
+A skip is not a failure — it means that site couldn't be exercised, and the reason prints automatically. The causes:
+
+- **`no <site> credentials`** — that site's entry is missing from `puppy/auth.yaml`.
+- **`<site> auth expired (HTTP 401/403)`** — the cookie or token was rejected. Refresh it in `puppy/auth.yaml`.
+- **`daily update limit`** — CurseForge caps project updates per day; you've hit it. Wait for the daily reset.
+
+These last two are *sticky per lifecycle class*: once the first write in a class hits them, every later test
+in that class is skipped with the same reason (the ordered `test_01…test_05` steps share state, so there is no
+point continuing). So one expired token or hit limit shows up as a whole class of skips with a single root cause.
+A read-only check like `test_cf_account_empty` can still pass while every write in the same account skips.
 
 Cleanup runs automatically at the start of each session (deletes all projects on the test accounts).
 To clean up outside a test run:

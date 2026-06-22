@@ -19,6 +19,14 @@ from cleanup import (  # noqa: F401  (several are re-exported to test modules)
 )
 
 
+def pytest_configure(config):
+    # Skips here carry a real reason (missing creds, expired auth, CF daily-update
+    # limit). Force them to print so you don't have to remember -rs on every run.
+    chars = config.option.reportchars or ''
+    if 's' not in chars:
+        config.option.reportchars = chars + 's'
+
+
 # Override the unit-test no-op fixtures so integration tests hit real site code.
 @pytest.fixture(autouse=True)
 def _no_cf_push():
