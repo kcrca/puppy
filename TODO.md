@@ -25,5 +25,6 @@
 
 ## Testing Gaps
 
-- **API mocks**: Add reusable fixtures that intercept `urllib.request.urlopen` calls to `api.modrinth.com`, `authors.curseforge.com`, and the CF description API.
-  Would let tests cover `needs_upload`, `resolve_id`, and donation/tag expansion without hitting the network.
+- **`file_changed` reconcile branches**: stub the per-site network seam (`latest_file_sha`, `gallery_urls`) — not `urlopen` — and cover the out-of-band-edit reconcile path and return value for both CF and Modrinth.
+  Already covered, do not re-add: `resolve_id` (`test_cf_resolve_id.py`, `test_modrinth_resolve_id.py`), retry/backoff (`test_http.py`), donation/tag expansion (pure `apply_neutral`, in `test_cf.py` / `test_neutral_metadata.py` / `test_mr.py`).
+  Avoid `urlopen`-level mocks: they only prove we build/parse a canned blob, not that it matches the live API (the real drift risk) — that's the integration suite's job, so green `urlopen` mocks give false confidence.
